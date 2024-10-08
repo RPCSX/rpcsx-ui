@@ -3,3 +3,5 @@
 // See: https://v2.tauri.app/start/frontend/sveltekit/ for more info
 export const prerender = true;
 export const ssr = false;
+
+import '../app.postcss'
