@@ -2,7 +2,8 @@
   import { invoke } from "@tauri-apps/api/core";
   import GameListItem from "$components/GameListItem.svelte";
   import { Game } from "$models/Game";
-    import GameGridItem from "$components/GameGridItem.svelte";
+  import GameGridItem from "$components/GameGridItem.svelte";
+  import { gridLayout } from "../stores";
 
   let name = "";
   let greetMsg = "";
@@ -12,11 +13,10 @@
     greetMsg = await invoke("greet", { name });
   }
 
-  let gridLayout = true;
   let sonicGame = new Game("Sonic Mania", "SEGA", "1.03", "CUSA07023", 197927919);
 </script>
 
-{#if gridLayout}
+{#if $gridLayout}
 <div class="overflow-y-scroll grid grid-cols-auto-repeat justify-center gap-3 m-3">
   <GameGridItem game={sonicGame} />
   <GameGridItem game={sonicGame} />

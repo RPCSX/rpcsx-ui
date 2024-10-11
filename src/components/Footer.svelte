@@ -1,13 +1,14 @@
 <script lang="ts">
+    import { Icon, ArrowPath } from "svelte-hero-icons";
 
-let gameCount = 0;
-let firmwareVersion = "0.0.0";
+    let gameCount = 0;
+    let firmwareVersion = "0.0.0";
 
 </script>
 
-<div class="flex flex-row p-2 gap-2 bg-slate-800">
-    <button class="bg-slate-600 text-white px-1 rounded hover:bg-slate-700 active:bg-slate-800 ring-1 ring-white">
-        <i class="fa-solid fa-rotate-right">
+<div class="flex flex-row p-2 gap-2 bg-gray-800 items-center">
+    <button class="bg-gray-600 text-white h-6 w-6 px-1 rounded hover:bg-gray-700 active:bg-gray-800 ring-1 ring-white">
+        <Icon src="{ArrowPath}" solid />
     </button>
     <h1>{gameCount} Games Installed</h1>
     
