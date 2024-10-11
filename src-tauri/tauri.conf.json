@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2.0.0",
-  "productName": "rpcsx-ui",
+  "productName": "RPCSX",
   "version": "0.1.0",
   "identifier": "net.rpcsx.app",
   "build": {
@@ -13,14 +13,14 @@
     "windows": [
       {
         "title": "RPCSX",
-        "width": 800,
-        "height": 600
-        
+        "width": 1200,
+        "height": 800
       }
     ],
     "security": {
       "csp": null
-    }
+    },
+    "macOSPrivateApi": true
   },
   "bundle": {
     "active": true,
