@@ -1,5 +1,6 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
+  import GameListItem from "$components/GameListItem.svelte";
 
   let name = "";
   let greetMsg = "";
@@ -10,6 +11,7 @@
   }
 </script>
 
-<div class="flex flex-col">
-  
+<div>
+  <GameListItem />
+  <GameListItem />
 </div>

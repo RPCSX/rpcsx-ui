@@ -2,7 +2,9 @@
     import Footer from "$components/Footer.svelte";
 </script>
 
-<main id="content">
-    <slot />
-</main>
-<Footer />
+<div class="min-h-full h-full flex flex-col">
+    <main class="flex-grow" id="content">
+        <slot />
+    </main>
+    <Footer />
+</div>
