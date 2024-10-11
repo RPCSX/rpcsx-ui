@@ -14,6 +14,8 @@
     // it wasn't working for me with VSCode Intellisense
     "paths": {
       "$components/*": ["./src/components/*"],
+      "$helpers/*": ["./src/helpers/*"],
+      "$models/*": ["./src/models/*"],
     }
   }
   // Path aliases are handled by https://kit.svelte.dev/docs/configuration#alias

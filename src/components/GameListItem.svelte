@@ -1,20 +1,25 @@
 <script lang="ts">
+    import { Game } from "$models/Game";
+    import { FileHelper } from "$helpers/FileHelper";
 
+    export let game: Game;
+
+    let fileSize = FileHelper.humanFileSize(game.size, true);
 </script>
 
-<div class="flex flex-row p-3 gap-3 m-3 rounded-lg bg-slate-800">
+<div class="flex flex-row p-3 gap-3 rounded-lg bg-slate-800">
     <img class="h-20" src="/icon0.png" />
     <div class="flex flex-col">
-        <h1 class="font-bold">Sonic Mania</h1>
-        <p>SEGA</p>
-        <p>1.03</p>
+        <h1 class="font-bold">{game.name}</h1>
+        <p>{game.publisher}</p>
+        <p>{game.version}</p>
     </div>
 
     <div class="flex-grow"/>
 
     <div class="flex flex-col text-right">
-        <p>CUSA07023</p>
+        <p>{game.serial}</p>
         <p>01:10:00</p>
-        <p>192 MB</p>
+        <p>{fileSize}</p>
     </div>
 </div>

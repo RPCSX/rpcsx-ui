@@ -32,6 +32,8 @@ export default defineConfig(async () => ({
   resolve: {
     alias: {
       $components: path.resolve("./src/components"),
+      $helpers: path.resolve("./src/helpers"),
+      $models: path.resolve("./src/models"),
     }
   }
 }));
