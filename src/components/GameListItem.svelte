@@ -8,7 +8,7 @@
 </script>
 
 <div class="flex flex-row p-3 gap-3 rounded-lg bg-gray-800">
-    <img class="h-20" src="/icon0.png" />
+    <img class="h-20 w-20" src={game.image} alt="{game.name} Icon" />
     <div class="flex flex-col">
         <h1 class="font-bold">{game.name}</h1>
         <p>{game.publisher}</p>
