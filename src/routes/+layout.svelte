@@ -10,12 +10,15 @@
     let filteredGames: Game[] = [];
 
     let searchTerm = "";
+    let gameCount = 0;
 
     const searchGames = () => {
-        return filteredGames = games.filter(game => {
+        filteredGames = games.filter(game => {
             let gameTitle = game.name.toLowerCase();
             return gameTitle.includes(searchTerm.toLowerCase())
         });
+
+        gameCount = filteredGames.length;
     }
 
     searchGames()
@@ -27,5 +30,5 @@
         <GameLibrary games={filteredGames} />
         <slot />
     </main>
-    <Footer />
+    <Footer bind:gameCount />
 </div>

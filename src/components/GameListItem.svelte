@@ -7,7 +7,7 @@
     let fileSize = FileHelper.humanFileSize(game.size, true);
 </script>
 
-<div class="flex flex-row p-3 gap-3 rounded-lg bg-gray-800">
+<div class="flex flex-row p-3 gap-3 text-sm rounded-lg bg-neutral-700 hover:bg-neutral-600 shadow-sm">
     <img class="h-20 w-20" src={game.image} alt="{game.name} Icon" />
     <div class="flex flex-col">
         <h1 class="font-bold">{game.name}</h1>
