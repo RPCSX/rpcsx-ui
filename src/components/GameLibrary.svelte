@@ -8,13 +8,13 @@
 </script>
 
 {#if $gridLayout}
-<div class="overflow-y-scroll grid grid-cols-auto-repeat justify-center gap-3 m-3">
+<div class="grid grid-cols-auto-repeat justify-center gap-3 m-3">
     {#each games as game}
         <GameGridItem game={game} />
     {/each}
 </div>
 {:else}
-<div class="overflow-y-scroll flex flex-col gap-3 m-3">
+<div class="flex flex-col gap-3 m-3">
     {#each games as game}
         <GameListItem game={game} />
     {/each}

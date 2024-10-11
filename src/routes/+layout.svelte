@@ -23,7 +23,7 @@
 
 <div class="min-h-full h-full flex flex-col">
     <Header bind:searchTerm on:input={searchGames} />
-    <main class="flex-grow" id="content">
+    <main class="flex-grow overflow-y-scroll" id="content">
         <GameLibrary games={filteredGames} />
         <slot />
     </main>

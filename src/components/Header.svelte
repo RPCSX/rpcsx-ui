@@ -13,7 +13,7 @@
     }
 </script>
 
-<div class="flex flex-row p-2 gap-2 bg-gray-800">
+<div class="sticky top-0 flex flex-row p-2 gap-2 bg-gray-800">
     <div class="inline-flex rounded-md shadow-sm" role="group">
         <button type="button" on:click={switchList} class="h-10 w-10 p-1 border rounded-s-lg text-white bg-gray-600 hover:bg-gray-700 active:bg-gray-80">
             <Icon src="{ListBullet}" solid />
