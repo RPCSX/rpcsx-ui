@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "rpcsx-ui",
+        "title": "RPCSX",
         "width": 800,
         "height": 600
         

@@ -10,4 +10,6 @@
   }
 </script>
 
-<p class="text-lg font-medium">RPCSX</p>
+<div class="flex flex-col">
+  
+</div>
