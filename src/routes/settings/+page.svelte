@@ -5,6 +5,7 @@
     import System from "$components/settings/System.svelte";
     import Graphics from "$components/settings/Graphics.svelte";
     import Logging from "$components/settings/Logging.svelte";
+    import { _ } from "svelte-i18n";
 
     class Tab {
         icon: IconSource;
@@ -22,17 +23,17 @@
     let tabs: Tab[] = [
         {
             icon: CpuChip,
-            label: "System",
+            label: $_("settings.tabs.system"),
             content: System
         },
         {
             icon: Sparkles,
-            label: "Graphics",
+            label: $_("settings.tabs.graphics"),
             content: Graphics
         },
         {
             icon: DocumentText,
-            label: "Logging",
+            label: $_("settings.tabs.logging"),
             content: Logging
         },
     ];

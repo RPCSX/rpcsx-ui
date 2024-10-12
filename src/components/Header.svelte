@@ -2,6 +2,7 @@
     import { Icon, Squares2x2, ListBullet, Cog6Tooth } from "svelte-hero-icons";
     import { gridLayout } from "../stores";
     import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+    import { _ } from "svelte-i18n";
 
     export let searchTerm: string;
 
@@ -50,9 +51,8 @@
 
     <div>
         <form class="max-w-md mx-auto">
-            <label for="default-search" class="mb-2 text-sm font-medium text-white sr-only">Search</label>
             <div class="relative">
-                <input bind:value={searchTerm} on:input type="search" class="block w-full h-8 p-2 text-sm placeholder-neutral-400 text-white border border-neutral-600 rounded bg-neutral-700 focus:ring-blue-500 focus:border-blue-500" placeholder="Search..."/>
+                <input bind:value={searchTerm} on:input type="search" class="block w-full h-8 p-2 text-sm placeholder-neutral-400 text-white border border-neutral-600 rounded bg-neutral-700 focus:ring-blue-500 focus:border-blue-500" placeholder={$_("header.search.placeholder")}/>
             </div>
         </form>
     </div>

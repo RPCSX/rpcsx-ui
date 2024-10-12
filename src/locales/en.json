@@ -1,0 +1,16 @@
+{
+  "footer": {
+    "games.installed": "{count} Games Installed",
+    "firmware.version": "Firmware: {version}"
+  },
+  "header": {
+    "search.placeholder": "Search..."
+  },
+  "settings": {
+    "tabs": {
+      "system": "System",
+      "graphics": "Graphics",
+      "logging": "Logging"
+    }
+  }
+}
