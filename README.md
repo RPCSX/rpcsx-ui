@@ -1,6 +1,6 @@
 # rpcsx-ui
 
-This repo houses an experimental cross-platform UI for RPCSX built using Tauri and Svelte. UI is renderer using OS native browser frameworks, and IPC with the main RPCSX process will be done through the Rust backend.
+This repo houses an experimental cross-platform UI for RPCSX built using Tauri and Svelte. UI is rendered using OS native browser frameworks, and IPC with the main RPCSX process will be done through the Rust backend.
 
 ## Dependencies
 - [Rust](https://www.rust-lang.org/tools/install)
