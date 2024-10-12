@@ -1,6 +1,7 @@
 <script lang="ts">
-    import { Icon, Squares2x2, ListBullet } from "svelte-hero-icons";
+    import { Icon, Squares2x2, ListBullet, Cog6Tooth } from "svelte-hero-icons";
     import { gridLayout } from "../stores";
+    import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
     export let searchTerm: string;
 
@@ -10,6 +11,23 @@
 
     function switchGrid() {
         $gridLayout = true;
+    }
+
+    function createSettings() {
+        console.log("Making settings widow");
+
+        const settingsWindow = new WebviewWindow("settings", {
+            url: "/settings",
+            title: "Settings"
+        });
+
+        settingsWindow.once("tauri://created", () => {
+            console.log("Window created");
+        });
+
+        settingsWindow.once("tauri://error", (err) => {
+            console.log(err)
+        })
     }
 </script>
 
@@ -23,6 +41,10 @@
             <Icon src="{Squares2x2}" solid />
         </button>
     </div>
+
+    <button type="button" on:click={createSettings} class="border border-neutral-600 text-white disabled:text-neutral-400 h-10 w-10 p-1 rounded-lg bg-neutral-700 hover:bg-neutral-600 active:bg-neutral-700 shadow-sm">
+        <Icon src="{Cog6Tooth}" solid />
+    </button>
 
     <div class="flex-grow" />
 

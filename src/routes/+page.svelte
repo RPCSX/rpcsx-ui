@@ -1,12 +1,33 @@
 <script lang="ts">
-  import { invoke } from "@tauri-apps/api/core";
+    import Header from "$components/Header.svelte";
+    import Footer from "$components/Footer.svelte";
+    import { Game } from "$models/Game";
+    import GameLibrary from "$components/GameLibrary.svelte";
 
-  let name = "";
-  let greetMsg = "";
+    let sonicGame = new Game("Sonic Mania", "./icon0.png", "SEGA", "1.03", "CUSA07023", 197927919);
+    let weAreDoomedGame = new Game("WE ARE DOOMED", "./icon1.png", "Vertex Pop Inc.", "1.00", "CUSA02394", 197927919);
+    let games = [sonicGame, weAreDoomedGame, sonicGame, sonicGame, sonicGame, sonicGame, sonicGame, sonicGame, sonicGame];
+    let filteredGames: Game[] = [];
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
-    greetMsg = await invoke("greet", { name });
-  }
+    let searchTerm = "";
+    let gameCount = 0;
+
+    const searchGames = () => {
+        filteredGames = games.filter(game => {
+            let gameTitle = game.name.toLowerCase();
+            return gameTitle.includes(searchTerm.toLowerCase())
+        });
+
+        gameCount = filteredGames.length;
+    }
+
+    searchGames()
 </script>
 
+<div class="min-h-full h-full flex flex-col">
+  <Header bind:searchTerm on:input={searchGames} />
+  <div class="flex-grow overflow-y-scroll">
+      <GameLibrary games={filteredGames} />
+  </div>
+  <Footer bind:gameCount />
+</div>
