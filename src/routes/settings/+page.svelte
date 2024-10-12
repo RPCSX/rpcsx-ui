@@ -48,7 +48,7 @@
     <ul class="flex-col space-y-2">
         {#each tabs as tab}
         <li>
-            <button on:click={() => {setActiveTab(tab)}} class="inline-flex items-center p-2 pe-10 w-full rounded-lg hover:bg-neutral-700 active:bg-neutral-800 shadow-sm">
+            <button on:click={() => {setActiveTab(tab)}} class="inline-flex items-center p-2 pe-10 w-full rounded hover:bg-neutral-700 active:bg-neutral-800 shadow-sm">
                 <div class="w-5 h-5 me-2 text-white">
                     <Icon src="{tab.icon}" solid />
                 </div>
@@ -58,7 +58,7 @@
         </li>
         {/each}
     </ul>
-    <div class="border border-neutral-600 bg-neutral-800 rounded-lg p-2 h-full w-full">
+    <div class="border border-neutral-600 bg-neutral-800 rounded p-2 h-full w-full">
         <svelte:component this={activeTab.content} />
     </div>
 </div>

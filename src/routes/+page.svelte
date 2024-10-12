@@ -5,8 +5,8 @@
     import GameLibrary from "$components/GameLibrary.svelte";
 
     let sonicGame = new Game("Sonic Mania", "./icon0.png", "SEGA", "1.03", "CUSA07023", 197927919);
-    let weAreDoomedGame = new Game("WE ARE DOOMED", "./icon1.png", "Vertex Pop Inc.", "1.00", "CUSA02394", 197927919);
-    let games = [sonicGame, weAreDoomedGame, sonicGame, sonicGame, sonicGame, sonicGame, sonicGame, sonicGame, sonicGame];
+    let weAreDoomedGame = new Game("WE ARE DOOMED", "./icon1.png", "Vertex Pop Inc.", "1.00", "CUSA02394", 32903780);
+    let games = [sonicGame, weAreDoomedGame];
     let filteredGames: Game[] = [];
 
     let searchTerm = "";
