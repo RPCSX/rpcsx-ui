@@ -1,11 +1,11 @@
 <script lang="ts">
     import Header from "$components/Header.svelte";
     import Footer from "$components/Footer.svelte";
-    import { Game } from "$models/Game";
+    import { Game, Region } from "$models/Game";
     import GameLibrary from "$components/GameLibrary.svelte";
 
-    let sonicGame = new Game("Sonic Mania", "./icon0.png", "SEGA", "1.03", "CUSA07023", 197927919);
-    let weAreDoomedGame = new Game("WE ARE DOOMED", "./icon1.png", "Vertex Pop Inc.", "1.00", "CUSA02394", 32903780);
+    let sonicGame = new Game("Sonic Mania", "./icon0.png", "SEGA", Region.USA,"1.03", "CUSA07023", 197927919);
+    let weAreDoomedGame = new Game("WE ARE DOOMED", "./icon1.png", "Vertex Pop Inc.", Region.Europe, "1.00", "CUSA02394", 32903780);
     let games = [sonicGame, weAreDoomedGame];
     let filteredGames: Game[] = [];
 
