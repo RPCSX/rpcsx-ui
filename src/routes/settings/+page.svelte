@@ -48,12 +48,13 @@
     <ul class="flex-col space-y-2">
         {#each tabs as tab}
         <li>
-            <button on:click={() => {setActiveTab(tab)}} class="{activeTab == tab ? "ring-1" : ""} inline-flex items-center p-2 w-full rounded-lg border border-neutral-600 bg-neutral-700 hover:bg-neutral-600 active:bg-neutral-700 shadow-sm">
+            <button on:click={() => {setActiveTab(tab)}} class="inline-flex items-center p-2 pe-10 w-full rounded-lg hover:bg-neutral-700 active:bg-neutral-800 shadow-sm">
                 <div class="w-5 h-5 me-2 text-white">
                     <Icon src="{tab.icon}" solid />
                 </div>
                 {tab.label}
             </button>
+            <div class="{activeTab == tab ? "" : "invisible"} relative bottom-[2px] border border-blue-500 rounded-lg mx-2" />
         </li>
         {/each}
     </ul>

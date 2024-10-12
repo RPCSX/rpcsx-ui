@@ -31,18 +31,18 @@
     }
 </script>
 
-<div class="sticky top-0 flex flex-row p-2 gap-2 bg-neutral-900">
+<div class="sticky top-0 flex flex-row items-center p-2 gap-2 bg-neutral-900">
     <div class="inline-flex shadow-sm rounded-md" role="group">
-        <button disabled={!$gridLayout} type="button" on:click={switchList} class="border border-r-0 border-neutral-600 text-white disabled:text-neutral-400 h-10 w-[3rem] p-1 rounded-s-lg bg-neutral-700 hover:bg-neutral-600 active:bg-neutral-700 shadow-sm">
+        <button disabled={!$gridLayout} type="button" on:click={switchList} class="border border-r-0 border-neutral-600 text-white disabled:text-neutral-400 h-8 w-10 p-1 rounded-s-lg bg-neutral-700 hover:bg-neutral-600 active:bg-neutral-700 shadow-sm">
             <Icon src="{ListBullet}" solid />
         </button>
-        <div class="border-[0.1px] h-10 border-neutral-900"/>
-        <button disabled={$gridLayout} type="button" on:click={switchGrid} class="border border-l-0 border-neutral-600 text-white disabled:text-neutral-400 h-10 w-[3rem] p-1 rounded-e-lg bg-neutral-700 hover:bg-neutral-600 active:bg-neutral-700 shadow-sm">
+        <div class="border-[0.1px] h-full border-neutral-900"/>
+        <button disabled={$gridLayout} type="button" on:click={switchGrid} class="border border-l-0 border-neutral-600 text-white disabled:text-neutral-400 h-8 w-10 p-1 rounded-e-lg bg-neutral-700 hover:bg-neutral-600 active:bg-neutral-700 shadow-sm">
             <Icon src="{Squares2x2}" solid />
         </button>
     </div>
 
-    <button type="button" on:click={createSettings} class="border border-neutral-600 text-white disabled:text-neutral-400 h-10 w-10 p-1 rounded-lg bg-neutral-700 hover:bg-neutral-600 active:bg-neutral-700 shadow-sm">
+    <button type="button" on:click={createSettings} class="border border-neutral-600 text-white disabled:text-neutral-400 h-8 w-8 p-1 rounded-lg bg-neutral-700 hover:bg-neutral-600 active:bg-neutral-700 shadow-sm">
         <Icon src="{Cog6Tooth}" solid />
     </button>
 
@@ -52,7 +52,7 @@
         <form class="max-w-md mx-auto">
             <label for="default-search" class="mb-2 text-sm font-medium text-white sr-only">Search</label>
             <div class="relative">
-                <input bind:value={searchTerm} on:input type="search" class="block w-full h-10 p-2 text-sm placeholder-neutral-400 text-white border border-neutral-600 rounded-lg bg-neutral-700 focus:ring-blue-500 focus:border-blue-500" placeholder="Search..."/>
+                <input bind:value={searchTerm} on:input type="search" class="block w-full h-8 p-2 text-sm placeholder-neutral-400 text-white border border-neutral-600 rounded-lg bg-neutral-700 focus:ring-blue-500 focus:border-blue-500" placeholder="Search..."/>
             </div>
         </form>
     </div>
