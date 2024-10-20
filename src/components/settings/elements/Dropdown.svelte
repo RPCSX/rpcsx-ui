@@ -24,7 +24,7 @@
     <div>
         <button on:click={toggleDropdown} type="button" class="inline-flex gap-2 items-center rounded border border-neutral-600 bg-neutral-700 text-white px-2 py-1 hover:bg-neutral-600 active:bg-neutral-700 shadow-sm">
             {selectedValue}
-            <div class="flex-grow" />
+            <div class="flex-grow"></div>
             <div class="w-5 h-5">
                 <Icon src="{ChevronDown}" solid />
             </div>

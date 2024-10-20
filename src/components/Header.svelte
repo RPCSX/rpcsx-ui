@@ -37,7 +37,7 @@
         <button disabled={!$gridLayout} type="button" on:click={switchList} class="border border-r-0 border-neutral-600 text-white disabled:text-neutral-400 h-8 w-10 p-1 rounded-s bg-neutral-700 hover:bg-neutral-600 active:bg-neutral-700 shadow-sm">
             <Icon src="{ListBullet}" solid />
         </button>
-        <div class="border-[0.1px] h-full border-neutral-900"/>
+        <div class="border-[0.1px] h-full border-neutral-900"></div>
         <button disabled={$gridLayout} type="button" on:click={switchGrid} class="border border-l-0 border-neutral-600 text-white disabled:text-neutral-400 h-8 w-10 p-1 rounded-e bg-neutral-700 hover:bg-neutral-600 active:bg-neutral-700 shadow-sm">
             <Icon src="{Squares2x2}" solid />
         </button>
@@ -47,7 +47,7 @@
         <Icon src="{Cog6Tooth}" solid />
     </button>
 
-    <div class="flex-grow" />
+    <div class="flex-grow"></div>
 
     <div>
         <form class="max-w-md mx-auto">

@@ -14,7 +14,7 @@
     </button>
     <h1>{$_("footer.games.installed", { values: { count: gameCount } })}</h1>
     
-    <div class="flex-grow" />
+    <div class="flex-grow"></div>
 
     <h1>{$_("footer.firmware.version", { values: { version: firmwareVersion} })}</h1>
 </div>

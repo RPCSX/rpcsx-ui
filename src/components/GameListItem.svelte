@@ -15,7 +15,7 @@
         <p>{game.version}</p>
     </div>
 
-    <div class="flex-grow"/>
+    <div class="flex-grow"></div>
 
     <div class="flex flex-col text-right">
         <p>{game.serial}</p>
