@@ -26,7 +26,7 @@ export default defineConfig(async () => ({
       : undefined,
     watch: {
       // 3. tell vite to ignore watching `src-tauri`
-      ignored: ["**/src-tauri/**"],
+      ignored: ["**/src-tauri/**", "**/src-electron/**"],
     },
   },
   resolve: {
@@ -35,5 +35,8 @@ export default defineConfig(async () => ({
       $helpers: path.resolve("./src/helpers"),
       $models: path.resolve("./src/models"),
     }
+  },
+  build: {
+    minify: false
   }
 }));

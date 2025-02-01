@@ -1,5 +1,7 @@
 {
-  "types": ["node"],
+  "types": [
+    "node"
+  ],
   "extends": "./.svelte-kit/tsconfig.json",
   "compilerOptions": {
     "allowJs": false,
@@ -10,15 +12,10 @@
     "sourceMap": true,
     "strict": true,
     "moduleResolution": "bundler",
-    // SvelteKit is meant to auto-generate this but
-    // it wasn't working for me with VSCode Intellisense
-    "paths": {
-      "$components/*": ["./src/components/*"],
-      "$helpers/*": ["./src/helpers/*"],
-      "$models/*": ["./src/models/*"],
-    }
   },
-  "include": ["src/**/*"]
+  "include": [
+    "src/**/*"
+  ]
   // Path aliases are handled by https://kit.svelte.dev/docs/configuration#alias
   // except $lib which is handled by https://kit.svelte.dev/docs/configuration#files
   //
