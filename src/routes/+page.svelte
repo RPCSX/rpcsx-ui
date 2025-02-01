@@ -3,9 +3,8 @@
     import Footer from "components/Footer.svelte";
     import { Game, Region } from "models/Game";
     import GameLibrary from "components/GameLibrary.svelte";
-    import { localeInitialized } from "../i18n";
 
-    let sonicGame = new Game(
+    const sonicGame = new Game(
         "Sonic Mania",
         "./icon0.png",
         "SEGA",
@@ -14,7 +13,7 @@
         "CUSA07023",
         197927919,
     );
-    let weAreDoomedGame = new Game(
+    const weAreDoomedGame = new Game(
         "WE ARE DOOMED",
         "./icon1.png",
         "Vertex Pop Inc.",
@@ -23,7 +22,7 @@
         "CUSA02394",
         32903780,
     );
-    let games = [sonicGame, weAreDoomedGame];
+    const games = [sonicGame, weAreDoomedGame];
     let filteredGames: Game[] = [];
 
     let searchTerm = "";
@@ -42,11 +41,9 @@
 </script>
 
 <div class="min-h-full h-full flex flex-col">
-    {#await localeInitialized then}
-        <Header bind:searchTerm on:input={searchGames} />
-        <div class="flex-grow overflow-y-scroll">
-            <GameLibrary games={filteredGames} />
-        </div>
-        <Footer bind:gameCount />
-    {/await}
+    <Header bind:searchTerm on:input={searchGames} />
+    <div class="flex-grow overflow-y-scroll">
+        <GameLibrary games={filteredGames} />
+    </div>
+    <Footer bind:gameCount />
 </div>

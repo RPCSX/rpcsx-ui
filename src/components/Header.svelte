@@ -2,6 +2,7 @@
     import { Icon, Squares2x2, ListBullet, Cog6Tooth } from "svelte-hero-icons";
     import { gridLayout } from "../stores";
     import { _ } from "svelte-i18n";
+    import { openWindow } from "helpers/window";
 
     export let searchTerm: string;
 
@@ -15,31 +16,10 @@
 
     async function createSettings() {
         console.log("Making settings widow");
-
-        try {
-            const tauri = await import("@tauri-apps/api/webviewWindow");
-            const settingsWindow = new tauri.WebviewWindow("settings", {
-                url: "/settings",
-                title: "Settings",
-            });
-
-            settingsWindow.once("tauri://created", () => {
-                console.log("Window created");
-            });
-
-            settingsWindow.once("tauri://error", (err) => {
-                console.log(err);
-            });
-
-            return;
-        } catch (e) {}
-
-        const electron = await import("electron");
-        const settingsWindow = new electron.BrowserWindow({
+        openWindow({
+            url: "/settings",
             title: "Settings",
         });
-
-        settingsWindow.loadFile("/settings");
     }
 </script>
 

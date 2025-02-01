@@ -1,0 +1,12 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "module": "Preserve",
+        "moduleResolution": "bundler",
+        "resolveJsonModule": false
+    },
+    "include": [
+        "src/preload.ts"
+    ],
+    "exclude": []
+}
