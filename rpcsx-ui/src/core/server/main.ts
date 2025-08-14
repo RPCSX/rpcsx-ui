@@ -1,19 +1,22 @@
 import * as api from '$';
+import * as event from '$/event';
 import { Component } from '$core/Component';
 import { createError } from 'lib/Error';
 import { findComponent, findComponentById, unregisterComponent } from './ComponentInstance';
 import * as locations from '$core/locations';
 import path from 'path';
 import fs from 'fs/promises';
+import * as settings from './Settings';
 import { getLauncher } from './Launcher';
 import { Extension } from './Extension';
+import { Schema, SchemaError, validateObject } from 'lib/Schema';
 
-export function activate() {
-    console.log('core: activate');
+export async function activate() {
+    await settings.load();
 }
 
-export function deactivate() {
-    console.log('core: deactivate');
+export async function deactivate() {
+    await settings.save();
 }
 
 export async function activateComponent(_caller: Component, request: api.ComponentActivateRequest): Promise<api.ComponentActivateResponse> {
@@ -33,6 +36,7 @@ export async function deactivateComponent(_caller: Component, request: api.Compo
 
     await component.deactivate();
 }
+
 export async function loadExtension(_caller: Component, request: api.ExtensionLoadRequest): Promise<api.ExtensionLoadResponse> {
     if (findComponentById(request.id)) {
         return;
@@ -144,4 +148,84 @@ export async function removeExtension(_caller: Component, request: api.Extension
     } catch (e) {
         throw createError(api.ErrorCode.InternalError, `Failed to remove extension ${request.id}: ${e}`);
     }
+}
+
+function getComponentSettings(component: Component) {
+    const instance = findComponentById(component.getId());
+    if (!instance) {
+        throw createError(api.ErrorCode.InvalidRequest, `Caller ${component.getId()} not found`);
+    }
+
+    const schema = instance.getContribution("settings");
+    if (!schema) {
+        throw createError(api.ErrorCode.InvalidRequest, `Component ${component.getId()} has no settings contribution`);
+    }
+
+    return {
+        settings: settings.get(instance.getName(), schema as Record<string, Schema>),
+        schema
+    };
+}
+
+function getObjectMember(object: any, path: string[]) {
+    while (true) {
+        const entity = path.shift();
+
+        if (!entity) {
+            return object;
+        }
+
+        if (typeof object !== "object") {
+            throw createError(api.ErrorCode.InvalidRequest, `Expected object ${object}`);
+        }
+
+        const node = object[entity];
+
+        if (node === undefined) {
+            throw createError(api.ErrorCode.InvalidRequest, `Unknown key ${entity}`);
+        }
+
+        object = node;
+    }
+
+}
+
+export async function handleSettingsSet(caller: Component, request: api.SettingsSetRequest): Promise<api.SettingsSetResponse> {
+    const path = request.path.split("/");
+    const name = path.pop();
+
+    if (!name) {
+        return;
+    }
+
+    const { settings, schema } = getComponentSettings(caller);
+
+    try {
+        await validateObject(request.value, getObjectMember(schema, path));
+    } catch (e) {
+        const error = e as SchemaError;
+        throw createError(api.ErrorCode.InvalidParams, `invalid value: ${JSON.stringify(error)}`);
+    }
+
+    const member = getObjectMember(settings, path);
+
+    if (typeof member !== "object") {
+        throw createError(api.ErrorCode.InvalidRequest, `Expected object ${name}`);
+    }
+
+    const prevValue = member[name];
+
+    if (prevValue == request.value) {
+        return;
+    }
+
+    member[name] = request.value;
+    event.emitSettingsUpdateEvent(request);
+}
+
+export async function handleSettingsGet(caller: Component, request: api.SettingsGetRequest): Promise<api.SettingsGetResponse> {
+    const { settings } = getComponentSettings(caller);
+    const path = request.path.split("/");
+
+    return { value: getObjectMember(settings, path) };
 }

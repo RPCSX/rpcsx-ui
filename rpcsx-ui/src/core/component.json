@@ -282,6 +282,30 @@
                         "type": "string"
                     }
                 }
+            },
+            "settings/set": {
+                "handler": "handleSettingsSet",
+                "params": {
+                    "path": {
+                        "type": "string"
+                    },
+                    "value": {
+                        "type": "json"
+                    }
+                }
+            },
+            "settings/get": {
+                "handler": "handleSettingsGet",
+                "params": {
+                    "path": {
+                        "type": "string"
+                    }
+                },
+                "returns": {
+                    "value": {
+                        "type": "json"
+                    }
+                }
             }
         },
         "notifications": {
@@ -291,6 +315,16 @@
                     "id": {
                         "type": "number"
                     }
+                }
+            }
+        },
+        "events": {
+            "settings/update": {
+                "path": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "json"
                 }
             }
         }

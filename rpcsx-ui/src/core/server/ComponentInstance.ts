@@ -3,6 +3,8 @@ import { ComponentContext, ComponentId, Component } from "$/Component.js";
 import { Disposable, IDisposable } from "$/Disposable.js";
 import { isJsonObject, Json, JsonObject, ComponentManifest, ErrorCode } from '$/types';
 import { createError } from "lib/Error";
+import { get as settingsGet } from './Settings';
+import { Schema } from "lib/Schema";
 
 type Key<K, T> = T extends [never] ? string | symbol : K | keyof T;
 
@@ -50,7 +52,14 @@ export class ComponentInstance implements ComponentContext {
     }
 
     async activate(settings?: JsonObject) {
-        settings = settings ?? {};
+        if (!settings) {
+            const schema = this.getContribution("settings");
+            if (schema) {
+                settings = settingsGet(this.getName(), schema as Record<string, Schema>);
+            }
+
+            settings ??= {};
+        }
 
         await this.impl.activate(this, settings);
         this.emitEvent(activateEvent);

@@ -1,42 +1,5 @@
 {
     "name": "settings",
     "version": "0.1.0",
-    "contributions": {
-        "methods": {
-            "set": {
-                "handler": "handleSettingsSet",
-                "params": {
-                    "path": {
-                        "type": "string"
-                    },
-                    "value": {
-                        "type": "json"
-                    }
-                }
-            },
-            "get": {
-                "handler": "handleSettingsGet",
-                "params": {
-                    "key": {
-                        "type": "string"
-                    }
-                },
-                "returns": {
-                    "value": {
-                        "type": "json"
-                    }
-                }
-            }
-        },
-        "events": {
-            "update": {
-                "path": {
-                    "type": "string"
-                },
-                "value": {
-                    "type": "json"
-                }
-            }
-        }
-    }
+    "contributions": {}
 }

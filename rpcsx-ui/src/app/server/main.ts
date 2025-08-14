@@ -107,9 +107,9 @@ async function activateMainWindow() {
 
 }
 
-export function activate() {
-    setupElectron();
+setupElectron();
 
+export function activate() {
     ipcMain.on('window/create', (_event, options) => {
         const win = new BrowserWindow({
             webPreferences: {
@@ -167,7 +167,7 @@ export function activate() {
     });
 
     app.on('window-all-closed', async () => {
-        shutdown();
+        await shutdown();
 
         if (process.platform !== 'darwin') {
             app.quit();

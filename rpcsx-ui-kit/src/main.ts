@@ -7,6 +7,7 @@ import { sveltekit } from "@sveltejs/kit/vite";
 import { Stats } from 'node:fs';
 import { glob } from 'glob';
 import * as esbuild from 'esbuild';
+import { fileURLToPath } from 'node:url';
 
 
 export type Dependency = {
@@ -183,6 +184,7 @@ async function calcTimestamp(path: string[] | string): Promise<Timestamp> {
 class FileDb {
     private generated: Record<string, FileWithTimestamp> = {};
     private cache: Record<string, FileWithTimestamp> = {};
+    private selfTimestamp: number | undefined = undefined;
 
     private createFileImpl(path: string) {
         // console.log(`filedb: creating ${path}`);
@@ -217,29 +219,37 @@ class FileDb {
 
     createFile(path: string, sourceTimestamp: Timestamp): Promise<FileWithTimestamp | undefined>;
     createFile(path: string): Promise<FileWithTimestamp>;
-    async createFile(path: string, sourceTimestamp: Timestamp | undefined = undefined) {
-        if (path in this.generated) {
-            throw new Error(`file '${path}' was already generated`);
+    async createFile(filePath: string, sourceTimestamp: Timestamp | undefined = undefined) {
+        if (filePath in this.generated) {
+            throw new Error(`file '${filePath}' was already generated`);
         }
 
         if (!sourceTimestamp) {
-            return this.createFileImpl(path);
+            return this.createFileImpl(filePath);
         }
 
         let stat: Stats;
 
         try {
-            stat = await fs.stat(path);
+            stat = await fs.stat(filePath);
         } catch {
-            return this.createFileImpl(path);
+            return this.createFileImpl(filePath);
         }
 
-        if (stat.mtimeMs > sourceTimestamp.timestamp) {
+        if (this.selfTimestamp == undefined) {
+            try {
+                this.selfTimestamp = (await fs.stat(fileURLToPath(import.meta.url))).mtimeMs;
+            } catch {
+                this.selfTimestamp = 0;
+            }
+        }
+
+        if (stat.mtimeMs > Math.max(sourceTimestamp.timestamp, this.selfTimestamp)) {
             // console.log(`filedb: skipping ${path}`);
             return undefined;
         }
 
-        return this.createFileImpl(path);
+        return this.createFileImpl(filePath);
     }
 
     async commit() {
@@ -1078,6 +1088,10 @@ function generateContributions<Params extends [], RT extends ContributionGenerat
                     }
                 });
                 break;
+            
+            case "settings":
+                // TODO: validate?
+                break;
 
             default:
                 throw `unexpected contribution ${contributionType}`;
@@ -1235,7 +1249,7 @@ export function thisComponent() {
         if (componentFile) {
             const mainFile = path.join(serverProject.rootDir, "main.js");
             componentFile.content = `${generatedHeader}
-import * as api from '$/js';
+import * as api from '$/api.js';
 import { IComponentImpl, registerComponent } from '$core/ComponentInstance.js';
 import { ComponentContext, Component } from '$core/Component.js';
 import { JsonObject } from '$core/types.js';
