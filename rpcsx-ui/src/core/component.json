@@ -1,0 +1,298 @@
+{
+    "name": "core",
+    "version": "0.1.0",
+    "contributions": {
+        "types": {
+            "error-code": {
+                "type": "enum",
+                "enumerators": {
+                    "parse-error": -32700,
+                    "invalid-request": -32600,
+                    "method-not-found": -32601,
+                    "invalid-params": -32602,
+                    "internal-error": -32603,
+                    "request-cancelled": -32000,
+                    "timed-out": -32001
+                }
+            },
+            "log-level": {
+                "type": "enum",
+                "enumerators": {
+                    "notice": 0,
+                    "info": 1,
+                    "warning": 2,
+                    "error": 3,
+                    "fatal": 4
+                }
+            },
+            "error": {
+                "type": "object",
+                "params": {
+                    "code": {
+                        "type": "error-code"
+                    },
+                    "message": {
+                        "type": "string",
+                        "optional": true
+                    }
+                }
+            },
+            "client-info": {
+                "type": "object",
+                "params": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "version": {
+                        "type": "string"
+                    },
+                    "capabilities": {
+                        "type": "json-object"
+                    }
+                }
+            },
+            "action": {
+                "type": "object",
+                "params": {
+                    "command": {
+                        "type": "string"
+                    },
+                    "params": {
+                        "type": "json-object"
+                    },
+                    "target": {
+                        "type": "string",
+                        "optional": true
+                    }
+                }
+            },
+            "dependency": {
+                "type": "object",
+                "params": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "version": {
+                        "type": "string",
+                        "optional": true
+                    }
+                }
+            },
+            "component-manifest": {
+                "type": "object",
+                "params": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "version": {
+                        "type": "string"
+                    },
+                    "capabilities": {
+                        "type": "json-object",
+                        "optional": true
+                    },
+                    "contributions": {
+                        "type": "json-object",
+                        "optional": true
+                    },
+                    "dependencies": {
+                        "type": "array",
+                        "item-type": "dependency",
+                        "optional": true
+                    }
+                }
+            },
+            "launcher-info": {
+                "type": "object",
+                "params": {
+                    "type": {
+                        "type": "string"
+                    },
+                    "requirements": {
+                        "type": "json-object"
+                    },
+                    "args": {
+                        "type": "array",
+                        "item-type": "string",
+                        "optional": true
+                    }
+                }
+            },
+            "executable-info": {
+                "type": "object",
+                "params": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "version": {
+                        "type": "string"
+                    },
+                    "executable": {
+                        "type": "string"
+                    },
+                    "launcher": {
+                        "type": "launcher-info"
+                    },
+                    "args": {
+                        "type": "array",
+                        "item-type": "string",
+                        "optional": true
+                    },
+                    "icon": {
+                        "type": "string",
+                        "optional": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "optional": true
+                    },
+                    "region": {
+                        "type": "string",
+                        "optional": true
+                    },
+                    "id": {
+                        "type": "string",
+                        "optional": true
+                    }
+                }
+            },
+            "extension-info": {
+                "type": "object",
+                "params": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "version": {
+                        "type": "string"
+                    },
+                    "executable": {
+                        "type": "string"
+                    },
+                    "launcher": {
+                        "type": "launcher-info"
+                    },
+                    "args": {
+                        "type": "array",
+                        "item-type": "string",
+                        "optional": true
+                    },
+                    "icon": {
+                        "type": "string",
+                        "optional": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "optional": true
+                    },
+                    "region": {
+                        "type": "string",
+                        "optional": true
+                    },
+                    "id": {
+                        "type": "string",
+                        "optional": true
+                    },
+                    "capabilities": {
+                        "type": "json-object",
+                        "optional": true
+                    },
+                    "contributions": {
+                        "type": "json-object",
+                        "optional": true
+                    },
+                    "dependencies": {
+                        "type": "array",
+                        "item-type": "dependency",
+                        "optional": true
+                    }
+                }
+            }
+        },
+        "methods": {
+            "initialize": {
+                "virtual": true,
+                "params": {
+                    "client": {
+                        "type": "client-info"
+                    }
+                },
+                "returns": {
+                    "extension": {
+                        "type": "extension-info"
+                    }
+                }
+            },
+            "activate": {
+                "virtual": true,
+                "params": {
+                    "settings": {
+                        "type": "json-object"
+                    }
+                }
+            },
+            "component/activate": {
+                "handler": "activateComponent",
+                "params": {
+                    "id": {
+                        "type": "string"
+                    }
+                }
+            },
+            "component/deactivate": {
+                "handler": "deactivateComponent",
+                "params": {
+                    "id": {
+                        "type": "string"
+                    }
+                }
+            },
+            "extension/load": {
+                "handler": "loadExtension",
+                "params": {
+                    "id": {
+                        "type": "string"
+                    }
+                }
+            },
+            "extension/unload": {
+                "handler": "unloadExtension",
+                "params": {
+                    "id": {
+                        "type": "string"
+                    }
+                }
+            },
+            "extension/install": {
+                "handler": "installExtension",
+                "params": {
+                    "path": {
+                        "type": "string"
+                    }
+                },
+                "returns": {
+                    "id": {
+                        "type": "string"
+                    }
+                }
+            },
+            "extension/remove": {
+                "handler": "removeExtension",
+                "params": {
+                    "id": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "notifications": {
+            "cancel": {
+                "virtual": true,
+                "params": {
+                    "id": {
+                        "type": "number"
+                    }
+                }
+            }
+        }
+    }
+}

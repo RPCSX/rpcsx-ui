@@ -1,0 +1,9 @@
+{
+  "settings": {
+    "tabs": {
+      "system": "System",
+      "graphics": "Graphics",
+      "logging": "Logging"
+    }
+  }
+}

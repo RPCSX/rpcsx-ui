@@ -1,0 +1,29 @@
+{
+  "name": "rpcsx-ui-kit",
+  "version": "0.1.0",
+  "description": "",
+  "type": "module",
+  "bin": {
+    "rpcsx-ui-kit": "build/main.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch"
+  },
+  "license": "GPL-3.0-only",
+  "dependencies": {
+    "esbuild": "^0.25.3",
+    "glob": "^11.0.2",
+    "json5": "^2.2.3",
+    "prettier": "^3.5.3"
+  },
+  "devDependencies": {
+    "@sveltejs/kit": "^2.20.7",
+    "esbuild-loader": "^4.3.0",
+    "typescript": "^5.8.3",
+    "@typescript-eslint/eslint-plugin": "^8.31.1",
+    "@typescript-eslint/parser": "^8.31.1",
+    "eslint": "^9.25.1",
+    "eslint-config-prettier": "^10.1.2"
+  }
+}

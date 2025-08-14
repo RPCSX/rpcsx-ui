@@ -1,0 +1,122 @@
+{
+    "name": "progress",
+    "version": "0.1.0",
+    "contributions": {
+        "types": {
+            "status": {
+                "type": "enum",
+                "enumerators": {
+                    "in-progress": 0,
+                    "pause": 1,
+                    "error": 2,
+                    "complete": 3,
+                    "canceled": 4
+                }
+            },
+            "value": {
+                "type": "object",
+                "params": {
+                    "channel": {
+                        "type": "number"
+                    },
+                    "status": {
+                        "type": "status"
+                    },
+                    "value": {
+                        "type": "number",
+                        "optional": true
+                    },
+                    "title": {
+                        "type": "string",
+                        "optional": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "optional": true
+                    },
+                    "message": {
+                        "type": "string",
+                        "optional": true
+                    },
+                    "parent-channel": {
+                        "type": "number",
+                        "optional": true
+                    }
+                }
+            }
+        },
+        "methods": {
+            "create": {
+                "handler": "progressCreate",
+                "params": {
+                    "parent-channel": {
+                        "type": "number",
+                        "optional": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "optional": true
+                    },
+                    "title": {
+                        "type": "string",
+                        "optional": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "optional": true
+                    },
+                    "initial-value": {
+                        "type": "number",
+                        "optional": true
+                    },
+                    "max-value": {
+                        "type": "number",
+                        "optional": true
+                    }
+                },
+                "returns": {
+                    "channel": {
+                        "type": "number"
+                    }
+                }
+            }
+        },
+        "notifications": {
+            "update": {
+                "handler": "progressUpdate",
+                "params": {
+                    "channel": {
+                        "type": "number"
+                    },
+                    "status": {
+                        "type": "status",
+                        "optional": true
+                    },
+                    "value": {
+                        "type": "number",
+                        "optional": true
+                    },
+                    "title": {
+                        "type": "string",
+                        "optional": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "optional": true
+                    },
+                    "message": {
+                        "type": "string",
+                        "optional": true
+                    }
+                }
+            }
+        },
+        "events": {
+            "update": {
+                "value": {
+                    "type": "value"
+                }
+            }
+        }
+    }
+}

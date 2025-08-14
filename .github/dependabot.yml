@@ -1,15 +1,15 @@
 version: 2
 updates:
   - package-ecosystem: "npm"
-    directory: "/"
+    directory: "/rpcsx-ui-kit"
     schedule:
       interval: "weekly"
     groups:
       deps:
         patterns: 
           - "*"
-  - package-ecosystem: "cargo"
-    directory: "/src-tauri" 
+  - package-ecosystem: "npm"
+    directory: "/rpcsx-ui"
     schedule:
       interval: "weekly"
     groups:
