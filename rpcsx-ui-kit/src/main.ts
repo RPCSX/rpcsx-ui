@@ -381,7 +381,7 @@ async function parseManifest(fileDb: FileDb, manifestPath: string, projectIds: s
                         views[viewName] = viewPath;
                     }
                 }
-            } catch {}
+            } catch { }
 
             // populate views contributions, so we can handle them later
             if (Object.keys(views).length > 0) {
@@ -661,6 +661,63 @@ function toUnixPath(path: string) {
     return path.replace(/\\/g, '/');
 }
 
+class EnumsGenerator implements ContributionGenerator {
+    generatedTypes: Record<string, string> = {};
+
+    toString() {
+        if (Object.keys(this.generatedTypes).length > 0) {
+            return Object.keys(this.generatedTypes).map(type => this.generatedTypes[type]).join("\n");
+        }
+
+        return `${generatedHeader}\n`;
+    }
+
+    generateType(component: string, type: object, name: string) {
+        const labelName = generateComponentLabelName(component, name, true);
+        const typeName = labelName;
+
+        if (typeof type != 'object') {
+            throw `${type}: must be object`;
+        }
+        if (!("type" in type)) {
+            throw `${type}: type must be present`;
+        }
+
+        if (typeof type.type != "string") {
+            throw `${path}: type must be string value`;
+        }
+
+        if (!(typeName in this.generatedTypes)) {
+            let paramsType = "";
+            if (type.type === "enum") {
+                if (!("enumerators" in type)) {
+                    throw `${type}: enumerators must be present`;
+                }
+
+                if ((typeof type.enumerators != 'object') || !type.enumerators) {
+                    throw `${type.enumerators}: must be object`;
+                }
+
+                paramsType += `export enum ${labelName} {\n${this.generateEnumBody(type.enumerators)}}\n`;
+            }
+
+            this.generatedTypes[typeName] = paramsType;
+        } else {
+            throw new Error(`${name}: type ${typeName} already declared`);
+        }
+    }
+
+    generateEnumBody(enumerators: object) {
+        let body = "";
+
+        Object.keys(enumerators).forEach(fieldName => {
+            const value = (enumerators as Record<string, object>)[fieldName];
+            body += `  ${generateLabelName(fieldName, true)} = ${value},\n`;
+        });
+
+        return body;
+    }
+};
 class TypesGenerator implements ContributionGenerator {
     generatedTypes: Record<string, string> = {};
     imports: Record<string, Set<string>> = {};
@@ -676,7 +733,7 @@ class TypesGenerator implements ContributionGenerator {
             return result;
         }
 
-        return `${generatedHeader}export { };\n`;
+        return `${generatedHeader}\n`;
     }
 
     generateType(component: string, type: object, name: string) {
@@ -1358,7 +1415,7 @@ class TsLibGenerator implements ProjectGenerator {
         return projectId == "lib";
     }
 
-    async generateProjects(project: Project, fileDb: FileDb) {
+    async generateTypesFile(project: Project, fileDb: FileDb) {
         const projectPath = path.join(this.config.outDir, project.component.manifest.name, project.name);
         const genDir = path.join(projectPath, "src");
         const generatedFilePath = path.join(genDir, "types.d.ts");
@@ -1371,7 +1428,28 @@ class TsLibGenerator implements ProjectGenerator {
                 throw Error(`${project.component.manifest.name}: ${e}`);
             }
         }
+    }
 
+    async generateEnumsFile(project: Project, fileDb: FileDb) {
+        const projectPath = path.join(this.config.outDir, project.component.manifest.name, project.name);
+        const genDir = path.join(projectPath, "src");
+        const generatedFilePath = path.join(genDir, "enums.ts");
+        const generatedFile = await fileDb.createFile(generatedFilePath, project.component.manifestFile);
+
+        if (generatedFile) {
+            try {
+                generatedFile.content = generateContributions(project.component, EnumsGenerator).toString();
+            } catch (e) {
+                throw Error(`${project.component.manifest.name}: ${e}`);
+            }
+        }
+    }
+
+    async generateProjects(project: Project, fileDb: FileDb) {
+        await Promise.all([
+            this.generateTypesFile(project, fileDb),
+            this.generateEnumsFile(project, fileDb),
+        ]);
         return [];
     }
 };
@@ -1614,13 +1692,13 @@ export function register${generateLabelName(component.manifest.name, true)}Compo
         const publicApiProject = await publicApiPromise;
         const componentProject = await componentPromise;
         const componentInfoProject = await componentInfoPromise;
-        
+
         const result = [publicApiProject];
-        
+
         if (componentProject) {
             result.push(componentProject);
         }
-        
+
         const component = project.component;
         const coreLibProject = component.workspace["core"].projects["lib"];
         const coreServerProject = component.workspace["core"].projects["server"];
@@ -2640,6 +2718,10 @@ export async function rpcsx() {
             },
         },
         buildStart: async () => {
+            const enums = Object.values(workspace)
+                .filter(component => "lib" in component.projects && "server" in component.projects && component.projects.server.rootDir != "")
+                .map(component => path.join(paths.outDir, component.manifest.name, "lib", "src", "enums.ts"));
+
             const serverPromise = esbuild.build({
                 outdir: path.join(paths.distDir),
                 entryPoints: [
@@ -2648,6 +2730,7 @@ export async function rpcsx() {
                 plugins: [
                     ...await rpcsxESbuildPlugin({ resolver, workspace }),
                 ],
+                inject: enums,
                 packages: 'external',
                 bundle: true,
                 platform: 'node',
@@ -2663,12 +2746,14 @@ export async function rpcsx() {
                 plugins: [
                     ...await rpcsxESbuildPlugin({ resolver, workspace }),
                 ],
+                inject: enums,
                 packages: 'external',
                 bundle: true,
                 platform: 'neutral',
                 format: 'cjs',
                 sourcemap: 'both',
             });
+
 
             const server = await serverPromise;
 
