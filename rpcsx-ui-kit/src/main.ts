@@ -339,7 +339,7 @@ async function parseManifest(fileDb: FileDb, manifestPath: string, projectIds: s
 
             component.projects[projects.name] = {
                 name: projects.name,
-                rootDir: path.join(projects.parentPath, projects.name),
+                rootDir: path.join(toUnixPath(projects.parentPath), projects.name),
                 component,
                 dependencies: [],
                 include: [],
@@ -377,7 +377,7 @@ async function parseManifest(fileDb: FileDb, manifestPath: string, projectIds: s
 
                     if (parsedName.ext === ".svelte" && parsedName.name.length > 0) {
                         const viewName = parsedName.name;
-                        const viewPath = path.join(view.parentPath, view.name);
+                        const viewPath = path.join(toUnixPath(view.parentPath), view.name);
                         views[viewName] = viewPath;
                     }
                 }
@@ -521,7 +521,7 @@ class RpcsxKit {
                         continue;
                     }
 
-                    workList.push(path.join(item.parentPath, item.name));
+                    workList.push(path.join(toUnixPath(item.parentPath), item.name));
                     continue;
                 }
 
@@ -529,7 +529,7 @@ class RpcsxKit {
                     continue;
                 }
 
-                const component = await parseManifest(this.fileDb, path.resolve(item.parentPath, componentManifestName), projectIds);
+                const component = await parseManifest(this.fileDb, path.resolve(toUnixPath(item.parentPath), componentManifestName), projectIds);
 
                 if (component) {
                     component.workspace = result;
@@ -655,6 +655,10 @@ function generateLabelName(entityName: string, isPascalCase = false) {
 
 function generateComponentLabelName(componentName: string, entityName: string, isPascalCase = false) {
     return generateLabelName(componentName == 'core' ? entityName : `${componentName}/${entityName}`, isPascalCase);
+}
+
+function toUnixPath(path: string) {
+    return path.replace(/\\/g, '/');
 }
 
 class TypesGenerator implements ContributionGenerator {
@@ -1748,7 +1752,7 @@ class SvelteRendererGenerator implements ComponentGenerator {
 
                 switch (item.name) {
                     case "locales":
-                        localesPaths.push(path.join(item.parentPath, item.name));
+                        localesPaths.push(path.join(toUnixPath(item.parentPath), item.name));
                         break;
 
                     case "routes":
@@ -1818,7 +1822,7 @@ class SvelteRendererGenerator implements ComponentGenerator {
                     continue;
                 }
 
-                const sourceFile = await fileDb.readFile(path.join(item.parentPath, item.name));
+                const sourceFile = await fileDb.readFile(path.join(toUnixPath(item.parentPath), item.name));
                 if (item.name in sourceTimestamps) {
                     sourceTimestamps[item.name] = mergeTimestamps([sourceTimestamps[item.name], sourceFile]);
                 } else {
@@ -2156,18 +2160,18 @@ class SvelteConfigGenerator implements ConfigGenerator {
 
                 if (entry.name == "app.html") {
                     if (templates.app) {
-                        throw Error(`${component.manifest.name}: ${path.join(entry.parentPath, entry.name)}: appTemplate redefinition, previously defined ${templates.app}`);
+                        throw Error(`${component.manifest.name}: ${path.join(toUnixPath(entry.parentPath), entry.name)}: appTemplate redefinition, previously defined ${templates.app}`);
                     }
 
-                    templates.app = path.join(entry.parentPath, entry.name);
+                    templates.app = path.join(toUnixPath(entry.parentPath), entry.name);
                 }
 
                 if (entry.name == "error.html") {
                     if (templates.err) {
-                        throw Error(`${component.manifest.name}: ${path.join(entry.parentPath, entry.name)}: errorTemplate redefinition, previously defined ${templates.err}`);
+                        throw Error(`${component.manifest.name}: ${path.join(toUnixPath(entry.parentPath), entry.name)}: errorTemplate redefinition, previously defined ${templates.err}`);
                     }
 
-                    templates.err = path.join(entry.parentPath, entry.name);
+                    templates.err = path.join(toUnixPath(entry.parentPath), entry.name);
                 }
             }
         }));
@@ -2270,7 +2274,7 @@ class TsConfigGenerator implements ConfigGenerator {
         try {
             for (const item of await fs.readdir(project.rootDir, { recursive: false, withFileTypes: true })) {
                 if (item.isDirectory() && !shouldIgnoreDir(item.name)) {
-                    appendSelfProjectPath(item.name, path.join(item.parentPath, item.name) + path.sep);
+                    appendSelfProjectPath(item.name, path.join(toUnixPath(item.parentPath), item.name) + path.sep);
                 }
             }
         } catch { /* empty */ }
