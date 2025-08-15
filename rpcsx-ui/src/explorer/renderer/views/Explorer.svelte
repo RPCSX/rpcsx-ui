@@ -5,7 +5,6 @@
   import { onDestroy, onMount } from "svelte";
   import * as itemUtil from "helpers/ExplorerItemUtils";
   import Menu from "$menu/Menu.svelte";
-  import { type MenuItem } from "$menu/models/MenuItem";
   import ExplorerGridItem from "../ExplorerGridItem.svelte";
   import ExplorerListItem from "../ExplorerListItem.svelte";
 

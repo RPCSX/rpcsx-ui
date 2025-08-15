@@ -4,6 +4,9 @@
     "dependencies": [
         {
             "name": "settings"
+        },
+        {
+            "name": "explorer"
         }
     ]
 }

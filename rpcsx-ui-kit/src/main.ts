@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
+import * as path from 'node:path/posix';
 import { Plugin } from 'vite';
 import { sveltekit } from "@sveltejs/kit/vite";
 import { Stats } from 'node:fs';
@@ -17,7 +17,7 @@ export type Dependency = {
 
 export type ComponentInfo = Dependency & {
     capabilities?: Record<string, any>;
-    contributions?: Record<string, object>,
+    contributions?: Record<string, any>,
     dependencies?: Dependency[];
 };
 
@@ -72,6 +72,7 @@ type ContributionGenerator = {
     generateMethod?(component: string, method: object, name: string): void | Promise<void>;
     generateNotification?(component: string, notification: object, name: string): void | Promise<void>;
     generateEvent?(component: string, event: object, name: string): void | Promise<void>;
+    generateView?(component: string, path: string, name: string): void | Promise<void>;
     toString(): string;
 };
 
@@ -244,7 +245,9 @@ class FileDb {
             }
         }
 
-        if (stat.mtimeMs > Math.max(sourceTimestamp.timestamp, this.selfTimestamp)) {
+        const timestamp = Math.max(sourceTimestamp.timestamp, this.selfTimestamp);
+
+        if (timestamp > 0 && stat.mtimeMs > timestamp) {
             // console.log(`filedb: skipping ${path}`);
             return undefined;
         }
@@ -254,11 +257,13 @@ class FileDb {
 
     async commit() {
         const files = (await Promise.all(Object.keys(this.generated).map(async path => {
-            // if ((await calcTimestamp(path)).timestamp < this.generated[path].timestamp) {
-            //     return undefined;
-            // }
+            const file = this.generated[path];
 
-            return { ...this.generated[path], path };
+            if (file.timestamp > 0 && (await calcTimestamp(path)).timestamp >= file.timestamp) {
+                return undefined;
+            }
+
+            return { ...file, path };
         }))).filter(file => file != undefined);
 
         const dirs = new Set<string>();
@@ -342,6 +347,7 @@ async function parseManifest(fileDb: FileDb, manifestPath: string, projectIds: s
             };
         }
 
+        // add dummy lib if it not exists, we can generate types later
         const libProject = "lib";
         if (!(libProject in component.projects)) {
             component.projects[libProject] = {
@@ -352,6 +358,47 @@ async function parseManifest(fileDb: FileDb, manifestPath: string, projectIds: s
                 include: [],
                 exclude: [],
             };
+        }
+
+        // renderer with views provides api for server, create dummy server if it not exists
+        const serverProject = "server";
+        if ("renderer" in component.projects) {
+            const project = component.projects.renderer;
+            const srcDir = path.join(project.rootDir, "views");
+            const views: Record<string, string> = {};
+
+            try {
+                for (const view of await fs.readdir(srcDir, { recursive: false, withFileTypes: true })) {
+                    if (!view.isFile()) {
+                        continue;
+                    }
+
+                    const parsedName = path.parse(view.name);
+
+                    if (parsedName.ext === ".svelte" && parsedName.name.length > 0) {
+                        const viewName = parsedName.name;
+                        const viewPath = path.join(view.parentPath, view.name);
+                        views[viewName] = viewPath;
+                    }
+                }
+            } catch {}
+
+            // populate views contributions, so we can handle them later
+            if (Object.keys(views).length > 0) {
+                component.manifest.contributions ??= {};
+                component.manifest.contributions["views"] = views;
+
+                if (!(serverProject in component.projects)) {
+                    component.projects[serverProject] = {
+                        name: serverProject,
+                        rootDir: "",
+                        component,
+                        dependencies: [],
+                        include: [],
+                        exclude: [],
+                    };
+                }
+            }
         }
 
         return component;
@@ -367,7 +414,7 @@ function createServerManifest(manifest: ComponentInfo, workspace: Workspace) {
     result.dependencies = result.dependencies?.filter(dep => {
         const component = workspace[dep.name];
 
-        return component && "server" in component.projects;
+        return component && "server" in component.projects && component.projects.server.rootDir != "";
     });
 
     return result;
@@ -590,6 +637,10 @@ class RpcsxKit {
             });
         });
     }
+}
+
+function pascalToCamelCase(name: string) {
+    return name[0].toLowerCase() + name.slice(1);
 }
 
 function generateLabelName(entityName: string, isPascalCase = false) {
@@ -844,6 +895,7 @@ export async function onEvent(caller: ComponentInstance, event: string, listener
 
 class ServerComponentApiGenerator implements ContributionGenerator {
     private body = '';
+    private viewBody = '';
     private externalComponent?: string;
 
     generateMethod(component: string, method: object, name: string) {
@@ -890,6 +942,18 @@ class ServerComponentApiGenerator implements ContributionGenerator {
 `;
     }
 
+    generateView(_component: string, _path: string, name: string) {
+        this.viewBody += `
+export function push${name}View(target: Electron.WebContents, params: ${name}Props) {
+    return target.send("view/push", "${pascalToCamelCase(name)}", params);
+}
+
+export function set${name}View(target: Electron.WebContents, params: ${name}Props) {
+    return target.send("view/set", "${pascalToCamelCase(name)}", params);
+}
+`;
+    }
+
     toString(): string {
         if (this.body.length === 0 || !this.externalComponent) {
             return `${generatedHeader}export { };\n`;
@@ -900,6 +964,13 @@ import { thisComponent } from "$/component-info";
 import * as ${generateLabelName(this.externalComponent, false)} from '$${this.externalComponent}/api';
 
 ${this.body}
+${this.viewBody}
+${this.externalComponent == "core" ? `
+export function popView(target: Electron.WebContents) {
+    return target.send("view/pop");
+}
+` : ''}
+
 `;
     }
 };
@@ -909,8 +980,11 @@ class ServerPrivateApiGenerator implements ContributionGenerator {
     private body = '';
     private callBody = '';
     private notifyBody = '';
+    private viewBody = '';
+    private component = '';
 
     generateEvent(component: string, event: object, name: string) {
+        this.component = component;
         const label = generateComponentLabelName(component, name, true);
         if (Object.keys(event).length == 0) {
             this.body += `export function emit${label}Event() {
@@ -925,6 +999,7 @@ class ServerPrivateApiGenerator implements ContributionGenerator {
     }
 
     generateMethod(component: string, method: object, name: string) {
+        this.component = component;
         if (typeof method != 'object') {
             throw `${name}: must be object`;
         }
@@ -949,6 +1024,7 @@ class ServerPrivateApiGenerator implements ContributionGenerator {
     }
 
     generateNotification(component: string, notification: object, name: string) {
+        this.component = component;
         if (typeof notification != 'object') {
             throw `${name}: must be object`;
         }
@@ -971,6 +1047,20 @@ class ServerPrivateApiGenerator implements ContributionGenerator {
         this.notifyBody += `        case "${name}": return ${label}(caller, params as ${uLabel}Request);\n`;
     }
 
+    generateView(component: string, _path: string, name: string) {
+        this.component = component;
+        this.viewBody += `
+export function push${name}View(target: Electron.WebContents, params: ${name}Props) {
+    return target.send("view/push", "${pascalToCamelCase(name)}", params);
+}
+
+export function set${name}View(target: Electron.WebContents, params: ${name}Props) {
+    return target.send("view/set", "${pascalToCamelCase(name)}", params);
+}
+`;
+    }
+
+
     toString(): string {
         if (this.body.length === 0) {
             return `${generatedHeader}
@@ -984,6 +1074,12 @@ export async function call(_caller: Component, _method: string, _params: JsonObj
 export async function notify(_caller: Component, _method: string, _params: JsonObject | undefined) {
     throw createError(ErrorCode.MethodNotFound);
 }
+${this.viewBody}
+${this.component == "core" ? `
+export function popView(target: Electron.WebContents) {
+    return target.send("view/pop");
+}
+` : ''}
 `;
         }
 
@@ -1014,6 +1110,13 @@ ${this.notifyBody}
         throw createError(ErrorCode.MethodNotFound);
     }
 }
+${this.viewBody}
+${this.component == "core" ? `
+export function popView(target: Electron.WebContents) {
+    return target.send("view/pop");
+}
+` : ''}
+
 `;
     }
 }
@@ -1022,11 +1125,14 @@ class SvelteElectronComponentApiGenerator implements ContributionGenerator {
     private body = '';
     private hasMethod = false;
     private hasEvent = false;
+    private component = '';
 
     generateMethod(component: string, method: object, name: string) {
         if ("virtual" in method && method.virtual === true) {
             return;
         }
+
+        this.component = component;
 
         this.hasMethod = true;
         const label = generateComponentLabelName(component, name, false);
@@ -1047,6 +1153,8 @@ export async function ${label}(params: ${uLabel}Request): Promise<${uLabel}Respo
             return;
         }
 
+        this.component = component;
+
         const label = generateComponentLabelName(component, name, false);
         const uLabel = generateComponentLabelName(component, name, true);
         this.body += `
@@ -1061,6 +1169,7 @@ export function ${label}(params: ${uLabel}Request) {
     }
 
     generateEvent(component: string, event: object, name: string) {
+        this.component = component;
         this.hasEvent = true;
         const label = generateComponentLabelName(component, name, true);
         this.body += "\n";
@@ -1083,16 +1192,47 @@ export function ${label}(params: ${uLabel}Request) {
 `;
     }
 
+    generateView(component: string, _path: string, name: string) {
+        this.component = component;
+        this.body += `
+export function push${name}View(params: ${name}Props) {
+    if (!window?.electron?.ipcRenderer) {
+        return;
+    }
+
+    return window.electron.ipcRenderer.send("view/push", "${pascalToCamelCase(name)}", params);
+}
+
+export function set${name}View(params: ${name}Props) {
+    if (!window?.electron?.ipcRenderer) {
+        return;
+    }
+
+    return window.electron.ipcRenderer.send("view/set", "${pascalToCamelCase(name)}", params);
+}
+`;
+    }
+
     toString(): string {
         if (this.body.length === 0) {
             return `${generatedHeader}export { };\n`;
         }
 
         return `${generatedHeader}
-${ this.hasMethod ? 'import { createError } from "$core/Error";' : "" }
-${ this.hasEvent ? 'import { Disposable } from "$core/Disposable";' : "" }
-${ this.hasEvent ? 'import { onDestroy } from "svelte";' : "" }
+${this.hasMethod ? 'import { createError } from "$core/Error";' : ""}
+${this.hasEvent ? 'import { Disposable } from "$core/Disposable";' : ""}
+${this.hasEvent ? 'import { onDestroy } from "svelte";' : ""}
 ${this.body}
+${this.component == "core" ? `
+export function popView() {
+if (!window?.electron?.ipcRenderer) {
+        return;
+    }
+
+    return window.electron.ipcRenderer.send("view/pop");
+}
+` : ''}
+
 `;
     }
 };
@@ -1109,7 +1249,7 @@ function generateContributions<Params extends [], RT extends ContributionGenerat
     contributions.events = contributions.events ?? {};
 
     Object.keys(contributions).forEach(contributionType => {
-        const contribution = (contributions as Record<string, Record<string, object>>)[contributionType];
+        const contribution = (contributions as Record<string, Record<string, any>>)[contributionType];
         switch (contributionType) {
             case "methods":
                 Object.keys(contribution).forEach(name => {
@@ -1165,6 +1305,18 @@ function generateContributions<Params extends [], RT extends ContributionGenerat
                     if (generator.generateType) {
                         try {
                             generator.generateType(component.manifest.name, contribution[name], name);
+                        } catch (e) {
+                            throw `${name}: ${e}`;
+                        }
+                    }
+                });
+                break;
+
+            case "views":
+                Object.keys(contribution).forEach(name => {
+                    if (generator.generateView) {
+                        try {
+                            generator.generateView(component.manifest.name, contribution[name], name);
                         } catch (e) {
                             throw `${name}: ${e}`;
                         }
@@ -1435,10 +1587,12 @@ export function register${generateLabelName(component.manifest.name, true)}Compo
     }
 
     async generateProjects(project: Project, fileDb: FileDb): Promise<Project[]> {
-        const privateApiPromise = this.generateServerPrivateApiFile(project, fileDb);
         const publicApiPromise = this.generateServerPublicApiProject(project, fileDb);
-        const componentPromise = this.generateComponentProject(project, fileDb);
-        const componentInfoPromise =
+        const dummyProject = project.rootDir == "";
+
+        const privateApiPromise = dummyProject ? Promise.resolve() : this.generateServerPrivateApiFile(project, fileDb);
+        const componentPromise = dummyProject ? Promise.resolve() : this.generateComponentProject(project, fileDb);
+        const componentInfoPromise = dummyProject ? Promise.resolve() :
             project.component.manifest.name == "core"
                 ? this.generateComponentInfoFile(project, fileDb)
                 : this.generateComponentInfoProject(project, fileDb);
@@ -1449,21 +1603,25 @@ export function register${generateLabelName(component.manifest.name, true)}Compo
             }
         }));
 
-        const component = project.component;
         await privateApiPromise;
         const publicApiProject = await publicApiPromise;
         const componentProject = await componentPromise;
         const componentInfoProject = await componentInfoPromise;
-
-        const result = [componentProject, publicApiProject];
-
+        
+        const result = [publicApiProject];
+        
+        if (componentProject) {
+            result.push(componentProject);
+        }
+        
+        const component = project.component;
         const coreLibProject = component.workspace["core"].projects["lib"];
         const coreServerProject = component.workspace["core"].projects["server"];
 
-        componentProject.dependencies.push(coreLibProject);
+        componentProject?.dependencies.push(coreLibProject);
 
         if (component.manifest.name != "core") {
-            componentProject.dependencies.push(coreServerProject);
+            componentProject?.dependencies.push(coreServerProject);
         }
 
         if (componentInfoProject) {
@@ -1471,11 +1629,11 @@ export function register${generateLabelName(component.manifest.name, true)}Compo
             project.dependencies.push(componentInfoProject);
             result.push(componentInfoProject);
             publicApiProject.dependencies.push(componentInfoProject);
-            componentProject.dependencies.push(componentInfoProject);
+            componentProject?.dependencies.push(componentInfoProject);
         }
 
         publicApiProject.dependencies.push(coreServerProject, project.component.projects["lib"]);
-        componentProject.dependencies.push(project);
+        componentProject?.dependencies.push(project);
 
         return result;
     }
@@ -1488,7 +1646,7 @@ class TsServerMainGenerator implements ComponentGenerator {
     constructor(private config: TsGeneratorConfig) { }
 
     async generateComponents(workspace: Workspace, fileDb: FileDb) {
-        const serverComponents = Object.values(workspace).filter(component => "server" in component.projects);
+        const serverComponents = Object.values(workspace).filter(component => "server" in component.projects && component.projects["component"]);
 
         const serverComponent = await this.generateServerComponent(workspace, fileDb);
         const serverProject = await this.generateServerMainProject(fileDb, serverComponent, serverComponents);
@@ -1606,7 +1764,7 @@ class SvelteRendererGenerator implements ComponentGenerator {
             if (hasRoutes) {
                 routesProjects.push(project);
             }
-            if (hasViews) {
+            if (hasViews && ("views" in (project.component.manifest.contributions ?? {}))) {
                 rendererWithViewProjects.push(project);
             }
         }));
@@ -1828,25 +1986,71 @@ await init({
             path.join(genDir, "**", "*.svelte")
         ];
 
-        await Promise.all(rendererWithViewProjects.map(async project => {
-            const srcDir = path.join(project.rootDir, "views");
+        const projectViews = rendererWithViewProjects.map(project => {
+            const contributions = project.component.manifest.contributions;
 
-            for (const view of await fs.readdir(srcDir, { recursive: false, withFileTypes: true })) {
-                if (!view.isFile()) {
-                    continue;
+            if (!contributions) {
+                return [];
+            }
+
+            if (!("views" in contributions)) {
+                return [];
+            }
+
+            return Object.keys(contributions.views).map(name => {
+                const path = contributions.views[name] as string;
+                views[name] = path;
+                return { name, path };
+            });
+        });
+
+        const viewsListFile = await (async () => {
+            const filePath = path.join(genDir, "views.json");
+            const viewList = JSON.stringify(Object.values(views));
+            try {
+                const file = await fileDb.readFile(filePath);
+                if (file.content == viewList) {
+                    return file;
                 }
 
-                const parsedName = path.parse(view.name);
+                file.timestamp = 0;
+                file.content = viewList;
+                return file;
+            } catch { }
 
-                if (parsedName.ext === ".svelte" && parsedName.name.length > 0) {
-                    views[parsedName.name] = path.join(view.parentPath, view.name);
-                }
+            const file = await fileDb.createFile(filePath);
+            file.content = viewList;
+            return file;
+        })();
+
+        await Promise.all(rendererWithViewProjects.map(async (project, index) => {
+            const views = projectViews[index];
+            const genDir = path.join(this.config.outDir, project.component.manifest.name, "lib", "src");
+            const viewTypesPath = path.join(genDir, "views.d.ts");
+
+            const viewTypes = await fileDb.createFile(viewTypesPath, viewsListFile);
+            if (!viewTypes) {
+                return;
+            }
+
+            if (views.length === 0) {
+                viewTypes.content = `${generatedHeader}`;
+            } else {
+                viewTypes.content = `${generatedHeader}
+import type { ComponentProps } from "svelte";
+${views.map(view => `import type ${view.name} from "${view.path}"`).join(";\n")};
+
+declare global {
+    ${views.map(view => `type ${view.name}Props = ComponentProps<${view.name}>`).join(";\n")};
+}
+`;
             }
         }));
 
-        // FIXME: do not rewrite each run
-        const viewsFile = await fileDb.createFile(path.join(genDir, "Views.svelte"));
-        viewsFile.content = `<script lang="ts">${generatedHeader}
+
+        const viewsFile = await fileDb.createFile(path.join(genDir, "Views.svelte"), viewsListFile);
+        if (viewsFile) {
+            viewsFile.content = `<script lang="ts">${generatedHeader}
     import { hydrate, type ComponentProps } from "svelte";
     import Frame from "./Frame.svelte";
 ${Object.keys(views).map(x => `    import ${x} from '${path.relative(genDir, views[x])}'`).join(';\n')};
@@ -1873,11 +2077,13 @@ ${Object.keys(views).map(x => `    import ${x} from '${path.relative(genDir, vie
     export const viewFactories: {
         [key: string]: (props: any) => ComponentProps<Frame>;
     } = {
-${Object.keys(views).map(x => `        ${x[0].toLowerCase() + x.slice(1)}: createViewFactory(${x})`).join(',\n')}
+${Object.keys(views).map(x => `        ${pascalToCamelCase(x)}: createViewFactory(${x})`).join(',\n')}
     };
 </script>
 `;
-        const frameFile = await fileDb.createFile(path.join(genDir, "Frame.svelte"), { timestamp: 0 });
+        }
+
+        const frameFile = await fileDb.createFile(path.join(genDir, "Frame.svelte"), viewsListFile);
 
         if (frameFile) {
             frameFile.content = `<script lang="ts">${generatedHeader}

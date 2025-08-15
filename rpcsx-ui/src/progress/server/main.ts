@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron';
+// import { ipcMain } from 'electron';
 import { Component } from '$core/Component';
 import { createError } from '$core/Error';
 import * as api from '$';
@@ -90,17 +90,17 @@ export function progressUpdate(caller: Component, params: ProgressUpdateRequest)
     api.emitProgressUpdateEvent({ value: { channel: params.channel, ...info } });
 
     subscriptions[params.channel] ??= new Set();
-    const channelSubscriptions = subscriptions[params.channel];
+    // const channelSubscriptions = subscriptions[params.channel];
 
-    for (const subscriber of channelSubscriptions) {
-        subscriber.send("progress/update", {
-            value: info.value,
-            status: info.status,
-            title: info.title,
-            description: info.description,
-            message: info.message,
-        });
-    }
+    // for (const subscriber of channelSubscriptions) {
+    //     subscriber.send("progress/update", {
+    //         value: info.value,
+    //         status: info.status,
+    //         title: info.title,
+    //         description: info.description,
+    //         message: info.message,
+    //     });
+    // }
 
     if (params.status !== undefined) {
         if (params.status == ProgressStatus.Canceled ||

@@ -6,6 +6,7 @@ import fs from 'fs/promises';
 import url from 'url';
 import { Future } from '$core/Future.js';
 import { shutdown } from '../../core/server/ComponentInstance';
+import * as explorer from '$explorer';
 
 function setupElectron() {
     const uiDirectory = path.join(locations.builtinResourcesPath, "ui");
@@ -121,15 +122,6 @@ export function activate() {
         win.loadURL(`app://-/${options.url}`);
     });
 
-    ipcMain.on('view/push', (_event, view: string, ...args: any[]) => {
-        console.log('proxy push', view, ...args);
-        _event.sender.send('view/push', view, ...args);
-    });
-
-    ipcMain.on('view/pop', (_event, view: string, ...args: any[]) => {
-        _event.sender.send('view/pop', view, ...args);
-    });
-
     const createWindow = async () => {
         await activateMainWindow();
 
@@ -148,8 +140,8 @@ export function activate() {
 
         console.log('initialization complete');
 
-        MainWindow.webContents.send('view/set', "explorer", {
-            query: "extensions/observer/executables",
+        explorer.pushExplorerView(MainWindow.webContents, {
+            query: "observer/executables",
             queryParams: {
                 filter: { type: 'game' }
             }

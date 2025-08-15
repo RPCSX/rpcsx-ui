@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Icon, Squares2x2, ListBullet, Cog6Tooth, ArrowLeft } from "svelte-hero-icons";
   import { _ } from "svelte-i18n";
+  import * as core from "$core";
   // import { openWindow } from "helpers/window";
 
   export let searchTerm: string;
@@ -30,7 +31,7 @@
     {#if showBackBtn}
       <button
         type="button"
-        on:click={() => window.electron.ipcRenderer.send("view/pop")}
+        on:click={() => core.popView()}
         class="border border-neutral-600 text-white disabled:text-neutral-400 h-8 w-8 p-1 rounded bg-neutral-700 hover:bg-neutral-600 active:bg-neutral-700 shadow-sm"
       >
         <Icon src={ArrowLeft} solid />

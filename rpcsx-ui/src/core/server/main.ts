@@ -9,6 +9,17 @@ import * as settings from './Settings';
 import { getLauncher } from './Launcher';
 import { Extension } from './Extension';
 import { Schema, SchemaError, validateObject } from 'lib/Schema';
+import { ipcMain } from 'electron';
+
+ipcMain.on('view/push', (event, view: string, ...args: any[]) => {
+    event.sender.send('view/push', view, ...args);
+});
+ipcMain.on('view/set', (event, view: string, ...args: any[]) => {
+    event.sender.send('view/set', view, ...args);
+});
+ipcMain.on('view/pop', (event, view: string, ...args: any[]) => {
+    event.sender.send('view/pop', view, ...args);
+});
 
 export async function activate() {
     await settings.load();
