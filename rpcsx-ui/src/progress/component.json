@@ -109,6 +109,22 @@
                         "optional": true
                     }
                 }
+            },
+            "subscribe": {
+                "handler": "progressSubscribe",
+                "params": {
+                    "channel": {
+                        "type": "number"
+                    }
+                }
+            },
+            "unsubscribe": {
+                "handler": "progressUnsubscribe",
+                "params": {
+                    "channel": {
+                        "type": "number"
+                    }
+                }
             }
         },
         "events": {

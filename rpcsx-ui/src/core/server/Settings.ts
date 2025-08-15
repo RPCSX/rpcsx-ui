@@ -1,13 +1,12 @@
 import fs from 'fs/promises';
 import path from "path";
-import * as types from '$/types';
 import * as locations from '$/locations';
 import { fixObject, generateObject, Schema } from '$/Schema';
 
 const defaultSettingsDir = locations.rootPath;
 const defaultSettingsPath = path.join(defaultSettingsDir, "settings.json");
 let g_filePath = defaultSettingsPath;
-let currentSettings: types.JsonObject = {};
+let currentSettings: JsonObject = {};
 
 export async function load(params?: { filePath: string }) {
     if (params) {

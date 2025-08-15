@@ -1,5 +1,4 @@
 import { Region } from 'models/Region';
-import type * as api from 'lib/Explorer';
 
 export function getRegion(contentId?: string) {
     if (contentId === undefined || contentId.length != 36) {
@@ -18,7 +17,7 @@ export function getRegion(contentId?: string) {
     }
 }
 
-export function getName(item: api.ExplorerItem, langs: string[] = []) {
+export function getName(item: ExplorerItem, langs: string[] = []) {
     if (!Array.isArray(item.name)) {
         return item.name;
     }
@@ -36,7 +35,7 @@ export function getName(item: api.ExplorerItem, langs: string[] = []) {
     return item.name[0].text;
 }
 
-export function getIcon(item: api.ExplorerItem, resolution: api.IconResolution = 'normal', langs: string[] = []) {
+export function getIcon(item: ExplorerItem, resolution: IconResolution = 'normal', langs: string[] = []) {
     if (!item.icon) {
         return undefined;
     }

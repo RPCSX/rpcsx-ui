@@ -1,5 +1,4 @@
 import { Process } from './Launcher';
-import { ActivateRequest, ActivateResponse, CancelRequest, ClientInfo, ComponentManifest, ErrorCode, InitializeRequest, InitializeResponse, JsonObject } from '$core/types';
 
 import packageJson from '../../../../package.json' with { type: "json" };
 import { Component, ComponentContext } from '$core/Component.js';

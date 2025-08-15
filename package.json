@@ -6,6 +6,7 @@
   "main": "build/main.js",
   "scripts": {
     "build": "bun run --cwd rpcsx-ui-kit build && bun run --cwd rpcsx-ui build",
+    "validate": "tsc -b rpcsx-ui",
     "start": "bun run --cwd rpcsx-ui start"
   },
   "license": "GPL-3.0-only",

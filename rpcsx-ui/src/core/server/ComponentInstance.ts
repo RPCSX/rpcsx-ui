@@ -1,10 +1,11 @@
 import EventEmitter from "events";
 import { ComponentContext, ComponentId, Component } from "$/Component.js";
 import { Disposable, IDisposable } from "$/Disposable.js";
-import { isJsonObject, Json, JsonObject, ComponentManifest, ErrorCode } from '$/types';
+import { isJsonObject } from '$/Json';
 import { createError } from "lib/Error";
 import { get as settingsGet } from './Settings';
 import { Schema } from "lib/Schema";
+import { ipcMain } from "electron";
 
 type Key<K, T> = T extends [never] ? string | symbol : K | keyof T;
 
@@ -32,10 +33,6 @@ export class ComponentInstance implements ComponentContext {
     protected activated = false;
     private disposeList = Disposable.None;
     private eventEmitter = new EventEmitter();
-    private view: Component = Object.freeze({
-        getId: () => this.getId(),
-        onClose: (listener) => this.onEvent(this, "close", listener),
-    });
 
     constructor(private readonly manifest: ComponentManifest, private impl: IComponentImpl) { }
 
@@ -44,6 +41,13 @@ export class ComponentInstance implements ComponentContext {
             this.disposeList,
             ...objects
         );
+    }
+
+    private createCallerView(caller: ComponentInstance): Component {
+        return {
+            getId: caller.getId,
+            onClose: (listener) => caller.onEvent(this, deactivateEvent, listener),
+        };
     }
 
     async initialize() {
@@ -62,6 +66,56 @@ export class ComponentInstance implements ComponentContext {
         }
 
         await this.impl.activate(this, settings);
+
+        const methods = this.getContribution(`methods`);
+
+        const rendererComponent: Component = {
+            getId: () => ":renderer",
+            onClose: (_listener) => Disposable.None, // FIXME
+        };
+
+        if (methods) {
+            Object.keys(methods).forEach(method => {
+                const channel = `${this.getName()}/${method}`;
+
+                ipcMain.handle(channel, (_, params: JsonObject) => {
+                    if (!this.impl.call) {
+                        return createError(ErrorCode.InternalError, `component ${this.getName()} not defines call`);
+                    }
+
+                    try {
+                        return this.impl.call(rendererComponent, method, params);
+                    } catch (e) {
+                        return e;
+                    }
+                });
+                this.manage(() => ipcMain.removeHandler(channel));
+            });
+        }
+
+        const notifications = this.getContribution(`notifications`);
+
+        if (notifications) {
+            Object.keys(notifications).forEach(notification => {
+                const channel = `${this.getName() }/${notification}`;
+
+                const handler = (_: any, params: JsonObject) => {
+                    if (!this.impl.notify) {
+                        return createError(ErrorCode.InternalError, `component ${this.getName()} not defines notify`);
+                    }
+
+                    try {
+                        return this.impl.notify(rendererComponent, notification, params);
+                    } catch (e) {
+                        return e;
+                    }
+                };
+
+                ipcMain.on(channel, handler);
+                this.manage(() => ipcMain.off(channel, handler));
+            });
+        }
+
         this.emitEvent(activateEvent);
         this.activated = true;
     }
@@ -69,6 +123,8 @@ export class ComponentInstance implements ComponentContext {
     async deactivate() {
         this.emitEvent(deactivateEvent);
         await this.impl.deactivate(this);
+        await this.disposeList.dispose();
+        this.eventEmitter.removeAllListeners();
         this.activated = false;
     }
 
@@ -81,8 +137,6 @@ export class ComponentInstance implements ComponentContext {
             await this.deactivate();
         }
 
-        this.eventEmitter.removeAllListeners();
-        await this.disposeList.dispose();
         await this.impl.dispose();
         this.initialized = false;
     }
@@ -140,33 +194,33 @@ export class ComponentInstance implements ComponentContext {
         return this.getContribution(path) != undefined;
     }
 
-    call(caller: ComponentInstance, method: string, params: JsonObject | undefined): Promise<Json | Error | void> {
+    async call(caller: ComponentInstance, method: string, params: JsonObject | undefined): Promise<Json | void> {
         if (!this.isActivated()) {
-            throw new Error(`${caller.getName()}: component ${this.getName()} is not active`);
+            throw createError(ErrorCode.InvalidRequest, `${caller.getId()}: component ${this.getName()} is not active`);
         }
 
         if (!this.impl.call || !this.hasContribution(`methods/${method}`)) {
-            throw new Error(`${caller.getName()}: component ${this.getName()} has no method ${method}`);
+            throw createError(ErrorCode.InvalidParams, `${caller.getId()}: component ${this.getName()} has no method ${method}`);
         }
 
-        return this.impl.call(caller.view, method, params);
+        return await this.impl.call(this.createCallerView(caller), method, params);
     }
 
-    notify(caller: ComponentInstance, notification: string, params: JsonObject | undefined) {
+    async notify(caller: ComponentInstance, notification: string, params: JsonObject | undefined) {
         if (!this.isActivated()) {
-            throw new Error(`${caller.getName()}: component ${this.getName()} is not active`);
+            throw createError(ErrorCode.InvalidRequest, `${caller.getId()}: component ${this.getName()} is not active`);
         }
 
         if (!this.impl.notify || !this.hasContribution(`notifications/${notification}`)) {
-            throw new Error(`${caller.getName()}: component ${this.getName()} has no notification ${notification}`);
+            throw createError(ErrorCode.InvalidParams, `${caller.getId()}: component ${this.getName()} has no notification ${notification}`);
         }
 
-        return this.impl.notify(caller.view, notification, params);
+        return await this.impl.notify(this.createCallerView(caller), notification, params);
     }
 
     onEvent(caller: ComponentInstance, event: string, listener: (params?: JsonObject) => Promise<void> | void) {
         if (!builtinEvents.includes(event) && !this.hasContribution(`events/${event}`)) {
-            throw new Error(`${caller.getName()}: component ${this.getName()} not emits event '${event}'`);
+            throw createError(ErrorCode.InvalidParams, `${caller.getId()}: component ${this.getName()} not emits event '${event}'`);
         }
 
         this.eventEmitter.on(event, listener);
@@ -179,6 +233,7 @@ export class ComponentInstance implements ComponentContext {
 
     emitEvent(event: string, params?: JsonObject) {
         this.eventEmitter.emit(event, params);
+        ipcMain.emit(`${this.getName()}/${event}`, params);
     }
 
     getManifest() {

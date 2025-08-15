@@ -1,4 +1,4 @@
-export type MenuItem = {
+type MenuItem = {
     label: string;
     icon?: string;
     onClick?: () => void;

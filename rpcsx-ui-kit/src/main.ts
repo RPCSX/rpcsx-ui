@@ -85,7 +85,7 @@ type RpcsxKitConfig = {
 const componentManifestName = "component.json";
 const generatedHeader = `
 ///////////////////////////////////////
-//  FILE IS GENERATED, DO NOT EDIT!  //
+//  FILE GENERATED, DO NOT EDIT!     //
 ///////////////////////////////////////
 `;
 
@@ -342,6 +342,18 @@ async function parseManifest(fileDb: FileDb, manifestPath: string, projectIds: s
             };
         }
 
+        const libProject = "lib";
+        if (!(libProject in component.projects)) {
+            component.projects[libProject] = {
+                name: libProject,
+                rootDir: path.join(componentRootDir, libProject),
+                component,
+                dependencies: [],
+                include: [],
+                exclude: [],
+            };
+        }
+
         return component;
     } catch (e) {
         throw new Error(`failed to read manifest ${manifestPath}: ${e}`);
@@ -510,7 +522,7 @@ class RpcsxKit {
                     }
 
                     // FIXME: improve shouldImport api
-                    const forceImport = project.name == "lib" || project.name == "types";
+                    const forceImport = project.name == "lib";
 
                     const shouldImport = forceImport || (projectGenerators && projectGenerators.find(projectGenerator => {
                         const shouldImport = projectGenerator.shouldImport;
@@ -558,7 +570,7 @@ class RpcsxKit {
                         }
 
                         // FIXME: improve shouldImport api
-                        const forceImport = depProjectName == "types" || (project.name == "server" || project.name == "main") && (depProjectName == "server-public-api" || depProjectName == "lib");
+                        const forceImport = depProjectName == "lib" || ((project.name == "server" || project.name == "main") && depProjectName == "server-public-api");
 
                         const shouldImport = forceImport || /*project.name == depProjectName || */(projectGenerators && projectGenerators.find(projectGenerator => {
                             const shouldImport = projectGenerator.shouldImport;
@@ -628,7 +640,7 @@ class TypesGenerator implements ContributionGenerator {
         }
 
         if (!(typeName in this.generatedTypes)) {
-            let paramsType = `export `;
+            let paramsType = "";
             if (type.type === "object") {
                 if (!("params" in type)) {
                     throw `${type}: params must be present`;
@@ -665,7 +677,7 @@ class TypesGenerator implements ContributionGenerator {
         const responseTypeName = `${labelName}Response`;
 
         if (!(requestTypeName in this.generatedTypes)) {
-            let paramsType = `export type ${requestTypeName} = `;
+            let paramsType = `type ${requestTypeName} = `;
 
             if ("params" in method && method.params && typeof method.params == "object") {
                 paramsType += "{\n";
@@ -680,7 +692,7 @@ class TypesGenerator implements ContributionGenerator {
         }
 
         if (!(responseTypeName in this.generatedTypes)) {
-            let responseType = `export type ${responseTypeName} = `;
+            let responseType = `type ${responseTypeName} = `;
             if ("returns" in method && method.returns && typeof method.returns == "object") {
                 responseType += "{\n";
                 responseType += this.generateObjectBody(component, method.returns);
@@ -699,7 +711,7 @@ class TypesGenerator implements ContributionGenerator {
         const requestTypeName = `${labelName}Request`;
 
         if (!(requestTypeName in this.generatedTypes)) {
-            let paramsType = `export type ${requestTypeName} = `;
+            let paramsType = `type ${requestTypeName} = `;
             if ("params" in notification && notification.params && typeof notification.params == "object") {
                 paramsType += "{\n";
                 paramsType += this.generateObjectBody(component, notification.params);
@@ -720,7 +732,7 @@ class TypesGenerator implements ContributionGenerator {
         if (!(typeName in this.generatedTypes)) {
             if (typeof event == 'object') {
                 const type = this.generateObjectBody(component, event);
-                let paramsType = `export type ${typeName} = `;
+                let paramsType = `type ${typeName} = `;
                 if (type.length === 0) {
                     // paramsType += "undefined;\n";
                     return;
@@ -746,22 +758,10 @@ class TypesGenerator implements ContributionGenerator {
             case "boolean":
                 return type;
             case "json":
-                if (component != "core") {
-                    this.imports["$core"] ??= new Set();
-                    this.imports["$core"].add("Json");
-                }
                 return "Json";
             case "json-object":
-                if (component != "core") {
-                    this.imports["$core"] ??= new Set();
-                    this.imports["$core"].add("JsonObject");
-                }
                 return "JsonObject";
             case "json-array":
-                if (component != "core") {
-                    this.imports["$core"] ??= new Set();
-                    this.imports["$core"].add("JsonArray");
-                }
                 return "JsonArray";
 
             case "array":
@@ -821,16 +821,41 @@ class TypesGenerator implements ContributionGenerator {
 }
 
 class ServerPublicApiGenerator implements ContributionGenerator {
+
+    toString(): string {
+        return `${generatedHeader}
+import { thisComponent } from "$/component-info";
+import { ComponentInstance } from '$core/ComponentInstance.js';
+
+export async function call(caller: ComponentInstance, method: string, params?: JsonObject): Promise<Json | void> {
+    return thisComponent().call(caller, method, params);
+}
+
+export async function notify(caller: ComponentInstance, notification: string, params?: JsonObject) {
+    return thisComponent().notify(caller, notification, params);
+}
+
+export async function onEvent(caller: ComponentInstance, event: string, listener: (params?: JsonObject) => Promise<void> | void) {
+    return thisComponent().onEvent(caller, event, listener);
+}
+`;
+    }
+};
+
+class ServerComponentApiGenerator implements ContributionGenerator {
     private body = '';
+    private externalComponent?: string;
 
     generateMethod(component: string, method: object, name: string) {
         if ("virtual" in method && method.virtual === true) {
             return;
         }
+
+        this.externalComponent ??= component;
         const label = generateComponentLabelName(component, name, false);
         const uLabel = generateComponentLabelName(component, name, true);
-        this.body += `export async function ${label}(caller: ComponentInstance, params: types.${uLabel}Request): Promise<types.${uLabel}Response | Error> {
-    return thisComponent().call(caller, "${name}", params) as any;
+        this.body += `export async function ${label}(params: ${uLabel}Request): Promise<${uLabel}Response> {
+    return ${generateLabelName(component, false)}.call(thisComponent(), "${name}", params) as any;
 }
 `;
     }
@@ -840,39 +865,39 @@ class ServerPublicApiGenerator implements ContributionGenerator {
             return;
         }
 
+        this.externalComponent ??= component;
         const label = generateComponentLabelName(component, name, false);
         const uLabel = generateComponentLabelName(component, name, true);
-        this.body += `export async function ${label}(caller: ComponentInstance, params: types.${uLabel}Request) {
-    return thisComponent().notify(caller, "${name}", params) as any;
+        this.body += `export async function ${label}(params: ${uLabel}Request) {
+    return ${generateLabelName(component, false)}.notify(thisComponent(), "${name}", params) as any;
 }
 `;
     }
 
     generateEvent(component: string, event: object, name: string) {
+        this.externalComponent ??= component;
         const label = generateComponentLabelName(component, name, true);
         if (Object.keys(event).length == 0) {
-            this.body += `export async function on${label}(caller: ComponentInstance, handler: () => Promise<void> | void) {
-    return thisComponent().onEvent(caller, "${name}", handler as any);
+            this.body += `export async function on${label}(handler: () => Promise<void> | void) {
+    return ${generateLabelName(component, false)}.onEvent(thisComponent(), "${name}", handler as any);
 }
 `;
             return;
         }
-        this.body += `export async function on${label}(caller: ComponentInstance, handler: (event: types.${label}Event) => Promise<void> | void) {
-    return thisComponent().onEvent(caller, "${name}", handler as any);
+        this.body += `export async function on${label}(handler: (event: ${label}Event) => Promise<void> | void) {
+    return ${generateLabelName(component, false)}.onEvent(thisComponent(), "${name}", handler as any);
 }
 `;
     }
 
     toString(): string {
-        if (this.body.length === 0) {
+        if (this.body.length === 0 || !this.externalComponent) {
             return `${generatedHeader}export { };\n`;
         }
 
         return `${generatedHeader}
-import * as types from "$/types.js";
-import { thisComponent } from "$/component-info.js";
-import { ComponentInstance } from '$core/ComponentInstance.js';
-export * from "$/types.js";
+import { thisComponent } from "$/component-info";
+import * as ${generateLabelName(this.externalComponent, false)} from '$${this.externalComponent}/api';
 
 ${this.body}
 `;
@@ -884,6 +909,20 @@ class ServerPrivateApiGenerator implements ContributionGenerator {
     private body = '';
     private callBody = '';
     private notifyBody = '';
+
+    generateEvent(component: string, event: object, name: string) {
+        const label = generateComponentLabelName(component, name, true);
+        if (Object.keys(event).length == 0) {
+            this.body += `export function emit${label}Event() {
+    return thisComponent().emitEvent("${name}");
+}\n`;
+            return;
+        }
+
+        this.body += `export function emit${label}Event(params: ${label}Event) {
+    return thisComponent().emitEvent("${name}", params);
+}\n`;
+    }
 
     generateMethod(component: string, method: object, name: string) {
         if (typeof method != 'object') {
@@ -901,12 +940,12 @@ class ServerPrivateApiGenerator implements ContributionGenerator {
 
         const label = generateComponentLabelName(component, name, false);
         const uLabel = generateComponentLabelName(component, name, true);
-        this.body += `async function ${label}(caller: Component, params: types.${uLabel}Request): Promise<types.${uLabel}Response> {
+        this.body += `async function ${label}(caller: Component, params: ${uLabel}Request): Promise<${uLabel}Response> {
     return impl.${method.handler}(caller, params);
 }
 `;
         // FIXME: implement type validation
-        this.callBody += `        case "${name}": return ${label}(caller, params as types.${uLabel}Request);\n`;
+        this.callBody += `        case "${name}": return ${label}(caller, params as ${uLabel}Request);\n`;
     }
 
     generateNotification(component: string, notification: object, name: string) {
@@ -925,23 +964,21 @@ class ServerPrivateApiGenerator implements ContributionGenerator {
 
         const label = generateComponentLabelName(component, name, false);
         const uLabel = generateComponentLabelName(component, name, true);
-        this.body += `async function ${label}(caller: Component, params: types.${uLabel}Request) {
+        this.body += `async function ${label}(caller: Component, params: ${uLabel}Request) {
     impl.${notification.handler}(caller, params);
 }
 `;
-        this.notifyBody += `        case "${name}": return ${label}(caller, params as types.${uLabel}Request);\n`;
+        this.notifyBody += `        case "${name}": return ${label}(caller, params as ${uLabel}Request);\n`;
     }
 
     toString(): string {
         if (this.body.length === 0) {
             return `${generatedHeader}
-import { JsonObject } from "$core/types.js";
-import { ErrorCode, createError, Error } from "$core/Error.js";
-import { Component } from "$core/Component.js";
-export * from "$/types.js";
+import { createError } from "$core/Error";
+import { Component } from "$core/Component";
 
-export async function call(_caller: Component, _method: string, _params: JsonObject | undefined): Promise<JsonObject | Error | void> {
-    return createError(ErrorCode.MethodNotFound);
+export async function call(_caller: Component, _method: string, _params: JsonObject | undefined): Promise<JsonObject | void> {
+    throw createError(ErrorCode.MethodNotFound);
 }
 
 export async function notify(_caller: Component, _method: string, _params: JsonObject | undefined) {
@@ -951,22 +988,20 @@ export async function notify(_caller: Component, _method: string, _params: JsonO
         }
 
         return `${generatedHeader}
-import * as impl from "$/main.js";
-import * as types from "$/types.js";
-import { JsonObject } from "$core/types.js";
-import { createError, Error, ErrorCode } from "$core/Error.js";
-import { Component } from "$core/Component.js";
-export * from "$/types.js";
+${this.callBody.length > 0 || this.notifyBody.length > 0 ? 'import * as impl from "$/main";' : ""}
+import { createError } from "$core/Error";
+import { Component } from "$core/Component";
+import { thisComponent } from "$/component-info";
 
 ${this.body}
 
-export async function call(caller: Component, method: string, params: JsonObject | undefined): Promise<JsonObject | Error | void> {
+export async function call(caller: Component, method: string, params: JsonObject | undefined): Promise<JsonObject | void> {
     void caller, params;
 
     switch (method) {
 ${this.callBody}
     default:
-        return createError(ErrorCode.MethodNotFound);
+        throw createError(ErrorCode.MethodNotFound);
     }
 }
 
@@ -983,21 +1018,69 @@ ${this.notifyBody}
     }
 }
 
-class ServerPrivateEventGenerator implements ContributionGenerator {
+class SvelteElectronComponentApiGenerator implements ContributionGenerator {
     private body = '';
+    private hasMethod = false;
+    private hasEvent = false;
 
-    generateEvent(component: string, event: object, name: string) {
-        const label = generateComponentLabelName(component, name, true);
-        if (Object.keys(event).length == 0) {
-            this.body += `export function emit${label}Event() {
-    return thisComponent().emitEvent("${name}");
-}\n`;
+    generateMethod(component: string, method: object, name: string) {
+        if ("virtual" in method && method.virtual === true) {
             return;
         }
 
-        this.body += `export function emit${label}Event(params: types.${label}Event) {
-    return thisComponent().emitEvent("${name}", params);
-}\n`;
+        this.hasMethod = true;
+        const label = generateComponentLabelName(component, name, false);
+        const uLabel = generateComponentLabelName(component, name, true);
+        this.body += `
+export async function ${label}(params: ${uLabel}Request): Promise<${uLabel}Response> {
+    if (!window?.electron?.ipcRenderer) {
+        throw createError(ErrorCode.InvalidRequest, "electron is not available");
+    }
+
+    return window.electron.ipcRenderer.invoke("${component}/${name}", params);
+}
+`;
+    }
+
+    generateNotification(component: string, notification: object, name: string) {
+        if ("virtual" in notification && notification.virtual === true) {
+            return;
+        }
+
+        const label = generateComponentLabelName(component, name, false);
+        const uLabel = generateComponentLabelName(component, name, true);
+        this.body += `
+export function ${label}(params: ${uLabel}Request) {
+    if (!window?.electron?.ipcRenderer) {
+        return;
+    }
+
+    return window.electron.ipcRenderer.send("${component}/${name}", params);
+}
+`;
+    }
+
+    generateEvent(component: string, event: object, name: string) {
+        this.hasEvent = true;
+        const label = generateComponentLabelName(component, name, true);
+        this.body += "\n";
+
+        if (Object.keys(event).length == 0) {
+            this.body += `export async function on${label}(handler: () => Promise<void> | void) {`;
+        } else {
+            this.body += `export async function on${label}(handler: (event: ${label}Event) => Promise<void> | void) {`;
+        }
+
+        this.body += `
+    if (!window?.electron?.ipcRenderer) {
+        return Disposable.None;
+    }
+
+    const result = Disposable.Create(window.electron.ipcRenderer.on("${component}/${name}", handler));
+    onDestroy(() => result.dispose());
+    return result;
+}
+`;
     }
 
     toString(): string {
@@ -1006,13 +1089,13 @@ class ServerPrivateEventGenerator implements ContributionGenerator {
         }
 
         return `${generatedHeader}
-import * as types from "$/types.js";
-import { thisComponent } from "$/component-info.js";
-
+${ this.hasMethod ? 'import { createError } from "$core/Error";' : "" }
+${ this.hasEvent ? 'import { Disposable } from "$core/Disposable";' : "" }
+${ this.hasEvent ? 'import { onDestroy } from "svelte";' : "" }
 ${this.body}
 `;
     }
-}
+};
 
 
 function generateContributions<Params extends [], RT extends ContributionGenerator>(component: Component, Generator: new (...params: Params) => RT, ...params: Params) {
@@ -1088,7 +1171,7 @@ function generateContributions<Params extends [], RT extends ContributionGenerat
                     }
                 });
                 break;
-            
+
             case "settings":
                 // TODO: validate?
                 break;
@@ -1101,19 +1184,100 @@ function generateContributions<Params extends [], RT extends ContributionGenerat
     return generator;
 }
 
-type TsServerGeneratorConfig = {
+type TsGeneratorConfig = {
     outDir: string;
     buildDir: string;
 };
 
+class TsLibGenerator implements ProjectGenerator {
+    name = "TsLibGenerator";
+    projectId = "lib";
+
+    constructor(private config: TsGeneratorConfig) { }
+
+    shouldImport(projectId: string) {
+        return projectId == "lib";
+    }
+
+    async generateProjects(project: Project, fileDb: FileDb) {
+        const projectPath = path.join(this.config.outDir, project.component.manifest.name, project.name);
+        const genDir = path.join(projectPath, "src");
+        const generatedFilePath = path.join(genDir, "types.d.ts");
+        const generatedFile = await fileDb.createFile(generatedFilePath, project.component.manifestFile);
+
+        if (generatedFile) {
+            try {
+                generatedFile.content = generateContributions(project.component, TypesGenerator).toString();
+            } catch (e) {
+                throw Error(`${project.component.manifest.name}: ${e}`);
+            }
+        }
+
+        return [];
+    }
+};
+
+class SvelteElectronApiGenerator implements ProjectGenerator {
+    name = "TsLibGenerator";
+    projectId = "server";
+
+    constructor(private config: TsGeneratorConfig) { }
+
+    shouldImport(projectId: string) {
+        return projectId == "lib";
+    }
+
+    async generateProjects(project: Project, fileDb: FileDb) {
+        const projectName = "server-renderer-api";
+        const generatedFileName = "api.ts";
+        const newProjectPath = path.join(this.config.outDir, project.component.manifest.name, projectName);
+        const genDir = path.join(newProjectPath, "src");
+        const generatedFilePath = path.join(genDir, generatedFileName);
+        const generatedFile = await fileDb.createFile(generatedFilePath, project.component.manifestFile);
+
+        if (generatedFile) {
+            try {
+                generatedFile.content = generateContributions(project.component, SvelteElectronComponentApiGenerator).toString();
+            } catch (e) {
+                throw Error(`${project.component.manifest.name}: ${e}`);
+            }
+        }
+
+        const newProject: Project = {
+            name: projectName,
+            rootDir: genDir,
+            component: project.component,
+            dependencies: [project.component.projects["lib"]],
+            include: [generatedFilePath],
+            exclude: [],
+        };
+
+        return [newProject];
+    }
+};
 class TsServerGenerator implements ProjectGenerator {
     name = "TsServerGenerator";
     projectId = "server";
 
-    constructor(private config: TsServerGeneratorConfig) { }
+    constructor(private config: TsGeneratorConfig) { }
 
     shouldImport(projectId: string) {
         return ["lib"].includes(projectId);
+    }
+
+    async generateContributionFile<Params extends []>(sourceComponent: Component, project: Project, fileDb: FileDb, generatedFileName: string, Generator: new (...params: Params) => ContributionGenerator, ...params: Params) {
+        const projectPath = path.join(this.config.outDir, project.component.manifest.name, project.name);
+        const genDir = path.join(projectPath, "src");
+        const generatedFilePath = path.join(genDir, generatedFileName);
+        const generatedFile = await fileDb.createFile(generatedFilePath, sourceComponent.manifestFile);
+
+        if (generatedFile) {
+            try {
+                generatedFile.content = generateContributions(sourceComponent, Generator, ...params).toString();
+            } catch (e) {
+                throw Error(`${sourceComponent.manifest.name}: ${e}`);
+            }
+        }
     }
 
     async generateProject<Params extends []>(project: Project, fileDb: FileDb, projectName: string, generatedFileName: string, Generator: new (...params: Params) => ContributionGenerator, ...params: Params) {
@@ -1125,40 +1289,6 @@ class TsServerGenerator implements ProjectGenerator {
         if (generatedFile) {
             try {
                 generatedFile.content = generateContributions(project.component, Generator, ...params).toString();
-
-                if (project.component.manifest.name == "core" && projectName == "types") {
-                    generatedFile.content += `
-export type JsonNumber = number;
-export type JsonString = string;
-export type JsonNull = null;
-export type JsonBoolean = boolean;
-export type JsonObject = {
-    [P in string]: Json;
-};
-export type JsonArray = Array<Json>;
-export type Json = JsonNumber | JsonBoolean | JsonNull | JsonString | JsonObject | JsonArray;
-
-export function isJsonString(json: Json): json is JsonString {
-    return typeof json == 'string';
-}
-export function isJsonNumber(json: Json): json is JsonNumber {
-    return typeof json == 'number';
-}
-export function isJsonObject(json: Json): json is JsonObject {
-    return typeof json == 'object' && !Array.isArray(json);
-}
-export function isJsonArray(json: Json): json is JsonArray {
-    return Array.isArray(json);
-}
-export function isJsonNull(json: Json): json is JsonNull {
-    return json == null;
-}
-export function isJsonBoolean(json: Json): json is JsonBoolean {
-    return typeof json == 'boolean';
-}
- 
-`;
-                }
             } catch (e) {
                 throw Error(`${project.component.manifest.name}: ${e}`);
             }
@@ -1176,31 +1306,22 @@ export function isJsonBoolean(json: Json): json is JsonBoolean {
         return newProject;
     }
 
-    async generateTypesProject(project: Project, fileDb: FileDb) {
-        return await this.generateProject(project, fileDb, "types", "types.ts", TypesGenerator);
-    }
-
-    async generateServerPrivateApiProject(project: Project, fileDb: FileDb) {
-        return await this.generateProject(project, fileDb, "server-private-api", "api.ts", ServerPrivateApiGenerator);
-    }
-
-    async generateServerPrivateEventProject(project: Project, fileDb: FileDb) {
-        return await this.generateProject(project, fileDb, "server-private-event", "event.ts", ServerPrivateEventGenerator);
+    async generateServerPrivateApiFile(project: Project, fileDb: FileDb) {
+        return await this.generateContributionFile(project.component, project, fileDb, "api.ts", ServerPrivateApiGenerator);
     }
 
     async generateServerPublicApiProject(project: Project, fileDb: FileDb) {
         return await this.generateProject(project, fileDb, "server-public-api", "api.ts", ServerPublicApiGenerator);
     }
 
-    async generateComponentInfoProject(serverProject: Project, fileDb: FileDb) {
-        const projectName = "component-info";
-        const outDir = path.join(this.config.outDir, serverProject.component.manifest.name, projectName);
+    async generateComponentInfoFile(project: Project, fileDb: FileDb) {
+        const outDir = path.join(this.config.outDir, project.component.manifest.name, project.name);
         const genDir = path.join(outDir, "src");
         const componentFilePath = path.join(genDir, "component-info.ts");
-        const componentManifest = await fileDb.createFile(componentFilePath, serverProject.component.manifestFile);
+        const componentManifest = await fileDb.createFile(componentFilePath, project.component.manifestFile);
 
         if (componentManifest) {
-            const serverManifest = createServerManifest(serverProject.component.manifest, serverProject.component.workspace);
+            const serverManifest = createServerManifest(project.component.manifest, project.component.workspace);
             componentManifest.content = `${generatedHeader}
 import { getComponent } from '$core/ComponentInstance.js';
 
@@ -1211,17 +1332,25 @@ export function thisComponent() {
 }
 `;
         }
+    }
 
-        const project: Project = {
+    async generateComponentInfoProject(project: Project, fileDb: FileDb) {
+        const projectName = "component-info";
+        const newProjectPath = path.join(this.config.outDir, project.component.manifest.name, projectName);
+        const genDir = path.join(newProjectPath, "src");
+        const generatedFilePath = path.join(genDir, "component-info.ts");
+
+        const newProject: Project = {
             name: projectName,
-            component: serverProject.component,
             rootDir: genDir,
+            component: project.component,
             dependencies: [],
-            include: [componentFilePath],
+            include: [generatedFilePath],
             exclude: [],
         };
 
-        return project;
+        await this.generateComponentInfoFile(newProject, fileDb);
+        return newProject;
     }
 
     async generateComponentProject(serverProject: Project, fileDb: FileDb) {
@@ -1249,12 +1378,11 @@ export function thisComponent() {
         if (componentFile) {
             const mainFile = path.join(serverProject.rootDir, "main.js");
             componentFile.content = `${generatedHeader}
-import * as api from '$/api.js';
+import * as api from '$';
 import { IComponentImpl, registerComponent } from '$core/ComponentInstance.js';
 import { ComponentContext, Component } from '$core/Component.js';
-import { JsonObject } from '$core/types.js';
-import { manifest } from '$/component-info.js';
-export { thisComponent } from '$/component-info.js';
+import { manifest } from '$/component-info';
+export { thisComponent } from '$/component-info';
 
 class ${componentLabel}ComponentImpl implements IComponentImpl {
     private impl: Awaited<typeof import("${mainFile}")> | undefined;
@@ -1280,11 +1408,11 @@ class ${componentLabel}ComponentImpl implements IComponentImpl {
     }
 
     async call(caller: Component, method: string, params?: JsonObject) {
-        return await call(caller, method, params);
+        return await api.call(caller, method, params);
     }
 
     async notify(caller: Component, notification: string, params?: JsonObject) {
-        await notify(caller, notification, params);
+        await api.notify(caller, notification, params);
     }
 };
 
@@ -1307,62 +1435,49 @@ export function register${generateLabelName(component.manifest.name, true)}Compo
     }
 
     async generateProjects(project: Project, fileDb: FileDb): Promise<Project[]> {
-        const typesProjectPromise = this.generateTypesProject(project, fileDb);
-        const privateApiPromise = this.generateServerPrivateApiProject(project, fileDb);
+        const privateApiPromise = this.generateServerPrivateApiFile(project, fileDb);
         const publicApiPromise = this.generateServerPublicApiProject(project, fileDb);
         const componentPromise = this.generateComponentProject(project, fileDb);
-        const eventPromise = this.generateServerPrivateEventProject(project, fileDb);
-        const componentInfoPromise = this.generateComponentInfoProject(project, fileDb);
+        const componentInfoPromise =
+            project.component.manifest.name == "core"
+                ? this.generateComponentInfoFile(project, fileDb)
+                : this.generateComponentInfoProject(project, fileDb);
+
+        await Promise.all(project.component.dependencies.map(async dep => {
+            if (dep != project.component) {
+                await this.generateContributionFile(dep, project, fileDb, `${dep.manifest.name}.ts`, ServerComponentApiGenerator);
+            }
+        }));
 
         const component = project.component;
-        const typesProject = await typesProjectPromise;
-        const privateApiProject = await privateApiPromise;
+        await privateApiPromise;
         const publicApiProject = await publicApiPromise;
         const componentProject = await componentPromise;
-        const eventProject = await eventPromise;
         const componentInfoProject = await componentInfoPromise;
+
+        const result = [componentProject, publicApiProject];
+
         const coreLibProject = component.workspace["core"].projects["lib"];
         const coreServerProject = component.workspace["core"].projects["server"];
 
-        componentProject.dependencies.push(
-            coreLibProject,
-            privateApiProject,
-            componentInfoProject,
-        );
-
-        privateApiProject.dependencies.push(
-            coreLibProject,
-            project,
-            typesProject,
-        );
-
-        publicApiProject.dependencies.push(
-            componentProject,
-            coreLibProject,
-            privateApiProject,
-            typesProject,
-            eventProject
-        );
-
-        eventProject.dependencies.push(
-            coreLibProject,
-            typesProject,
-            componentInfoProject
-        );
-
+        componentProject.dependencies.push(coreLibProject);
 
         if (component.manifest.name != "core") {
-            eventProject.dependencies.push(coreServerProject);
+            componentProject.dependencies.push(coreServerProject);
         }
 
-        privateApiProject.dependencies.push(coreServerProject);
-        componentProject.dependencies.push(coreServerProject);
-        publicApiProject.dependencies.push(coreServerProject);
-        componentInfoProject.dependencies.push(coreServerProject);
+        if (componentInfoProject) {
+            componentInfoProject.dependencies.push(coreServerProject);
+            project.dependencies.push(componentInfoProject);
+            result.push(componentInfoProject);
+            publicApiProject.dependencies.push(componentInfoProject);
+            componentProject.dependencies.push(componentInfoProject);
+        }
 
-        project.dependencies.push(typesProject, eventProject, privateApiProject);
+        publicApiProject.dependencies.push(coreServerProject, project.component.projects["lib"]);
+        componentProject.dependencies.push(project);
 
-        return [typesProject, publicApiProject, privateApiProject, componentProject, eventProject, componentInfoProject];
+        return result;
     }
 };
 
@@ -1370,11 +1485,7 @@ class TsServerMainGenerator implements ComponentGenerator {
     name = "TsServerComponentGenerator";
     projectId = "renderer";
 
-    constructor(private config: TsServerGeneratorConfig) { }
-
-    shouldImport(projectId: string) {
-        return ["server-public-api"].includes(projectId);
-    }
+    constructor(private config: TsGeneratorConfig) { }
 
     async generateComponents(workspace: Workspace, fileDb: FileDb) {
         const serverComponents = Object.values(workspace).filter(component => "server" in component.projects);
@@ -1458,10 +1569,10 @@ class SvelteRendererGenerator implements ComponentGenerator {
     name = "SvelteRendererGenerator";
     projectId = "renderer";
 
-    constructor(private config: TsServerGeneratorConfig) { }
+    constructor(private config: TsGeneratorConfig) { }
 
     shouldImport(projectId: string) {
-        return ["lib", "server-render-api", "types", "renderer"].includes(projectId);
+        return ["lib", "server-renderer-api", "renderer"].includes(projectId);
     }
 
     async generateComponents(workspace: Workspace, fileDb: FileDb) {
@@ -1942,8 +2053,12 @@ class TsConfigGenerator implements ConfigGenerator {
 
         const appendSelfProjectPath = (name: string, projectPath: string) => {
             appendProjectPath(name, projectPath);
-            appendProjectPath(`$`, projectPath);
+            appendProjectPath('$', projectPath);
             appendProjectPath(`$${project.component.manifest.name}`, projectPath);
+        };
+
+        const getGenDir = (project: Project) => {
+            return path.join(this.config.outDir, project.component.manifest.name, project.name, "src");
         };
 
         try {
@@ -1963,6 +2078,7 @@ class TsConfigGenerator implements ConfigGenerator {
             include.push(
                 path.join(project.rootDir, "**", "*.ts"),
                 path.join(project.rootDir, "**", "*.js"),
+                path.join(project.rootDir, "**", "*.d.ts"),
             );
         }
 
@@ -1971,11 +2087,12 @@ class TsConfigGenerator implements ConfigGenerator {
             include.push(
                 path.join(genDir, "**", "*.ts"),
                 path.join(genDir, "**", "*.js"),
+                path.join(genDir, "**", "*.d.ts"),
             );
         }
 
         let config: object;
-        if (["renderer", "routes", "views"].includes(project.name)) {
+        if (["renderer", "routes", "views", "server-renderer-api"].includes(project.name)) {
             include.push(
                 path.join(project.rootDir, "**", "*.svelte"),
                 path.relative(outDir, path.join(this.config.svelteDir, "*.d.ts")),
@@ -1997,8 +2114,7 @@ class TsConfigGenerator implements ConfigGenerator {
                     target: "ESNext",
                     module: "ESNext",
                     moduleResolution: "bundler",
-                    noEmit: true,
-                    lib: ["ESNext"],
+                    lib: ["ESNext"]
                 }
             };
         }
@@ -2014,8 +2130,8 @@ class TsConfigGenerator implements ConfigGenerator {
             });
 
             if (dep.component == project.component) {
-                if (dep.name == "server") {
-                    appendSelfProjectPath(dep.name, path.join(dep.component.projects["server-private-api"].rootDir, "api.ts"));
+                if (dep.name == "server" || dep.name == "server-renderer-api") {
+                    appendSelfProjectPath(dep.name, path.join(depGenDir, "api.ts"));
                 }
 
                 appendSelfProjectPath(dep.name, dep.rootDir + path.sep);
@@ -2023,19 +2139,17 @@ class TsConfigGenerator implements ConfigGenerator {
                     appendSelfProjectPath(dep.name, depGenDir + path.sep);
                 }
             } else {
-                if (dep.name == "server") {
-                    appendProjectReferencePath(dep, path.join(dep.component.projects["server-public-api"].rootDir, "api.ts"));
-                }
-
                 appendProjectReferencePath(dep, dep.rootDir + path.sep);
                 if (depGenDir != dep.rootDir) {
                     appendProjectReferencePath(dep, depGenDir + path.sep);
                 }
+
+                if (dep.name == "server-renderer-api") {
+                    appendProjectReferencePath(dep, path.join(depGenDir, "api.ts"));
+                }
             }
 
-            include.push(
-                path.relative(outDir, path.join(dep.rootDir, "**", "*.d.ts")),
-            );
+            include.push(path.relative(outDir, path.join(dep.rootDir, "**", "*.d.ts")),);
 
             if (dep.rootDir != depGenDir) {
                 include.push(path.relative(outDir, path.join(depGenDir, "**", "*.d.ts")));
@@ -2043,7 +2157,42 @@ class TsConfigGenerator implements ConfigGenerator {
         });
 
         if (project.name == "server") {
-            appendSelfProjectPath(project.name, path.join(project.component.projects["server-private-api"].rootDir, "api.ts"));
+            appendProjectPath('$', project.rootDir + path.sep);
+            appendProjectPath(`$${project.component.manifest.name}`, project.rootDir + path.sep);
+
+            appendSelfProjectPath(project.name, path.join(genDir, "api.ts"));
+
+            if (project.rootDir != genDir) {
+                appendSelfProjectPath(project.name, genDir + path.sep);
+            }
+
+            project.component.dependencies.forEach(depComponent => {
+                const server = depComponent.projects["server"];
+                if (server) {
+                    appendProjectReferencePath(server, path.join(genDir, `${server.component.manifest.name}.ts`));
+                    appendProjectPath(`$${path.join(depComponent.manifest.name)}/api`, path.join(depComponent.projects["server-public-api"].rootDir, "api.ts"));
+                }
+            });
+        } else if (project.name == "server-renderer-api") {
+            const render = project.component.projects["renderer"];
+            if (render) {
+                include.push(path.relative(outDir, path.join(render.rootDir, "**", "*.d.ts")));
+                const genDir = getGenDir(render);
+                if (render.rootDir != genDir) {
+                    include.push(path.relative(outDir, path.join(genDir, "**", "*.d.ts")));
+                }
+            }
+
+            project.component.dependencies.forEach(depComponent => {
+                const render = depComponent.projects["renderer"];
+                if (render) {
+                    include.push(path.relative(outDir, path.join(render.rootDir, "**", "*.d.ts")));
+                    const genDir = getGenDir(render);
+                    if (render.rootDir != genDir) {
+                        include.push(path.relative(outDir, path.join(genDir, "**", "*.d.ts")));
+                    }
+                }
+            });
         }
 
         const configFile = await fileDb.createFile(path.join(outDir, "tsconfig.json"), project.component.manifestFile);
@@ -2053,7 +2202,11 @@ class TsConfigGenerator implements ConfigGenerator {
                 references,
                 compilerOptions: {
                     paths: projectInfo.paths,
-                    rootDir: path.relative(outDir, project.rootDir),
+                    rootDir: path.relative(outDir, path.join(project.component.path, "..", "..")),
+                    rootDirs: [
+                        path.relative(outDir, project.rootDir),
+                        path.relative(outDir, genDir),
+                    ].filter((value, index, array) => array.indexOf(value) == index),
                     outDir: path.relative(outDir, path.join(this.config.buildDir, project.component.manifest.name, project.name)),
                     tsBuildInfoFile: path.relative(outDir, path.join(this.config.outDir, ".info", project.component.manifest.name, project.name)),
                 },
@@ -2099,15 +2252,6 @@ class TsConfigGenerator implements ConfigGenerator {
     }
 };
 
-const tsLibGenerator: ProjectGenerator = {
-    name: "TsLibGenerator",
-    projectId: "lib",
-
-    shouldImport(projectId: string) {
-        return "lib" == projectId || "types" == projectId;
-    }
-};
-
 const preloadGenerator: ProjectGenerator = {
     name: "PreloadGenerator",
     projectId: "preload",
@@ -2129,8 +2273,9 @@ const tsProjectInfos: TsProjectInfo[] = [];
 
 const rpcsxKit = new RpcsxKit(rpcsxConfig, [
     new TsServerGenerator(rpcsxConfig),
+    new TsLibGenerator(rpcsxConfig),
+    new SvelteElectronApiGenerator(rpcsxConfig),
     new SvelteRendererGenerator(rpcsxConfig),
-    tsLibGenerator,
     preloadGenerator
 ], [
     new TsConfigGenerator({ ...rpcsxConfig, projectInfos: tsProjectInfos }),

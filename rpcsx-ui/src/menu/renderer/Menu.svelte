@@ -1,5 +1,4 @@
 <script lang="ts">
-    import { type MenuItem } from "models/MenuItem";
     let menuElement: HTMLElement;
     let contentElement: HTMLElement;
     let items: MenuItem[] = [];

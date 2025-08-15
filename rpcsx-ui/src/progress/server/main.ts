@@ -1,52 +1,18 @@
 import { ipcMain } from 'electron';
-import { Component, ComponentContext } from '$core/Component';
-import { ErrorCode } from '$core/Error';
-import * as api from '$/types';
-import * as event from '$/event';
+import { Component } from '$core/Component';
+import { createError } from '$core/Error';
+import * as api from '$';
+
 import { Disposable, IDisposable } from '$core/Disposable';
 
-type ProgressInstance = Omit<api.ProgressValue, 'channel'> & {
+type ProgressInstance = Omit<ProgressValue, 'channel'> & {
     creator: Component;
     disposable?: IDisposable;
 };
 
 let nextProgressChannel = 0;
 let channels: Record<number, ProgressInstance> = {};
-let subscriptions: Record<number, Set<Electron.WebContents>> = {};
-
-export function activate(context: ComponentContext) {
-    context.subscribe(ipcMain, 'progress/subscribe', (event: Electron.IpcMainEvent, channel: number) => {
-        if (!(channel in channels)) {
-            throw { code: ErrorCode.InvalidParams };
-        }
-
-        subscriptions[channel] ??= new Set();
-        subscriptions[channel].add(event.sender);
-        const info = channels[channel];
-        event.sender.send("progress/update", {
-            value: info.value,
-            status: info.status,
-            title: info.title,
-            description: info.description,
-            message: info.message,
-        });
-    });
-
-    context.subscribe(ipcMain, 'progress/unsubscribe', (event: Electron.IpcMainEvent, channel: number) => {
-        try {
-            const channelSubscriptions = subscriptions[channel];
-            if (!channelSubscriptions) {
-                return;
-            }
-
-            if (!channelSubscriptions.delete(event.sender)) {
-                throw { code: ErrorCode.InvalidParams };
-            }
-        } catch (e) {
-            console.error("progress unsubscribe error", e);
-        }
-    });
-}
+let subscriptions: Record<number, Set<Component>> = {};
 
 export function deactivate() {
     nextProgressChannel = 0;
@@ -56,7 +22,7 @@ export function deactivate() {
         try {
             progressUpdate(channel.creator, {
                 channel: parseInt(channelId),
-                status: api.ProgressStatus.Error,
+                status: ProgressStatus.Error,
                 message: "Client close"
             });
         } catch { /* empty */ }
@@ -66,13 +32,13 @@ export function deactivate() {
     subscriptions = {};
 }
 
-export function progressCreate(source: Component, params: api.ProgressCreateRequest): api.ProgressCreateResponse {
+export function progressCreate(source: Component, params: ProgressCreateRequest): ProgressCreateResponse {
     const channel = nextProgressChannel++;
 
     channels[channel] = {
         creator: source,
         value: params.initialValue,
-        status: api.ProgressStatus.InProgress,
+        status: ProgressStatus.InProgress,
         title: params.title,
         description: params.description,
     };
@@ -81,7 +47,7 @@ export function progressCreate(source: Component, params: api.ProgressCreateRequ
         try {
             progressUpdate(source, {
                 channel,
-                status: api.ProgressStatus.Error,
+                status: ProgressStatus.Error,
                 message: "Initiator is dead"
             });
         } catch { /* empty */ }
@@ -94,7 +60,7 @@ export function progressCreate(source: Component, params: api.ProgressCreateRequ
     return { channel };
 }
 
-export function progressUpdate(caller: Component, params: api.ProgressUpdateRequest) {
+export function progressUpdate(caller: Component, params: ProgressUpdateRequest) {
     const info = channels[params.channel];
 
     if (!info) {
@@ -121,7 +87,7 @@ export function progressUpdate(caller: Component, params: api.ProgressUpdateRequ
         info.message = params.message.length > 0 ? params.message : undefined;
     }
 
-    event.emitProgressUpdateEvent({ value: { channel: params.channel, ...info } });
+    api.emitProgressUpdateEvent({ value: { channel: params.channel, ...info } });
 
     subscriptions[params.channel] ??= new Set();
     const channelSubscriptions = subscriptions[params.channel];
@@ -137,9 +103,9 @@ export function progressUpdate(caller: Component, params: api.ProgressUpdateRequ
     }
 
     if (params.status !== undefined) {
-        if (params.status == api.ProgressStatus.Canceled ||
-            params.status == api.ProgressStatus.Complete ||
-            params.status == api.ProgressStatus.Error) {
+        if (params.status == ProgressStatus.Canceled ||
+            params.status == ProgressStatus.Complete ||
+            params.status == ProgressStatus.Error) {
             if (info.disposable) {
                 info.disposable.dispose();
             }
@@ -147,5 +113,36 @@ export function progressUpdate(caller: Component, params: api.ProgressUpdateRequ
             delete channels[params.channel];
             delete subscriptions[params.channel];
         }
+    }
+}
+
+export function progressSubscribe(caller: Component, params: ProgressSubscribeRequest) {
+    if (!(params.channel in channels)) {
+        throw createError(ErrorCode.InvalidParams);
+    }
+
+    subscriptions[params.channel] ??= new Set();
+    subscriptions[params.channel].add(caller);
+
+    // FIXME:
+
+    // const info = channels[channel];
+    // event.sender.send("progress/update", {
+    //     value: info.value,
+    //     status: info.status,
+    //     title: info.title,
+    //     description: info.description,
+    //     message: info.message,
+    // });
+}
+
+export function progressUnsubscribe(caller: Component, params: ProgressUnsubscribeRequest) {
+    const channelSubscriptions = subscriptions[params.channel];
+    if (!channelSubscriptions) {
+        return;
+    }
+
+    if (!channelSubscriptions.delete(caller)) {
+        throw createError(ErrorCode.InvalidParams);
     }
 }

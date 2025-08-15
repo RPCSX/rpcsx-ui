@@ -1,10 +1,10 @@
-import { Error, createError, ErrorCode } from "./Error.js";
+import { createError } from "./Error.js";
 
 export class Future<T> {
     resolve: (value: T) => void;
-    reject: (error: Error) => void;
+    reject: (error: ErrorInstance) => void;
     private _promise: Promise<T> | undefined;
-    private _value: { resolved: T } | { rejected: Error } | undefined = undefined;
+    private _value: { resolved: T } | { rejected: ErrorInstance } | undefined = undefined;
 
     constructor() {
         this.resolve = (value: T) => {
@@ -13,7 +13,7 @@ export class Future<T> {
             }
         };
 
-        this.reject = (value: Error) => {
+        this.reject = (value: ErrorInstance) => {
             this._value = { rejected: value };
         };
     }

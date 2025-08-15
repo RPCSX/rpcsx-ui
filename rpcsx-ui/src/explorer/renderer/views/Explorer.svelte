@@ -1,5 +1,4 @@
 <script lang="ts">
-  import type * as api from "lib/Explorer";
   import Footer from "$core/Footer.svelte";
   import Header from "$core/Header.svelte";
   import { getKeyModifiers, KeyboardModifiers } from "$core/helpers/Keyboard";
@@ -12,8 +11,8 @@
 
   export let query: string;
   export let queryParams: {
-    filter?: Partial<api.ExplorerItem>;
-    sort?: Partial<api.ExplorerItem>;
+    filter?: Partial<ExplorerItem>;
+    sort?: Partial<ExplorerItem>;
     sortAsc?: boolean;
   };
 
@@ -21,8 +20,8 @@
 
   console.log(layout, query, queryParams);
 
-  const items: api.ExplorerItem[] = [];
-  let filteredItems: api.ExplorerItem[] = [];
+  const items: ExplorerItem[] = [];
+  let filteredItems: ExplorerItem[] = [];
   let contextMenu: Menu;
 
   let rootElement: HTMLDivElement;
@@ -102,7 +101,7 @@
     return x;
   }
 
-  function createContextMenu(item: api.ExplorerItem) {
+  function createContextMenu(item: ExplorerItem) {
     const menuItems: MenuItem[] = [];
 
     if (item.actions) {
@@ -167,7 +166,7 @@
   }
 
   if (window.electron) {
-    window.electron.ipcRenderer.on(query, (params: { executables: api.ExplorerItem[] }) => {
+    window.electron.ipcRenderer.on(query, (params: { executables: ExplorerItem[] }) => {
       // console.log(newItems);
       items.push(...params.executables);
       search();

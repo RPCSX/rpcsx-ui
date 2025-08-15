@@ -1,8 +1,7 @@
 <script lang="ts">
-  import type * as api from "lib/Explorer";
   import * as itemUtil from "helpers/ExplorerItemUtils";
 
-  export let item: api.ExplorerItem;
+  export let item: ExplorerItem;
   export let oncontextmenu: (() => void) | undefined;
 </script>
 
