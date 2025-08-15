@@ -2614,7 +2614,7 @@ async function getRpcsxResolver(roots: string[]): Promise<ResolverWithWorkspace>
     }));
 
     const resolver = (source: string, importer: string) => {
-        source = toUnixPath(source);
+        importer = toUnixPath(importer);
 
         const paths = fileMap[importer];
 
