@@ -966,6 +966,7 @@ export function set${name}View(target: Electron.WebContents, params: ${name}Prop
         return `${generatedHeader}
 import { thisComponent } from "$/component-info";
 import * as ${generateLabelName(this.externalComponent, false)} from '$${this.externalComponent}/api';
+import 'electron';
 
 ${this.body}
 ${this.viewBody}
@@ -1070,6 +1071,7 @@ export function set${name}View(target: Electron.WebContents, params: ${name}Prop
             return `${generatedHeader}
 import { createError } from "$core/Error";
 import { Component } from "$core/Component";
+import 'electron';
 
 export async function call(_caller: Component, _method: string, _params: JsonObject | undefined): Promise<JsonObject | void> {
     throw createError(ErrorCode.MethodNotFound);
@@ -1092,6 +1094,7 @@ ${this.callBody.length > 0 || this.notifyBody.length > 0 ? 'import * as impl fro
 import { createError } from "$core/Error";
 import { Component } from "$core/Component";
 import { thisComponent } from "$/component-info";
+import 'electron';
 
 ${this.body}
 
@@ -1596,7 +1599,7 @@ export function register${generateLabelName(component.manifest.name, true)}Compo
 
         const privateApiPromise = dummyProject ? Promise.resolve() : this.generateServerPrivateApiFile(project, fileDb);
         const componentPromise = dummyProject ? Promise.resolve() : this.generateComponentProject(project, fileDb);
-        const componentInfoPromise = dummyProject ? Promise.resolve() :
+        const componentInfoPromise =
             project.component.manifest.name == "core"
                 ? this.generateComponentInfoFile(project, fileDb)
                 : this.generateComponentInfoProject(project, fileDb);
@@ -2491,7 +2494,7 @@ function getPaths(roots: string[]) {
         buildDir,
         svelteDir,
         distDir,
-    }
+    };
 }
 
 async function getRpcsxResolver(roots: string[]): Promise<ResolverWithWorkspace> {
@@ -2533,6 +2536,8 @@ async function getRpcsxResolver(roots: string[]): Promise<ResolverWithWorkspace>
     }));
 
     const resolver = (source: string, importer: string) => {
+        source = toUnixPath(source);
+
         const paths = fileMap[importer];
 
         if (!paths) {
