@@ -2471,39 +2471,54 @@ const preloadGenerator: ProjectGenerator = {
     }
 };
 
-const projectRootDir = process.cwd();
-const outDir = path.join(projectRootDir, ".rpcsx-ui-kit");
-const buildDir = path.join(outDir, "build");
-const svelteDir = path.join(outDir, "svelte");
-const distDir = path.join(projectRootDir, "build");
+type ResolverWithWorkspace = {
+    resolver: ((source: string, importer: string) => string | undefined),
+    workspace: Workspace
+};
 
-// await fs.rm(rootKitDir, { recursive: true, force: true });
-const rpcsxConfig = { projectRootDir, buildDir, outDir, svelteDir, distDir };
-const tsProjectInfos: TsProjectInfo[] = [];
+let rpcsxResolver: undefined | ResolverWithWorkspace;
 
-const rpcsxKit = new RpcsxKit(rpcsxConfig, [
-    new TsServerGenerator(rpcsxConfig),
-    new TsLibGenerator(rpcsxConfig),
-    new SvelteElectronApiGenerator(rpcsxConfig),
-    new SvelteRendererGenerator(rpcsxConfig),
-    preloadGenerator
-], [
-    new TsConfigGenerator({ ...rpcsxConfig, projectInfos: tsProjectInfos }),
-    new SvelteConfigGenerator({ ...rpcsxConfig, distDir: path.join(distDir, "ui") })
-], [
-    new SvelteRendererGenerator(rpcsxConfig),
-    new TsServerMainGenerator(rpcsxConfig),
-]);
+function getPaths(roots: string[]) {
+    const projectRootDir = toUnixPath(roots[0]);
+    const outDir = path.join(projectRootDir, ".rpcsx-ui-kit");
+    const buildDir = path.join(outDir, "build");
+    const svelteDir = path.join(outDir, "svelte");
+    const distDir = path.join(projectRootDir, "build");
 
-let rpcsxResolver: ((source: string, importer: string) => string | undefined) | undefined;
+    return {
+        projectRootDir,
+        outDir,
+        buildDir,
+        svelteDir,
+        distDir,
+    }
+}
 
-async function getRpcsxResolver(roots: string[]) {
+async function getRpcsxResolver(roots: string[]): Promise<ResolverWithWorkspace> {
     if (rpcsxResolver) {
         return rpcsxResolver;
     }
 
-    tsProjectInfos.splice(0, tsProjectInfos.length);
-    await rpcsxKit.generate(roots);
+    const paths = getPaths(roots);
+
+    // await fs.rm(rootKitDir, { recursive: true, force: true });
+    const tsProjectInfos: TsProjectInfo[] = [];
+
+    const rpcsxKit = new RpcsxKit(paths, [
+        new TsServerGenerator(paths),
+        new TsLibGenerator(paths),
+        new SvelteElectronApiGenerator(paths),
+        new SvelteRendererGenerator(paths),
+        preloadGenerator
+    ], [
+        new TsConfigGenerator({ ...paths, projectInfos: tsProjectInfos }),
+        new SvelteConfigGenerator({ ...paths, distDir: path.join(paths.distDir, "ui") })
+    ], [
+        new SvelteRendererGenerator(paths),
+        new TsServerMainGenerator(paths),
+    ]);
+
+    const workspace = await rpcsxKit.generate(roots);
 
     const fileMap: Record<string, Record<string, string[]> | undefined> = {};
 
@@ -2517,7 +2532,7 @@ async function getRpcsxResolver(roots: string[]) {
         });
     }));
 
-    rpcsxResolver = (source: string, importer: string) => {
+    const resolver = (source: string, importer: string) => {
         const paths = fileMap[importer];
 
         if (!paths) {
@@ -2572,12 +2587,11 @@ async function getRpcsxResolver(roots: string[]) {
         return undefined;
     };
 
+    rpcsxResolver = { resolver, workspace };
     return rpcsxResolver;
 }
 
-async function rpcsxESbuildPlugin(): Promise<esbuild.Plugin[]> {
-    const resolver = await getRpcsxResolver([process.cwd()]);
-
+async function rpcsxESbuildPlugin(resolverWorkspace: ResolverWithWorkspace): Promise<esbuild.Plugin[]> {
     return [
         {
             name: "rpcsx",
@@ -2590,7 +2604,7 @@ async function rpcsxESbuildPlugin(): Promise<esbuild.Plugin[]> {
                             path: args.path
                         };
                     }
-                    const resolved = resolver(args.path, args.importer);
+                    const resolved = resolverWorkspace.resolver(args.path, args.importer);
                     // console.log(`resolve(${args.importer}:${args.path}) -> ${resolved}`);
                     return {
                         pluginName: "rpcsx",
@@ -2603,7 +2617,9 @@ async function rpcsxESbuildPlugin(): Promise<esbuild.Plugin[]> {
 }
 
 export async function rpcsx() {
-    const resolver = await getRpcsxResolver([process.cwd()]);
+    const root = toUnixPath(process.cwd());
+    const paths = getPaths([root]);
+    const { resolver, workspace } = await getRpcsxResolver([root]);
 
     const result: Plugin[] = [{
         name: "rpcsx-ui",
@@ -2619,15 +2635,13 @@ export async function rpcsx() {
             },
         },
         buildStart: async () => {
-            const workspace = await rpcsxKit.generate([process.cwd()]);
-
-            const server = await esbuild.build({
-                outdir: path.join(distDir),
+            const serverPromise = esbuild.build({
+                outdir: path.join(paths.distDir),
                 entryPoints: [
                     path.join(workspace["rpcsx-ui-server"].projects["server-main"].rootDir, "main.ts")
                 ],
                 plugins: [
-                    ...await rpcsxESbuildPlugin(),
+                    ...await rpcsxESbuildPlugin({ resolver, workspace }),
                 ],
                 packages: 'external',
                 bundle: true,
@@ -2636,17 +2650,13 @@ export async function rpcsx() {
                 sourcemap: 'both',
             });
 
-            if (server.errors.length > 0) {
-                throw new AggregateError(server.errors);
-            }
-
-            const preload = await esbuild.build({
-                outdir: path.join(distDir),
+            const preloadPromise = esbuild.build({
+                outdir: path.join(paths.distDir),
                 entryPoints: [
                     path.join(workspace["core"].projects["renderer"].rootDir, "preload", "preload.ts")
                 ],
                 plugins: [
-                    ...await rpcsxESbuildPlugin(),
+                    ...await rpcsxESbuildPlugin({ resolver, workspace }),
                 ],
                 packages: 'external',
                 bundle: true,
@@ -2654,6 +2664,14 @@ export async function rpcsx() {
                 format: 'cjs',
                 sourcemap: 'both',
             });
+
+            const server = await serverPromise;
+
+            if (server.errors.length > 0) {
+                throw new AggregateError(server.errors);
+            }
+
+            const preload = await preloadPromise;
 
             if (preload.errors.length > 0) {
                 throw new AggregateError(preload.errors);
