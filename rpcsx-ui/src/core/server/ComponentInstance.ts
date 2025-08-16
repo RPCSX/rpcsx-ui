@@ -46,7 +46,7 @@ export class ComponentInstance implements ComponentContext {
 
     private createCallerView(caller: ComponentInstance): Component {
         return {
-            getId: caller.getId,
+            getId: () => caller.getId(),
             onClose: (listener) => caller.onEvent(this, deactivateEvent, listener),
         };
     }
@@ -181,11 +181,14 @@ export class ComponentInstance implements ComponentContext {
                 return undefined;
             }
 
-            node = node[elem];
+            const elemNode: Json = node[elem];
 
-            if (node == undefined) {
-                return undefined;
+            if (elemNode == undefined) {
+                elems.unshift(elem);
+                return node[elems.join("/")];
             }
+
+            node = elemNode;
         }
 
         return node;
