@@ -72,6 +72,7 @@ type ContributionGenerator = {
     generateNotification?(component: string, notification: object, name: string): void | Promise<void>;
     generateEvent?(component: string, event: object, name: string): void | Promise<void>;
     generateView?(component: string, path: string, name: string): void | Promise<void>;
+    generateSetting?(component: string, schema: object, name: string): void | Promise<void>;
     toString(): string;
 };
 
@@ -1068,19 +1069,25 @@ class ServerPrivateApiGenerator implements ContributionGenerator {
     private callBody = '';
     private notifyBody = '';
     private viewBody = '';
+    private settingBody = `
+    async get() { return core.settingsGet({ path: "" }); },
+    async set(value: Json) { return core.settingsSet({ path: "", value }); },
+`;
     private component = '';
 
     generateEvent(component: string, event: object, name: string) {
         this.component = component;
         const label = generateComponentLabelName(component, name, true);
         if (Object.keys(event).length == 0) {
-            this.body += `export function emit${label}Event() {
+            this.body += `
+export function emit${label}Event() {
     return thisComponent().emitEvent("${name}");
 }\n`;
             return;
         }
 
-        this.body += `export function emit${label}Event(params: ${label}Event) {
+        this.body += `
+export function emit${label}Event(params: ${label}Event) {
     return thisComponent().emitEvent("${name}", params);
 }\n`;
     }
@@ -1102,12 +1109,17 @@ class ServerPrivateApiGenerator implements ContributionGenerator {
 
         const label = generateComponentLabelName(component, name, false);
         const uLabel = generateComponentLabelName(component, name, true);
-        this.body += `async function ${label}(caller: Component, params: ${uLabel}Request): Promise<${uLabel}Response> {
+        this.body += `
+export async function call${uLabel}(caller: Component, params: ${uLabel}Request): Promise<${uLabel}Response> {
     return impl.${method.handler}(caller, params);
+}
+
+export async function ${label}(params: ${uLabel}Request): Promise<${uLabel}Response> {
+    return impl.${method.handler}(thisComponent().view, params);
 }
 `;
         // FIXME: implement type validation
-        this.callBody += `        case "${name}": return ${label}(caller, params as ${uLabel}Request);\n`;
+        this.callBody += `        case "${name}": return call${uLabel}(caller, params as ${uLabel}Request);\n`;
     }
 
     generateNotification(component: string, notification: object, name: string) {
@@ -1127,11 +1139,15 @@ class ServerPrivateApiGenerator implements ContributionGenerator {
 
         const label = generateComponentLabelName(component, name, false);
         const uLabel = generateComponentLabelName(component, name, true);
-        this.body += `async function ${label}(caller: Component, params: ${uLabel}Request) {
+        this.body += `
+export async function notify${uLabel}(caller: Component, params: ${uLabel}Request) {
     impl.${notification.handler}(caller, params);
 }
+export async function ${label}(params: ${uLabel}Request) {
+    impl.${notification.handler}(thisComponent().view, params);
+}
 `;
-        this.notifyBody += `        case "${name}": return ${label}(caller, params as ${uLabel}Request);\n`;
+        this.notifyBody += `        case "${name}": return notify${uLabel}(caller, params as ${uLabel}Request);\n`;
     }
 
     generateView(component: string, _path: string, name: string) {
@@ -1147,12 +1163,25 @@ export function set${name}View(target: Electron.WebContents, params: ${name}Prop
 `;
     }
 
+    generateSetting(component: string, _setting: object, name: string) {
+        this.component = component;
+        this.settingBody += `
+    async set${generateLabelName(name, true)}(value: Json) {
+        return await core.settingsSet({ path: "${name}", value });
+    },
+    async get${generateLabelName(name, true)}() {
+        return await core.settingsGet({ path: "${name}" });
+    },
+`;
+    }
+
 
     toString(): string {
         if (this.body.length === 0) {
             return `${generatedHeader}
 import { createError } from "$core/Error";
 import { Component } from "$core/Component";
+import * as core from "$core";
 import 'electron';
 
 export async function call(_caller: Component, _method: string, _params: JsonObject | undefined): Promise<JsonObject | void> {
@@ -1162,6 +1191,8 @@ export async function call(_caller: Component, _method: string, _params: JsonObj
 export async function notify(_caller: Component, _method: string, _params: JsonObject | undefined) {
     throw createError(ErrorCode.MethodNotFound);
 }
+
+export const settings = {${this.settingBody}};
 ${this.viewBody}
 ${this.component == "core" ? `
 export function popView(target: Electron.WebContents) {
@@ -1176,6 +1207,7 @@ ${this.callBody.length > 0 || this.notifyBody.length > 0 ? 'import * as impl fro
 import { createError } from "$core/Error";
 import { Component } from "$core/Component";
 import { thisComponent } from "$/component-info";
+import * as core from "$core";
 import 'electron';
 
 ${this.body}
@@ -1199,6 +1231,9 @@ ${this.notifyBody}
         throw createError(ErrorCode.MethodNotFound);
     }
 }
+
+export const settings = {${this.settingBody}};
+
 ${this.viewBody}
 ${this.component == "core" ? `
 export function popView(target: Electron.WebContents) {
@@ -1414,7 +1449,15 @@ function generateContributions<Params extends [], RT extends ContributionGenerat
                 break;
 
             case "settings":
-                // TODO: validate?
+                Object.keys(contribution).forEach(name => {
+                    if (generator.generateSetting) {
+                        try {
+                            generator.generateSetting(component.manifest.name, contribution[name], name);
+                        } catch (e) {
+                            throw `${name}: ${e}`;
+                        }
+                    }
+                });
                 break;
 
             default:

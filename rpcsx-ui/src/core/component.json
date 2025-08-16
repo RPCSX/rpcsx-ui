@@ -304,6 +304,9 @@
                 "returns": {
                     "value": {
                         "type": "json"
+                    },
+                    "schema": {
+                        "type": "json-object"
                     }
                 }
             }

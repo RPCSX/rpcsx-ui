@@ -1,14 +1,14 @@
 import * as api from '$';
 import { Component } from '$core/Component';
 import { createError } from '$core/Error';
-import { findComponent, findComponentById, unregisterComponent } from './ComponentInstance';
+import { ComponentInstance, findComponent, findComponentById, getActivatedComponentList, unregisterComponent } from './ComponentInstance';
 import * as locations from '$core/locations';
 import path from 'path';
 import fs from 'fs/promises';
 import * as settings from './Settings';
 import { getLauncher } from './Launcher';
 import { Extension } from './Extension';
-import { Schema, SchemaError, validateObject } from 'lib/Schema';
+import { Schema, SchemaError, SchemaObject, validateObject } from 'lib/Schema';
 import { ipcMain } from 'electron';
 
 ipcMain.on('view/push', (event, view: string, ...args: any[]) => {
@@ -160,21 +160,52 @@ export async function removeExtension(_caller: Component, request: ExtensionRemo
     }
 }
 
+function getComponentInstanceSettings(instance: ComponentInstance) {
+    const schema = instance.getContribution("settings");
+    if (!schema) {
+        throw createError(ErrorCode.InvalidRequest, `Component ${instance.getId()} has no settings contribution`);
+    }
+
+    return {
+        settings: settings.get(instance.getName(), schema as Record<string, Schema>),
+        schema: {
+            type: "object",
+            label: instance.getName(),
+            properties: schema
+        } as SchemaObject
+    };
+}
+
 function getComponentSettings(component: Component) {
+    if (component.getId() == ":renderer") {
+        // for renderer collect settings for all activated components
+
+        const result: { settings: any, schema: SchemaObject } = {
+            settings: {},
+            schema: { 
+                type: "object",
+                properties: {}
+            }
+        };
+
+        getActivatedComponentList().map(instance => {
+            try {
+                const { settings, schema } = getComponentInstanceSettings(instance);
+
+                result.settings[instance.getName()] = settings;
+                result.schema.properties[instance.getName()] = schema;
+            } catch {}
+        });
+
+        return result;
+    }
+
     const instance = findComponentById(component.getId());
     if (!instance) {
         throw createError(ErrorCode.InvalidRequest, `Caller ${component.getId()} not found`);
     }
 
-    const schema = instance.getContribution("settings");
-    if (!schema) {
-        throw createError(ErrorCode.InvalidRequest, `Component ${component.getId()} has no settings contribution`);
-    }
-
-    return {
-        settings: settings.get(instance.getName(), schema as Record<string, Schema>),
-        schema
-    };
+    return getComponentInstanceSettings(instance);
 }
 
 function getObjectMember(object: any, path: string[]) {
@@ -234,8 +265,8 @@ export async function handleSettingsSet(caller: Component, request: SettingsSetR
 }
 
 export async function handleSettingsGet(caller: Component, request: SettingsGetRequest): Promise<SettingsGetResponse> {
-    const { settings } = getComponentSettings(caller);
+    const { settings, schema } = getComponentSettings(caller);
     const path = request.path.split("/");
 
-    return { value: getObjectMember(settings, path) };
+    return { value: getObjectMember(settings, path), schema: getObjectMember(schema, path) };
 }

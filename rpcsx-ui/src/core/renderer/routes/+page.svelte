@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { unmount, type ComponentProps } from "svelte";
+  import { unmount, mount, type ComponentProps } from "svelte";
   import Views from "$/Views.svelte";
   import Frame from "$/Frame.svelte";
 
@@ -31,23 +31,19 @@
       return;
     }
 
-    if (viewStack.length > 0) {
-      viewStack[viewStack.length - 1].shown = true;
-    }
 
+    const showView = viewStack[viewStack.length - 1];
     hideView.shown = false;
-    setTimeout(() => unmount(hideView), 1000);
-
-    setTimeout(() => {
-      if (hideView) {
-        viewPush("explorer", {
-          query: "extensions/observer/executables",
-          queryParams: {
-            filter: { type: "game" },
-          },
-        });
+    unmount(hideView);
+    showView.shown = true;
+    mount(Frame, {
+      target: containerRoot,
+      props: {
+        component: showView.component,
+        props: showView.props,
+        shown: true
       }
-    }, 3000);
+    });
   }
 
   if (window.electron) {
@@ -57,7 +53,9 @@
 
     window.electron.ipcRenderer.on("view/pop", () => viewPop());
 
-    window.electron.ipcRenderer.on("view/set", (name: string, props: any) => viewSet(name, props));
+    window.electron.ipcRenderer.on("view/set", (name: string, props: any) =>
+      viewSet(name, props),
+    );
 
     window.electron.ipcRenderer.send("frame/initialized");
   }

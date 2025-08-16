@@ -7,7 +7,7 @@ type GenericSchema = {
     description?: string;
 };
 
-type SchemaArray = GenericSchema & {
+export type SchemaArray = GenericSchema & {
     type: 'array';
     minItems?: number;
     maxItems?: number;
@@ -16,7 +16,7 @@ type SchemaArray = GenericSchema & {
     required?: boolean;
 };
 
-type SchemaObject = GenericSchema & {
+export type SchemaObject = GenericSchema & {
     type: 'object';
     properties: {
         [key: string]: Schema;
@@ -24,7 +24,7 @@ type SchemaObject = GenericSchema & {
     icon?: string;
 };
 
-type SchemaNumber = GenericSchema & {
+export type SchemaNumber = GenericSchema & {
     type: 'number';
     minValue?: number;
     maxValue?: number;
@@ -32,24 +32,24 @@ type SchemaNumber = GenericSchema & {
     required?: boolean;
 };
 
-type SchemaBoolean = GenericSchema & {
+export type SchemaBoolean = GenericSchema & {
     type: 'boolean';
     defaultValue?: boolean;
 };
 
-type SchemaString = GenericSchema & {
+export type SchemaString = GenericSchema & {
     type: 'string';
     defaultValue?: string;
     minLength?: number;
     maxLength?: number;
 };
 
-type SchemaVariant = GenericSchema & {
+export type SchemaVariant = GenericSchema & {
     type: 'variant';
     choices: string[];
 };
 
-type SchemaPath = GenericSchema & {
+export type SchemaPath = GenericSchema & {
     type: 'path';
     mustExist?: boolean;
     entity?: "directory" | "file";

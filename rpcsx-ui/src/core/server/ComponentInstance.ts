@@ -33,6 +33,7 @@ export class ComponentInstance implements ComponentContext {
     protected activated = false;
     private disposeList = Disposable.None;
     private eventEmitter = new EventEmitter();
+    readonly view = Object.freeze(this.createCallerView(this));
 
     constructor(private readonly manifest: ComponentManifest, private impl: IComponentImpl) { }
 
@@ -297,6 +298,13 @@ export function getComponent(info: ComponentManifest) {
 
 const initializedComponents: Record<string, ComponentInstance> = {};
 const activatedComponents: Record<string, ComponentInstance> = {};
+
+export function getComponentList(): ComponentInstance[] {
+    return Object.values(registeredComponents);
+}
+export function getActivatedComponentList(): ComponentInstance[] {
+    return Object.values(activatedComponents);
+}
 
 export async function initializeComponent(info: ComponentManifest) {
     const id = getComponentId(info);
