@@ -8,8 +8,6 @@ import { sveltekit } from "@sveltejs/kit/vite";
 import { Stats } from 'fs';
 import { glob } from 'glob';
 import * as esbuild from 'esbuild';
-import { fileURLToPath } from 'url';
-
 
 export type Dependency = {
     name: string;
@@ -2631,8 +2629,8 @@ async function getRpcsxResolver(roots: string[]): Promise<ResolverWithWorkspace>
     const fileMap: Record<string, Record<string, string[]> | undefined> = {};
 
     await Promise.all(tsProjectInfos.map(async info => {
-        const excludeFiles = await glob(info.exclude, { absolute: true, nodir: true });
-        const files = (await glob(info.include, { absolute: true, nodir: true })).filter(path => !excludeFiles.includes(path));
+        const excludeFiles = await glob(info.exclude, { absolute: true, nodir: true, posix: true });
+        const files = (await glob(info.include, { absolute: true, nodir: true, posix: true })).filter(path => !excludeFiles.includes(path));
         Object.keys(info.paths).filter(path => path.endsWith("*")).forEach(path => delete info.paths[path]);
 
         files.forEach(file => {
