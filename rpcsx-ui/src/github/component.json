@@ -1,0 +1,73 @@
+{
+    "name": "github",
+    "version": "0.1.0",
+
+    "contributions": {
+        "settings": {
+            "url": {
+                "type": "string",
+                "defaultValue": "https://api.github.com"
+            }
+        },
+        "types": {
+            "release": {
+                "type": "object",
+                "params": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "assets": {
+                        "type": "array",
+                        "item-type": "asset"
+                    }
+                }
+            },
+            "asset": {
+                "type": "object",
+                "params": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "browser_download_url": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "methods": {
+            "releases/latest": {
+                "handler": "handleReleasesLatest",
+                "params": {
+                    "owner": {
+                        "type": "string"
+                    },
+                    "repository": {
+                        "type": "string"
+                    }
+                },
+                "returns": {
+                    "release": {
+                        "type": "release"
+                    }
+                }
+            },
+            "releases": {
+                "handler": "handleReleases",
+                "params": {
+                    "owner": {
+                        "type": "string"
+                    },
+                    "repository": {
+                        "type": "string"
+                    }
+                },
+                "returns": {
+                    "releases": {
+                        "type": "array",
+                        "item-type": "release"
+                    }
+                }
+            }
+        }
+    }
+}
