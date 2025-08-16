@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 
-import * as fs from 'node:fs/promises';
-import * as path from 'node:path/posix';
+import * as fs from 'fs/promises';
+import * as posix_path from 'path/posix';
+import * as native_path from 'path';
 import { Plugin } from 'vite';
 import { sveltekit } from "@sveltejs/kit/vite";
-import { Stats } from 'node:fs';
+import { Stats } from 'fs';
 import { glob } from 'glob';
 import * as esbuild from 'esbuild';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath } from 'url';
 
 
 export type Dependency = {
@@ -269,7 +270,7 @@ class FileDb {
         const dirs = new Set<string>();
 
         files.forEach(file => {
-            dirs.add(path.parse(file.path).dir);
+            dirs.add(posix_path.parse(file.path).dir);
         });
 
         await Promise.all([...dirs].map(async dir => {
@@ -313,7 +314,7 @@ function shouldIgnoreDir(name: string) {
 }
 
 async function parseManifest(fileDb: FileDb, manifestPath: string, projectIds: string[]): Promise<undefined | Component> {
-    const componentRootDir = path.parse(manifestPath).dir;
+    const componentRootDir = posix_path.parse(manifestPath).dir;
 
     try {
         const manifestFile = await fileDb.readFile(manifestPath);
@@ -339,7 +340,7 @@ async function parseManifest(fileDb: FileDb, manifestPath: string, projectIds: s
 
             component.projects[projects.name] = {
                 name: projects.name,
-                rootDir: path.join(toUnixPath(projects.parentPath), projects.name),
+                rootDir: posix_path.join(toUnixPath(projects.parentPath), projects.name),
                 component,
                 dependencies: [],
                 include: [],
@@ -352,7 +353,7 @@ async function parseManifest(fileDb: FileDb, manifestPath: string, projectIds: s
         if (!(libProject in component.projects)) {
             component.projects[libProject] = {
                 name: libProject,
-                rootDir: path.join(componentRootDir, libProject),
+                rootDir: posix_path.join(componentRootDir, libProject),
                 component,
                 dependencies: [],
                 include: [],
@@ -364,7 +365,7 @@ async function parseManifest(fileDb: FileDb, manifestPath: string, projectIds: s
         const serverProject = "server";
         if ("renderer" in component.projects) {
             const project = component.projects.renderer;
-            const srcDir = path.join(project.rootDir, "views");
+            const srcDir = posix_path.join(project.rootDir, "views");
             const views: Record<string, string> = {};
 
             try {
@@ -373,11 +374,11 @@ async function parseManifest(fileDb: FileDb, manifestPath: string, projectIds: s
                         continue;
                     }
 
-                    const parsedName = path.parse(view.name);
+                    const parsedName = posix_path.parse(view.name);
 
                     if (parsedName.ext === ".svelte" && parsedName.name.length > 0) {
                         const viewName = parsedName.name;
-                        const viewPath = path.join(toUnixPath(view.parentPath), view.name);
+                        const viewPath = posix_path.join(toUnixPath(view.parentPath), view.name);
                         views[viewName] = viewPath;
                     }
                 }
@@ -521,7 +522,7 @@ class RpcsxKit {
                         continue;
                     }
 
-                    workList.push(path.join(toUnixPath(item.parentPath), item.name));
+                    workList.push(posix_path.join(toUnixPath(item.parentPath), item.name));
                     continue;
                 }
 
@@ -529,7 +530,7 @@ class RpcsxKit {
                     continue;
                 }
 
-                const component = await parseManifest(this.fileDb, path.resolve(toUnixPath(item.parentPath), componentManifestName), projectIds);
+                const component = await parseManifest(this.fileDb, resolvePath(toUnixPath(item.parentPath), componentManifestName), projectIds);
 
                 if (component) {
                     component.workspace = result;
@@ -658,7 +659,15 @@ function generateComponentLabelName(componentName: string, entityName: string, i
 }
 
 function toUnixPath(path: string) {
-    return path.replace(/\\/g, '/');
+    return native_path.sep == posix_path.sep ? path : path.replaceAll(native_path.sep, posix_path.sep);
+}
+
+function toNativePath(path: string) {
+    return native_path.sep == posix_path.sep ? path : path.replaceAll(posix_path.sep, native_path.sep);
+}
+
+function resolvePath(...paths: string[]) {
+    return native_path.sep == posix_path.sep ? native_path.resolve(...paths) : toUnixPath(native_path.resolve(...paths.map(x => toNativePath(x))));
 }
 
 class EnumsGenerator implements ContributionGenerator {
@@ -684,7 +693,7 @@ class EnumsGenerator implements ContributionGenerator {
         }
 
         if (typeof type.type != "string") {
-            throw `${path}: type must be string value`;
+            throw `${name}: type must be string value`;
         }
 
         if (!(typeName in this.generatedTypes)) {
@@ -748,7 +757,7 @@ class TypesGenerator implements ContributionGenerator {
         }
 
         if (typeof type.type != "string") {
-            throw `${path}: type must be string value`;
+            throw `${name}: type must be string value`;
         }
 
         if (!(typeName in this.generatedTypes)) {
@@ -1416,9 +1425,9 @@ class TsLibGenerator implements ProjectGenerator {
     }
 
     async generateTypesFile(project: Project, fileDb: FileDb) {
-        const projectPath = path.join(this.config.outDir, project.component.manifest.name, project.name);
-        const genDir = path.join(projectPath, "src");
-        const generatedFilePath = path.join(genDir, "types.d.ts");
+        const projectPath = posix_path.join(this.config.outDir, project.component.manifest.name, project.name);
+        const genDir = posix_path.join(projectPath, "src");
+        const generatedFilePath = posix_path.join(genDir, "types.d.ts");
         const generatedFile = await fileDb.createFile(generatedFilePath, project.component.manifestFile);
 
         if (generatedFile) {
@@ -1431,9 +1440,9 @@ class TsLibGenerator implements ProjectGenerator {
     }
 
     async generateEnumsFile(project: Project, fileDb: FileDb) {
-        const projectPath = path.join(this.config.outDir, project.component.manifest.name, project.name);
-        const genDir = path.join(projectPath, "src");
-        const generatedFilePath = path.join(genDir, "enums.ts");
+        const projectPath = posix_path.join(this.config.outDir, project.component.manifest.name, project.name);
+        const genDir = posix_path.join(projectPath, "src");
+        const generatedFilePath = posix_path.join(genDir, "enums.ts");
         const generatedFile = await fileDb.createFile(generatedFilePath, project.component.manifestFile);
 
         if (generatedFile) {
@@ -1467,9 +1476,9 @@ class SvelteElectronApiGenerator implements ProjectGenerator {
     async generateProjects(project: Project, fileDb: FileDb) {
         const projectName = "server-renderer-api";
         const generatedFileName = "api.ts";
-        const newProjectPath = path.join(this.config.outDir, project.component.manifest.name, projectName);
-        const genDir = path.join(newProjectPath, "src");
-        const generatedFilePath = path.join(genDir, generatedFileName);
+        const newProjectPath = posix_path.join(this.config.outDir, project.component.manifest.name, projectName);
+        const genDir = posix_path.join(newProjectPath, "src");
+        const generatedFilePath = posix_path.join(genDir, generatedFileName);
         const generatedFile = await fileDb.createFile(generatedFilePath, project.component.manifestFile);
 
         if (generatedFile) {
@@ -1503,9 +1512,9 @@ class TsServerGenerator implements ProjectGenerator {
     }
 
     async generateContributionFile<Params extends []>(sourceComponent: Component, project: Project, fileDb: FileDb, generatedFileName: string, Generator: new (...params: Params) => ContributionGenerator, ...params: Params) {
-        const projectPath = path.join(this.config.outDir, project.component.manifest.name, project.name);
-        const genDir = path.join(projectPath, "src");
-        const generatedFilePath = path.join(genDir, generatedFileName);
+        const projectPath = posix_path.join(this.config.outDir, project.component.manifest.name, project.name);
+        const genDir = posix_path.join(projectPath, "src");
+        const generatedFilePath = posix_path.join(genDir, generatedFileName);
         const generatedFile = await fileDb.createFile(generatedFilePath, sourceComponent.manifestFile);
 
         if (generatedFile) {
@@ -1518,9 +1527,9 @@ class TsServerGenerator implements ProjectGenerator {
     }
 
     async generateProject<Params extends []>(project: Project, fileDb: FileDb, projectName: string, generatedFileName: string, Generator: new (...params: Params) => ContributionGenerator, ...params: Params) {
-        const newProjectPath = path.join(this.config.outDir, project.component.manifest.name, projectName);
-        const genDir = path.join(newProjectPath, "src");
-        const generatedFilePath = path.join(genDir, generatedFileName);
+        const newProjectPath = posix_path.join(this.config.outDir, project.component.manifest.name, projectName);
+        const genDir = posix_path.join(newProjectPath, "src");
+        const generatedFilePath = posix_path.join(genDir, generatedFileName);
         const generatedFile = await fileDb.createFile(generatedFilePath, project.component.manifestFile);
 
         if (generatedFile) {
@@ -1552,9 +1561,9 @@ class TsServerGenerator implements ProjectGenerator {
     }
 
     async generateComponentInfoFile(project: Project, fileDb: FileDb) {
-        const outDir = path.join(this.config.outDir, project.component.manifest.name, project.name);
-        const genDir = path.join(outDir, "src");
-        const componentFilePath = path.join(genDir, "component-info.ts");
+        const outDir = posix_path.join(this.config.outDir, project.component.manifest.name, project.name);
+        const genDir = posix_path.join(outDir, "src");
+        const componentFilePath = posix_path.join(genDir, "component-info.ts");
         const componentManifest = await fileDb.createFile(componentFilePath, project.component.manifestFile);
 
         if (componentManifest) {
@@ -1573,9 +1582,9 @@ export function thisComponent() {
 
     async generateComponentInfoProject(project: Project, fileDb: FileDb) {
         const projectName = "component-info";
-        const newProjectPath = path.join(this.config.outDir, project.component.manifest.name, projectName);
-        const genDir = path.join(newProjectPath, "src");
-        const generatedFilePath = path.join(genDir, "component-info.ts");
+        const newProjectPath = posix_path.join(this.config.outDir, project.component.manifest.name, projectName);
+        const genDir = posix_path.join(newProjectPath, "src");
+        const generatedFilePath = posix_path.join(genDir, "component-info.ts");
 
         const newProject: Project = {
             name: projectName,
@@ -1595,14 +1604,14 @@ export function thisComponent() {
         const component = serverProject.component;
         const manifest = component.manifest;
 
-        const outDir = path.join(this.config.outDir, manifest.name, componentProjectName);
-        const genDir = path.join(outDir, "src");
-        const genFilePath = path.join(genDir, "component.ts");
+        const outDir = posix_path.join(this.config.outDir, manifest.name, componentProjectName);
+        const genDir = posix_path.join(outDir, "src");
+        const genFilePath = posix_path.join(genDir, "component.ts");
 
         const componentFile = await fileDb.createFile(genFilePath, component.manifestFile);
         const componentLabel = generateLabelName(manifest.name, true);
 
-        const mainFile = path.join(serverProject.rootDir, "main.ts");
+        const mainFile = posix_path.join(serverProject.rootDir, "main.ts");
 
         try {
             if (!(await fs.stat(mainFile)).isFile()) {
@@ -1613,7 +1622,7 @@ export function thisComponent() {
         }
 
         if (componentFile) {
-            const mainFile = path.join(serverProject.rootDir, "main.js");
+            const mainFile = posix_path.join(serverProject.rootDir, "main.js");
             componentFile.content = `${generatedHeader}
 import * as api from '$';
 import { IComponentImpl, registerComponent } from '$core/ComponentInstance.js';
@@ -1742,12 +1751,12 @@ class TsServerMainGenerator implements ComponentGenerator {
 
     async generateServerComponent(workspace: Workspace, fileDb: FileDb): Promise<Component> {
         const componentName = "rpcsx-ui-server";
-        const outDir = path.join(this.config.outDir, componentName);
+        const outDir = posix_path.join(this.config.outDir, componentName);
         const manifest: ComponentInfo = {
             name: componentName
         };
 
-        const manifestPath = path.join(outDir, componentManifestName);
+        const manifestPath = posix_path.join(outDir, componentManifestName);
         let manifestFile = await fileDb.createFile(manifestPath, { timestamp: 0 });
         if (manifestFile) {
             manifestFile.content = JSON.stringify(manifest, null, 4);
@@ -1770,16 +1779,16 @@ class TsServerMainGenerator implements ComponentGenerator {
 
     async generateServerMainProject(fileDb: FileDb, serverComponent: Component, serverComponents: Component[]): Promise<Project> {
         const projectName = "server-main";
-        const outDir = path.join(serverComponent.path, projectName);
-        const genDir = path.join(outDir, "src");
+        const outDir = posix_path.join(serverComponent.path, projectName);
+        const genDir = posix_path.join(outDir, "src");
         const project: Project = {
             component: serverComponent,
             name: projectName,
             rootDir: genDir,
             dependencies: [],
             include: [
-                path.join(genDir, "*.json"),
-                path.join(genDir, "*.ts")
+                posix_path.join(genDir, "*.json"),
+                posix_path.join(genDir, "*.ts")
             ],
             exclude: [],
         };
@@ -1792,7 +1801,7 @@ class TsServerMainGenerator implements ComponentGenerator {
             }
         });
 
-        const mainFile = await fileDb.createFile(path.join(genDir, "main.ts"), mergeTimestamps(serverComponents.map(x => x.manifestFile)));
+        const mainFile = await fileDb.createFile(posix_path.join(genDir, "main.ts"), mergeTimestamps(serverComponents.map(x => x.manifestFile)));
         if (mainFile) {
             mainFile.content = `${generatedHeader}
 import { startup } from '$core/ComponentInstance';
@@ -1826,14 +1835,14 @@ class SvelteRendererGenerator implements ComponentGenerator {
         await Promise.all(Object.values(workspace).map(x => x.projects["renderer"]).filter(x => x != undefined).map(async project => {
             let hasRoutes = false;
             let hasViews = false;
-            for (const item of await fs.readdir(path.join(project.component.path, project.name), { recursive: false, withFileTypes: true })) {
+            for (const item of await fs.readdir(posix_path.join(project.component.path, project.name), { recursive: false, withFileTypes: true })) {
                 if (!item.isDirectory()) {
                     continue;
                 }
 
                 switch (item.name) {
                     case "locales":
-                        localesPaths.push(path.join(toUnixPath(item.parentPath), item.name));
+                        localesPaths.push(posix_path.join(toUnixPath(item.parentPath), item.name));
                         break;
 
                     case "routes":
@@ -1863,12 +1872,12 @@ class SvelteRendererGenerator implements ComponentGenerator {
 
     async generateSvelteComponent(workspace: Workspace, fileDb: FileDb): Promise<Component> {
         const componentName = "rpcsx-ui-svelte";
-        const outDir = path.join(this.config.outDir, componentName);
+        const outDir = posix_path.join(this.config.outDir, componentName);
         const manifest: ComponentInfo = {
             name: componentName
         };
 
-        const manifestPath = path.join(outDir, componentManifestName);
+        const manifestPath = posix_path.join(outDir, componentManifestName);
         let manifestFile = await fileDb.createFile(manifestPath, { timestamp: 0 });
         if (manifestFile) {
             manifestFile.content = JSON.stringify(manifest, null, 4);
@@ -1903,7 +1912,7 @@ class SvelteRendererGenerator implements ComponentGenerator {
                     continue;
                 }
 
-                const sourceFile = await fileDb.readFile(path.join(toUnixPath(item.parentPath), item.name));
+                const sourceFile = await fileDb.readFile(posix_path.join(toUnixPath(item.parentPath), item.name));
                 if (item.name in sourceTimestamps) {
                     sourceTimestamps[item.name] = mergeTimestamps([sourceTimestamps[item.name], sourceFile]);
                 } else {
@@ -1922,33 +1931,33 @@ class SvelteRendererGenerator implements ComponentGenerator {
 
 
         const projectName = "locales";
-        const genDir = path.join(svelteComponent.path, projectName);
+        const genDir = posix_path.join(svelteComponent.path, projectName);
         const project: Project = {
             component: svelteComponent,
             name: projectName,
             rootDir: genDir,
             dependencies: [],
             include: [
-                path.join(genDir, "*.json"),
-                path.join(genDir, "*.ts")
+                posix_path.join(genDir, "*.json"),
+                posix_path.join(genDir, "*.ts")
             ],
             exclude: [],
         };
 
         for (const locale in locales) {
-            const mergedFile = await fileDb.createFile(path.join(genDir, locale), sourceTimestamps[locale]);
+            const mergedFile = await fileDb.createFile(posix_path.join(genDir, locale), sourceTimestamps[locale]);
 
             if (mergedFile) {
                 mergedFile.content = JSON.stringify(locales[locale], null, 4);
             }
         }
 
-        const i18n = await fileDb.createFile(path.join(genDir, "i18n.ts"), mergeTimestamps(Object.values(sourceTimestamps)));
+        const i18n = await fileDb.createFile(posix_path.join(genDir, "i18n.ts"), mergeTimestamps(Object.values(sourceTimestamps)));
         if (i18n) {
             i18n.content = `${generatedHeader}
 import { register, init, getLocaleFromNavigator } from "svelte-i18n";
 
-${Object.keys(locales).map(x => `register("${path.parse(x).name}", () => import("./${x}"))`).join(";\n")};
+${Object.keys(locales).map(x => `register("${posix_path.parse(x).name}", () => import("./${x}"))`).join(";\n")};
 
 await init({
     fallbackLocale: "en",
@@ -1966,7 +1975,7 @@ await init({
 
         if (routesProjects.length == 1) {
             const project = routesProjects[0];
-            const srcDir = path.join(project.rootDir, "routes");
+            const srcDir = posix_path.join(project.rootDir, "routes");
 
             const routesProject: Project = {
                 component: svelteComponent,
@@ -1974,8 +1983,8 @@ await init({
                 rootDir: srcDir,
                 dependencies: [viewsProject, localesProject, project],
                 include: [
-                    path.join(srcDir, "**", "*.svelte"),
-                    path.join(srcDir, "**", "*.ts")
+                    posix_path.join(srcDir, "**", "*.svelte"),
+                    posix_path.join(srcDir, "**", "*.ts")
                 ],
                 exclude: [],
             };
@@ -1984,12 +1993,12 @@ await init({
             return [routesProject];
         }
 
-        const outDir = path.join(svelteComponent.path, projectName);
-        const genDir = path.join(outDir, "src");
+        const outDir = posix_path.join(svelteComponent.path, projectName);
+        const genDir = posix_path.join(outDir, "src");
         const projects: Project[] = [];
 
         await Promise.all(routesProjects.map(async sourceProject => {
-            const srcDir = path.join(sourceProject.rootDir, "routes");
+            const srcDir = posix_path.join(sourceProject.rootDir, "routes");
 
             const project: Project = {
                 component: svelteComponent,
@@ -1997,8 +2006,8 @@ await init({
                 rootDir: srcDir,
                 dependencies: [viewsProject, localesProject, sourceProject],
                 include: [
-                    path.join(srcDir, "**", "*.svelte"),
-                    path.join(srcDir, "**", "*.ts")
+                    posix_path.join(srcDir, "**", "*.svelte"),
+                    posix_path.join(srcDir, "**", "*.ts")
                 ],
                 exclude: [],
             };
@@ -2014,10 +2023,10 @@ await init({
                     break;
                 }
 
-                for (const item of await fs.readdir(path.join(srcDir, dir), { recursive: false, withFileTypes: true })) {
+                for (const item of await fs.readdir(posix_path.join(srcDir, dir), { recursive: false, withFileTypes: true })) {
                     if (item.isDirectory()) {
                         if (!shouldIgnoreDir(item.name)) {
-                            workList.push(path.join(dir, item.name));
+                            workList.push(posix_path.join(dir, item.name));
                         }
 
                         continue;
@@ -2028,15 +2037,15 @@ await init({
                     }
 
                     if (item.name.endsWith(".svelte") || item.name.endsWith(".ts")) {
-                        files.push(path.join(dir, item.name));
+                        files.push(posix_path.join(dir, item.name));
                     }
                 }
             }
 
             await Promise.all(files.map(async file => {
-                const sourcePath = path.join(srcDir, file);
+                const sourcePath = posix_path.join(srcDir, file);
                 const sourceTs = await calcTimestamp(sourcePath);
-                const genFile = await fileDb.createFile(path.join(genDir, file), sourceTs);
+                const genFile = await fileDb.createFile(posix_path.join(genDir, file), sourceTs);
 
                 if (genFile) {
                     genFile.content = generatedHeader + (await fileDb.readFile(sourcePath, sourceTs)).content;
@@ -2050,8 +2059,8 @@ await init({
             rootDir: genDir,
             dependencies: [viewsProject, localesProject],
             include: [
-                path.join(genDir, "**", "*.svelte"),
-                path.join(genDir, "**", "*.ts")
+                posix_path.join(genDir, "**", "*.svelte"),
+                posix_path.join(genDir, "**", "*.ts")
             ],
             exclude: [],
         };
@@ -2065,10 +2074,10 @@ await init({
     async generateViewsProject(fileDb: FileDb, svelteComponent: Component, rendererWithViewProjects: Project[]): Promise<Project> {
         const projectName = "views";
         const views: Record<string, string> = {};
-        const outDir = path.join(svelteComponent.path, projectName);
-        const genDir = path.join(outDir, "src");
+        const outDir = posix_path.join(svelteComponent.path, projectName);
+        const genDir = posix_path.join(outDir, "src");
         const include = [
-            path.join(genDir, "**", "*.svelte")
+            posix_path.join(genDir, "**", "*.svelte")
         ];
 
         const projectViews = rendererWithViewProjects.map(project => {
@@ -2090,7 +2099,7 @@ await init({
         });
 
         const viewsListFile = await (async () => {
-            const filePath = path.join(genDir, "views.json");
+            const filePath = posix_path.join(genDir, "views.json");
             const viewList = JSON.stringify(Object.values(views));
             try {
                 const file = await fileDb.readFile(filePath);
@@ -2110,8 +2119,8 @@ await init({
 
         await Promise.all(rendererWithViewProjects.map(async (project, index) => {
             const views = projectViews[index];
-            const genDir = path.join(this.config.outDir, project.component.manifest.name, "lib", "src");
-            const viewTypesPath = path.join(genDir, "views.d.ts");
+            const genDir = posix_path.join(this.config.outDir, project.component.manifest.name, "lib", "src");
+            const viewTypesPath = posix_path.join(genDir, "views.d.ts");
 
             const viewTypes = await fileDb.createFile(viewTypesPath, viewsListFile);
             if (!viewTypes) {
@@ -2133,12 +2142,12 @@ declare global {
         }));
 
 
-        const viewsFile = await fileDb.createFile(path.join(genDir, "Views.svelte"), viewsListFile);
+        const viewsFile = await fileDb.createFile(posix_path.join(genDir, "Views.svelte"), viewsListFile);
         if (viewsFile) {
             viewsFile.content = `<script lang="ts">${generatedHeader}
     import { hydrate, type ComponentProps } from "svelte";
     import Frame from "./Frame.svelte";
-${Object.keys(views).map(x => `    import ${x} from '${path.relative(genDir, views[x])}'`).join(';\n')};
+${Object.keys(views).map(x => `    import ${x} from '${posix_path.relative(genDir, views[x])}'`).join(';\n')};
 
     export let containerRoot: HTMLElement;
 
@@ -2168,7 +2177,7 @@ ${Object.keys(views).map(x => `        ${pascalToCamelCase(x)}: createViewFactor
 `;
         }
 
-        const frameFile = await fileDb.createFile(path.join(genDir, "Frame.svelte"), viewsListFile);
+        const frameFile = await fileDb.createFile(posix_path.join(genDir, "Frame.svelte"), viewsListFile);
 
         if (frameFile) {
             frameFile.content = `<script lang="ts">${generatedHeader}
@@ -2234,25 +2243,25 @@ class SvelteConfigGenerator implements ConfigGenerator {
                 return;
             }
 
-            for (const entry of await fs.readdir(path.join(component.path, rendererProject.name), { recursive: true, withFileTypes: true })) {
+            for (const entry of await fs.readdir(posix_path.join(component.path, rendererProject.name), { recursive: true, withFileTypes: true })) {
                 if (!entry.isFile()) {
                     continue;
                 }
 
                 if (entry.name == "app.html") {
                     if (templates.app) {
-                        throw Error(`${component.manifest.name}: ${path.join(toUnixPath(entry.parentPath), entry.name)}: appTemplate redefinition, previously defined ${templates.app}`);
+                        throw Error(`${component.manifest.name}: ${posix_path.join(toUnixPath(entry.parentPath), entry.name)}: appTemplate redefinition, previously defined ${templates.app}`);
                     }
 
-                    templates.app = path.join(toUnixPath(entry.parentPath), entry.name);
+                    templates.app = posix_path.join(toUnixPath(entry.parentPath), entry.name);
                 }
 
                 if (entry.name == "error.html") {
                     if (templates.err) {
-                        throw Error(`${component.manifest.name}: ${path.join(toUnixPath(entry.parentPath), entry.name)}: errorTemplate redefinition, previously defined ${templates.err}`);
+                        throw Error(`${component.manifest.name}: ${posix_path.join(toUnixPath(entry.parentPath), entry.name)}: errorTemplate redefinition, previously defined ${templates.err}`);
                     }
 
-                    templates.err = path.join(toUnixPath(entry.parentPath), entry.name);
+                    templates.err = posix_path.join(toUnixPath(entry.parentPath), entry.name);
                 }
             }
         }));
@@ -2262,7 +2271,7 @@ class SvelteConfigGenerator implements ConfigGenerator {
         }
 
         const sourceTimestamp = await calcTimestamp([templates.app, templates.err].filter(x => x != undefined));
-        const svelteConfig = await fileDb.createFile(path.join(this.config.outDir, "svelte.config.js"), sourceTimestamp);
+        const svelteConfig = await fileDb.createFile(posix_path.join(this.config.outDir, "svelte.config.js"), sourceTimestamp);
 
         if (svelteConfig) {
             svelteConfig.content = `${generatedHeader}
@@ -2330,16 +2339,16 @@ class TsConfigGenerator implements ConfigGenerator {
                 }
             };
 
-            if (projectPath.endsWith(path.sep)) {
-                appendProjectPathImpl(name + path.sep, projectPath);
-                appendProjectPathImpl(path.join(name, '*'), path.join(projectPath, '*'));
+            if (projectPath.endsWith(posix_path.sep)) {
+                appendProjectPathImpl(name + posix_path.sep, projectPath);
+                appendProjectPathImpl(posix_path.join(name, '*'), posix_path.join(projectPath, '*'));
             } else {
                 appendProjectPathImpl(name, projectPath);
             }
         };
 
         const appendProjectReferencePath = (sourceProject: Project, projectPath: string) => {
-            appendProjectPath(`$${path.join(sourceProject.component.manifest.name)}`, projectPath);
+            appendProjectPath(`$${posix_path.join(sourceProject.component.manifest.name)}`, projectPath);
         };
 
         const appendSelfProjectPath = (name: string, projectPath: string) => {
@@ -2349,55 +2358,55 @@ class TsConfigGenerator implements ConfigGenerator {
         };
 
         const getGenDir = (project: Project) => {
-            return path.join(this.config.outDir, project.component.manifest.name, project.name, "src");
+            return posix_path.join(this.config.outDir, project.component.manifest.name, project.name, "src");
         };
 
         try {
             for (const item of await fs.readdir(project.rootDir, { recursive: false, withFileTypes: true })) {
                 if (item.isDirectory() && !shouldIgnoreDir(item.name)) {
-                    appendSelfProjectPath(item.name, path.join(toUnixPath(item.parentPath), item.name) + path.sep);
+                    appendSelfProjectPath(item.name, posix_path.join(toUnixPath(item.parentPath), item.name) + posix_path.sep);
                 }
             }
         } catch { /* empty */ }
 
-        const outDir = path.join(this.config.outDir, project.component.manifest.name, project.name);
+        const outDir = posix_path.join(this.config.outDir, project.component.manifest.name, project.name);
 
         const include = [...project.include];
         const exclude = [...project.exclude];
 
         if (project.rootDir != outDir) {
             include.push(
-                path.join(project.rootDir, "**", "*.ts"),
-                path.join(project.rootDir, "**", "*.js"),
-                path.join(project.rootDir, "**", "*.d.ts"),
+                posix_path.join(project.rootDir, "**", "*.ts"),
+                posix_path.join(project.rootDir, "**", "*.js"),
+                posix_path.join(project.rootDir, "**", "*.d.ts"),
             );
         }
 
-        const genDir = path.join(outDir, "src");
+        const genDir = posix_path.join(outDir, "src");
         if (genDir != project.rootDir) {
             include.push(
-                path.join(genDir, "**", "*.ts"),
-                path.join(genDir, "**", "*.js"),
-                path.join(genDir, "**", "*.d.ts"),
+                posix_path.join(genDir, "**", "*.ts"),
+                posix_path.join(genDir, "**", "*.js"),
+                posix_path.join(genDir, "**", "*.d.ts"),
             );
         }
 
         let config: object;
         if (["renderer", "routes", "views", "server-renderer-api"].includes(project.name)) {
             include.push(
-                path.join(project.rootDir, "**", "*.svelte"),
-                path.relative(outDir, path.join(this.config.svelteDir, "*.d.ts")),
+                posix_path.join(project.rootDir, "**", "*.svelte"),
+                posix_path.relative(outDir, posix_path.join(this.config.svelteDir, "*.d.ts")),
             );
 
             exclude.push(
-                path.join(project.rootDir, "routes", "**", "*.svelte"),
-                path.join(project.rootDir, "routes", "**", "*.ts"),
-                path.join(project.rootDir, "routes", "**", "*.js"),
-                path.join(project.rootDir, "locales", "**", "*.json"),
+                posix_path.join(project.rootDir, "routes", "**", "*.svelte"),
+                posix_path.join(project.rootDir, "routes", "**", "*.ts"),
+                posix_path.join(project.rootDir, "routes", "**", "*.js"),
+                posix_path.join(project.rootDir, "locales", "**", "*.json"),
             );
 
             config = {
-                extends: path.relative(outDir, path.join(this.config.svelteDir, "tsconfig.json"))
+                extends: posix_path.relative(outDir, posix_path.join(this.config.svelteDir, "tsconfig.json"))
             };
         } else {
             config = {
@@ -2413,110 +2422,110 @@ class TsConfigGenerator implements ConfigGenerator {
         const references: object[] = [];
 
         project.dependencies.forEach(dep => {
-            const depOutDir = path.join(this.config.outDir, dep.component.manifest.name, dep.name);
-            const depGenDir = path.join(depOutDir, "src");
+            const depOutDir = posix_path.join(this.config.outDir, dep.component.manifest.name, dep.name);
+            const depGenDir = posix_path.join(depOutDir, "src");
 
             references.push({
-                path: path.relative(outDir, path.join(depOutDir, "tsconfig.json"))
+                path: posix_path.relative(outDir, posix_path.join(depOutDir, "tsconfig.json"))
             });
 
             if (dep.component == project.component) {
                 if (dep.name == "server" || dep.name == "server-renderer-api") {
-                    appendSelfProjectPath(dep.name, path.join(depGenDir, "api.ts"));
+                    appendSelfProjectPath(dep.name, posix_path.join(depGenDir, "api.ts"));
                 }
 
-                appendSelfProjectPath(dep.name, dep.rootDir + path.sep);
+                appendSelfProjectPath(dep.name, dep.rootDir + posix_path.sep);
                 if (depGenDir != dep.rootDir) {
-                    appendSelfProjectPath(dep.name, depGenDir + path.sep);
+                    appendSelfProjectPath(dep.name, depGenDir + posix_path.sep);
                 }
             } else {
-                appendProjectReferencePath(dep, dep.rootDir + path.sep);
+                appendProjectReferencePath(dep, dep.rootDir + posix_path.sep);
                 if (depGenDir != dep.rootDir) {
-                    appendProjectReferencePath(dep, depGenDir + path.sep);
+                    appendProjectReferencePath(dep, depGenDir + posix_path.sep);
                 }
 
                 if (dep.name == "server-renderer-api") {
-                    appendProjectReferencePath(dep, path.join(depGenDir, "api.ts"));
+                    appendProjectReferencePath(dep, posix_path.join(depGenDir, "api.ts"));
                 }
             }
 
-            include.push(path.relative(outDir, path.join(dep.rootDir, "**", "*.d.ts")),);
+            include.push(posix_path.relative(outDir, posix_path.join(dep.rootDir, "**", "*.d.ts")),);
 
             if (dep.rootDir != depGenDir) {
-                include.push(path.relative(outDir, path.join(depGenDir, "**", "*.d.ts")));
+                include.push(posix_path.relative(outDir, posix_path.join(depGenDir, "**", "*.d.ts")));
             }
         });
 
         if (project.name == "server") {
-            appendProjectPath('$', project.rootDir + path.sep);
-            appendProjectPath(`$${project.component.manifest.name}`, project.rootDir + path.sep);
+            appendProjectPath('$', project.rootDir + posix_path.sep);
+            appendProjectPath(`$${project.component.manifest.name}`, project.rootDir + posix_path.sep);
 
-            appendSelfProjectPath(project.name, path.join(genDir, "api.ts"));
+            appendSelfProjectPath(project.name, posix_path.join(genDir, "api.ts"));
 
             if (project.rootDir != genDir) {
-                appendSelfProjectPath(project.name, genDir + path.sep);
+                appendSelfProjectPath(project.name, genDir + posix_path.sep);
             }
 
             project.component.dependencies.forEach(depComponent => {
                 const server = depComponent.projects["server"];
                 if (server) {
-                    appendProjectReferencePath(server, path.join(genDir, `${server.component.manifest.name}.ts`));
-                    appendProjectPath(`$${path.join(depComponent.manifest.name)}/api`, path.join(depComponent.projects["server-public-api"].rootDir, "api.ts"));
+                    appendProjectReferencePath(server, posix_path.join(genDir, `${server.component.manifest.name}.ts`));
+                    appendProjectPath(`$${posix_path.join(depComponent.manifest.name)}/api`, posix_path.join(depComponent.projects["server-public-api"].rootDir, "api.ts"));
                 }
             });
         } else if (project.name == "server-renderer-api") {
             const render = project.component.projects["renderer"];
             if (render) {
-                include.push(path.relative(outDir, path.join(render.rootDir, "**", "*.d.ts")));
+                include.push(posix_path.relative(outDir, posix_path.join(render.rootDir, "**", "*.d.ts")));
                 const genDir = getGenDir(render);
                 if (render.rootDir != genDir) {
-                    include.push(path.relative(outDir, path.join(genDir, "**", "*.d.ts")));
+                    include.push(posix_path.relative(outDir, posix_path.join(genDir, "**", "*.d.ts")));
                 }
             }
 
             project.component.dependencies.forEach(depComponent => {
                 const render = depComponent.projects["renderer"];
                 if (render) {
-                    include.push(path.relative(outDir, path.join(render.rootDir, "**", "*.d.ts")));
+                    include.push(posix_path.relative(outDir, posix_path.join(render.rootDir, "**", "*.d.ts")));
                     const genDir = getGenDir(render);
                     if (render.rootDir != genDir) {
-                        include.push(path.relative(outDir, path.join(genDir, "**", "*.d.ts")));
+                        include.push(posix_path.relative(outDir, posix_path.join(genDir, "**", "*.d.ts")));
                     }
                 }
             });
         }
 
-        const configFile = await fileDb.createFile(path.join(outDir, "tsconfig.json"), project.component.manifestFile);
+        const configFile = await fileDb.createFile(posix_path.join(outDir, "tsconfig.json"), project.component.manifestFile);
 
         if (configFile) {
             const tsconfig = mergeConfig(baseTsConfig, mergeConfig(config, {
                 references,
                 compilerOptions: {
                     paths: projectInfo.paths,
-                    rootDir: path.relative(outDir, path.join(project.component.path, "..", "..")),
+                    rootDir: posix_path.relative(outDir, posix_path.join(project.component.path, "..", "..")),
                     rootDirs: [
-                        path.relative(outDir, project.rootDir),
-                        path.relative(outDir, genDir),
+                        posix_path.relative(outDir, project.rootDir),
+                        posix_path.relative(outDir, genDir),
                     ].filter((value, index, array) => array.indexOf(value) == index),
-                    outDir: path.relative(outDir, path.join(this.config.buildDir, project.component.manifest.name, project.name)),
-                    tsBuildInfoFile: path.relative(outDir, path.join(this.config.outDir, ".info", project.component.manifest.name, project.name)),
+                    outDir: posix_path.relative(outDir, posix_path.join(this.config.buildDir, project.component.manifest.name, project.name)),
+                    tsBuildInfoFile: posix_path.relative(outDir, posix_path.join(this.config.outDir, ".info", project.component.manifest.name, project.name)),
                 },
-                include: include.map(p => path.relative(outDir, path.resolve(outDir, p))),
-                exclude: exclude.map(p => path.relative(outDir, path.resolve(outDir, p))),
+                include: include.map(p => posix_path.relative(outDir, resolvePath(outDir, p))),
+                exclude: exclude.map(p => posix_path.relative(outDir, resolvePath(outDir, p))),
             }));
 
             configFile.content = JSON.stringify(tsconfig, null, 4);
         }
 
-        projectInfo.include = include.map(p => path.resolve(outDir, p));
-        projectInfo.exclude = exclude.map(p => path.resolve(outDir, p));
+        projectInfo.include = include.map(p => resolvePath(outDir, p));
+        projectInfo.exclude = exclude.map(p => resolvePath(outDir, p));
 
         this.config.projectInfos.push(projectInfo);
     }
 
     async processWorkspace(workspace: Workspace, fileDb: FileDb) {
         const configFile = await fileDb.createFile(
-            path.join(this.config.outDir, "tsconfig.json"),
+            posix_path.join(this.config.outDir, "tsconfig.json"),
             mergeTimestamps(Object.values(workspace).map(component => component.manifestFile))
         );
 
@@ -2525,7 +2534,7 @@ class TsConfigGenerator implements ConfigGenerator {
             Object.values(workspace).forEach(component => {
                 Object.keys(component.projects).forEach(projectName => {
                     references.push({
-                        path: path.join(component.manifest.name, projectName, "tsconfig.json")
+                        path: posix_path.join(component.manifest.name, projectName, "tsconfig.json")
                     });
                 });
             });
@@ -2561,10 +2570,10 @@ let rpcsxResolver: undefined | ResolverWithWorkspace;
 
 function getPaths(roots: string[]) {
     const projectRootDir = toUnixPath(roots[0]);
-    const outDir = path.join(projectRootDir, ".rpcsx-ui-kit");
-    const buildDir = path.join(outDir, "build");
-    const svelteDir = path.join(outDir, "svelte");
-    const distDir = path.join(projectRootDir, "build");
+    const outDir = posix_path.join(projectRootDir, ".rpcsx-ui-kit");
+    const buildDir = posix_path.join(outDir, "build");
+    const svelteDir = posix_path.join(outDir, "svelte");
+    const distDir = posix_path.join(projectRootDir, "build");
 
     return {
         projectRootDir,
@@ -2593,7 +2602,7 @@ async function getRpcsxResolver(roots: string[]): Promise<ResolverWithWorkspace>
         preloadGenerator
     ], [
         new TsConfigGenerator({ ...paths, projectInfos: tsProjectInfos }),
-        new SvelteConfigGenerator({ ...paths, distDir: path.join(paths.distDir, "ui") })
+        new SvelteConfigGenerator({ ...paths, distDir: posix_path.join(paths.distDir, "ui") })
     ], [
         new SvelteRendererGenerator(paths),
         new TsServerMainGenerator(paths),
@@ -2638,14 +2647,14 @@ async function getRpcsxResolver(roots: string[]): Promise<ResolverWithWorkspace>
             const relativeSource = source.slice(projectPath.length);
 
             const resolve = (relativeSource: string) => {
-                const prefix = testPaths.find(testPath => path.join(testPath, relativeSource) in fileMap);
+                const prefix = testPaths.find(testPath => posix_path.join(testPath, relativeSource) in fileMap);
 
                 if (prefix == undefined) {
                     return undefined;
                 }
 
                 // console.log(`resolve: using prefix ${prefix} to resolve ${relativeSource} (${source}), file ${path.join(prefix, relativeSource)}`);
-                return path.join(prefix, relativeSource);
+                return posix_path.join(prefix, relativeSource);
             };
 
             if (relativeSource.endsWith(".ts") || relativeSource.endsWith(".js") || relativeSource.endsWith(".svelte")) {
@@ -2720,12 +2729,12 @@ export async function rpcsx() {
         buildStart: async () => {
             const enums = Object.values(workspace)
                 .filter(component => "lib" in component.projects && "server" in component.projects && component.projects.server.rootDir != "")
-                .map(component => path.join(paths.outDir, component.manifest.name, "lib", "src", "enums.ts"));
+                .map(component => posix_path.join(paths.outDir, component.manifest.name, "lib", "src", "enums.ts"));
 
             const serverPromise = esbuild.build({
-                outdir: path.join(paths.distDir),
+                outdir: posix_path.join(paths.distDir),
                 entryPoints: [
-                    path.join(workspace["rpcsx-ui-server"].projects["server-main"].rootDir, "main.ts")
+                    posix_path.join(workspace["rpcsx-ui-server"].projects["server-main"].rootDir, "main.ts")
                 ],
                 plugins: [
                     ...await rpcsxESbuildPlugin({ resolver, workspace }),
@@ -2739,9 +2748,9 @@ export async function rpcsx() {
             });
 
             const preloadPromise = esbuild.build({
-                outdir: path.join(paths.distDir),
+                outdir: posix_path.join(paths.distDir),
                 entryPoints: [
-                    path.join(workspace["core"].projects["renderer"].rootDir, "preload", "preload.ts")
+                    posix_path.join(workspace["core"].projects["renderer"].rootDir, "preload", "preload.ts")
                 ],
                 plugins: [
                     ...await rpcsxESbuildPlugin({ resolver, workspace }),
