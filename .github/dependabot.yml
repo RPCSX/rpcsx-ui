@@ -9,7 +9,7 @@ updates:
         patterns: 
           - "*"
   - package-ecosystem: "npm"
-    directory: "/rpcsx-ui"
+    directory: "/"
     schedule:
       interval: "weekly"
     groups:

@@ -2768,7 +2768,7 @@ async function rpcsxESbuildPlugin(resolverWorkspace: ResolverWithWorkspace): Pro
 }
 
 export async function rpcsx() {
-    const root = pathToUnix(process.cwd());
+    const root = pathResolve("rpcsx-ui"); // TODO
     const paths = getPaths([root]);
     const { resolver, workspace } = await getRpcsxResolver([root]);
 

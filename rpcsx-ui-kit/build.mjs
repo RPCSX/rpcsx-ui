@@ -23,7 +23,7 @@ const options = {
     bundle: true,
     minify: values.dev == false,
     packages: 'external',
-    platform: 'neutral',
+    platform: 'node',
     format: 'esm',
     sourcemap: values.dev ? 'linked' : undefined,
     outdir: "build",

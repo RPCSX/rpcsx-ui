@@ -1,17 +1,61 @@
 {
   "name": "rpcsx-ui",
   "version": "0.1.0",
-  "description": "",
+  "description": "RPCSX UI",
   "type": "module",
-  "main": "build/main.js",
+  "main": "rpcsx-ui/build/main.js",
+  "author": {
+    "name": "RPCSX Team"
+  },
   "scripts": {
-    "build": "bun run --cwd rpcsx-ui-kit build && bun run --cwd rpcsx-ui build",
-    "validate": "tsc -b rpcsx-ui",
-    "start": "bun run --cwd rpcsx-ui start"
+    "build": "npm run -w rpcsx-ui-kit build && vite build",
+    "validate": "tsc -b .",
+    "start": "electron-forge start",
+    "package": "electron-forge package",
+    "make": "electron-forge make"
   },
   "license": "GPL-3.0-only",
   "workspaces": [
-    "rpcsx-ui-kit",
-    "rpcsx-ui"
-  ]
+    "./rpcsx-ui-kit"
+  ],
+  "dependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.39.1",
+    "@typescript-eslint/parser": "^8.39.1",
+    "glob": "^11.0.3",
+    "json5": "^2.2.3",
+    "monaco-editor": "^0.52.2",
+    "prettier": "^3.6.2",
+    "svelte-hero-icons": "^5.2.0",
+    "svelte-i18n": "^4.0.1"
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "^7.8.3",
+    "@electron-forge/maker-squirrel": "^7.8.3",
+    "@electron-forge/maker-zip": "^7.8.3",
+    "@electron-forge/plugin-auto-unpack-natives": "^7.8.3",
+    "@electron-forge/plugin-fuses": "^7.8.3",
+    "@electron/fuses": "^1.8.0",
+    "@reforged/maker-appimage": "^5.0.0",
+    "@sveltejs/adapter-static": "^3.0.9",
+    "@sveltejs/kit": "^2.31.0",
+    "@sveltejs/vite-plugin-svelte": "^6.1.2",
+    "@tailwindcss/postcss": "^4.1.12",
+    "@tailwindcss/vite": "^4.1.12",
+    "@tauri-apps/cli": "^2.7.1",
+    "@types/node": "^24.3.0",
+    "electron": "^37.3.0",
+    "electron-squirrel-startup": "^1.0.1",
+    "esbuild": "^0.25.9",
+    "eslint": "^9.33.0",
+    "eslint-config-prettier": "^10.1.8",
+    "postcss": "^8.5.6",
+    "rpcsx-ui-kit": "file:rpcsx-ui-kit",
+    "svelte": "^5.38.1",
+    "svelte-check": "^4.3.1",
+    "tailwindcss": "^4.1.12",
+    "tslib": "^2.8.1",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.39.1",
+    "vite": "^7.1.2"
+  }
 }

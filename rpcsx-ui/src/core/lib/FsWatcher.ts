@@ -8,7 +8,7 @@ export class FsWatcher extends EventEmitter<{ 'event': [fs.FileChangeInfo<string
     private events: fs.FileChangeInfo<string>[] = [];
     private flushTask?: NodeJS.Timeout;
 
-    constructor(root: string, iterable: AsyncIterable<fs.FileChangeInfo<string>>, private abortController: AbortController) {
+    constructor(root: string, iterable: NodeJS.AsyncIterator<fs.FileChangeInfo<string>>, private abortController: AbortController) {
         super();
         root = path.resolve(root);
 
@@ -75,7 +75,7 @@ export class FsWatcher extends EventEmitter<{ 'event': [fs.FileChangeInfo<string
 export function createFsWatcher(root: string, options?: Omit<WatchOptions, "signal">) {
     const abortController = new AbortController();
     try {
-        const iterable = fs.watch(root, { ...options, signal: abortController.signal });
+        const iterable = fs.watch(root, { ...options, encoding: 'utf8', signal: abortController.signal });
         return new FsWatcher(root, iterable, abortController);
     } catch (e) {
         console.error('failed to create file watcher', e);
