@@ -1,0 +1,57 @@
+<views:UserControlBase xmlns="https://github.com/avaloniaui"
+                       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                       xmlns:rxui="http://reactiveui.net"
+                       xmlns:icons="https://github.com/projektanker/icons.avalonia"
+                       xmlns:vm="clr-namespace:RpcsxUI.ViewModels"
+                       xmlns:aux="clr-namespace:RpcsxUI.Auxiliary"
+                       xmlns:views="clr-namespace:RpcsxUI.Views"
+                       xmlns:models="clr-namespace:RpcsxUI.Models"
+					   xmlns:converters="clr-namespace:RpcsxUI.Converters"
+                       mc:Ignorable="d" 
+					   d:DesignWidth="800" 
+					   d:DesignHeight="450"
+					   
+                       x:Class="RpcsxUI.Views.GamesView"
+                       x:DataType="vm:GamesViewModel"
+                       x:TypeArguments="vm:GamesViewModel">
+
+
+	<Grid RowDefinitions="*,Auto">
+
+		<DataGrid Grid.Row="0" ItemsSource="{Binding Games}" IsReadOnly="True">
+			<DataGrid.Columns>
+				<DataGridTemplateColumn Header="Icon">
+					<DataGridTemplateColumn.CellTemplate>
+						<DataTemplate x:DataType="models:GameModel">
+							<Image Source="avares://RpcsxUI/Assets/avalonia-logo.ico" Height="30" />
+						</DataTemplate>
+					</DataGridTemplateColumn.CellTemplate>
+				</DataGridTemplateColumn>
+
+				<DataGridTextColumn Header="Name" Binding="{Binding Name}" />
+				<DataGridTextColumn Header="Serial" Binding="{Binding Serial}" />
+				<DataGridTextColumn Header="Version" Binding="{Binding Version}" />
+				<DataGridTextColumn Header="Size" Binding="{Binding Size}" />
+			</DataGrid.Columns>
+		</DataGrid>
+
+	<Grid Grid.Row="1" ColumnDefinitions="30,*,*" VerticalAlignment="Bottom" Margin="3">
+
+		<Button Grid.Column="0"
+				HorizontalAlignment="Center"
+				VerticalAlignment="Center"
+				icons:Attached.Icon="mdi-refresh"
+				Background="Transparent"
+				Command="{Binding ReloadCommand}">
+		</Button>
+
+		<Label Grid.Column="1" Content="{Binding Games.Count, Converter={StaticResource GamesCountToStringConverter}}" HorizontalAlignment="Left" VerticalContentAlignment="Center" />
+		<Label Grid.Column="2" Content="Firmware: 0.0.0" HorizontalAlignment="Right" VerticalContentAlignment="Center" />
+	</Grid>
+	
+	</Grid>
+
+	
+</views:UserControlBase>

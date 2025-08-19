@@ -1,0 +1,18 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="RpcsxUI.App"
+             RequestedThemeVariant="Default"
+			 xmlns:converters="clr-namespace:RpcsxUI.Converters">
+             <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
+
+    <Application.Styles>
+        <FluentTheme />
+		<StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml"/>
+    </Application.Styles>
+
+	<Application.Resources>
+		<ResourceDictionary>
+			<converters:GamesCountToStringConverter x:Key="GamesCountToStringConverter" />
+		</ResourceDictionary>
+	</Application.Resources>
+</Application>

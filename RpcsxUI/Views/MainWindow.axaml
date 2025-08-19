@@ -1,0 +1,23 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:rxui="http://reactiveui.net"
+        xmlns:icons="https://github.com/projektanker/icons.avalonia"
+        xmlns:vm="clr-namespace:RpcsxUI.ViewModels"
+        xmlns:aux="clr-namespace:RpcsxUI.Auxiliary"
+        xmlns:views="clr-namespace:RpcsxUI.Views"
+        xmlns:models="clr-namespace:RpcsxUI.Models"
+        mc:Ignorable="d"
+		d:DesignWidth="800"
+		d:DesignHeight="450"
+		
+        x:Class="RpcsxUI.Views.MainWindow"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="Rpcsx">
+
+	<Grid RowDefinitions="70*,30*">
+		<views:MainView Grid.Row="0" />
+		<views:LogsView Grid.Row="1" />
+	</Grid>
+</Window>
