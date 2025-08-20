@@ -32,7 +32,7 @@
 					Width="40"
 					Height="40"
 					Command="{Binding GoBack}"
-					IsVisible="{Binding IsGoBackVisible}">
+					IsVisible="{Binding State.IsGoBackVisible}">
 				<Image>
 					<Image.Source>
 						<icons:IconImage Value="mdi-keyboard-backspace" />
@@ -46,7 +46,8 @@
 					VerticalAlignment="Center"
 					Width="40"
 					Height="40"
-					IsVisible="{Binding IsGridViewVisible}">
+					Command="{Binding SetListViewCommand}"
+					IsVisible="{Binding State.IsListViewVisible}">
 				<Image>
 					<Image.Source>
 						<icons:IconImage Value="mdi-format-list-bulleted" />
@@ -60,7 +61,8 @@
 					VerticalAlignment="Center"
 					Width="40"
 					Height="40"
-					IsVisible="{Binding IsListViewVisible}">
+					Command="{Binding SetGridViewCommand}"
+					IsVisible="{Binding State.IsGridViewVisible}">
 				<Image>
 					<Image.Source>
 						<icons:IconImage Value="mdi-view-grid" />
@@ -75,7 +77,7 @@
 					Width="40"
 					Height="40"
 					Command="{Binding GoToSettingsCommand}"
-					IsVisible="{Binding IsSettingsVisible}">
+					IsVisible="{Binding State.IsSettingsVisible}">
 				<Image>
 					<Image.Source>
 						<icons:IconImage Value="mdi-cog" />

@@ -13,7 +13,7 @@
 		d:DesignHeight="450"
 		
         x:Class="RpcsxUI.Views.MainWindow"
-        Icon="/Assets/avalonia-logo.ico"
+        Icon="/Assets/rpcsx-logo.png"
         Title="Rpcsx">
 
 	<Grid RowDefinitions="70*,30*">

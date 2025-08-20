@@ -1,6 +1,8 @@
-﻿namespace RpcsxUI.ViewModels;
+﻿using RpcsxUI.States;
 
-public class LogsViewModel : ViewModelBase
+namespace RpcsxUI.ViewModels;
+
+public class LogsViewModel(ApplicationState state) : ViewModelBase(state)
 {
     public string Text { get; set; } = "Logs are here...";
 }

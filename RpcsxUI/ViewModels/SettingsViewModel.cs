@@ -1,8 +1,9 @@
 ﻿using ReactiveUI;
+using RpcsxUI.States;
 
 namespace RpcsxUI.ViewModels;
 
-public class SettingsViewModel(IScreen screen) : ViewModelBase, IRoutableViewModel
+public class SettingsViewModel(ApplicationState state, IScreen screen) : ViewModelBase(state), IRoutableViewModel
 {
     /// <inheritdoc/>
     public IScreen HostScreen { get; } = screen;

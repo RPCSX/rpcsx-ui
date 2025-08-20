@@ -5,6 +5,7 @@ using RpcsxUI.Auxiliary;
 using RpcsxUI.Core.Services;
 using RpcsxUI.Core.Services.Abstractions;
 using RpcsxUI.Models;
+using RpcsxUI.States;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -21,7 +22,7 @@ public class GamesViewModel : ViewModelBase, ISupportsInitialized
 
     public ReactiveCommand<Unit, Unit> ReloadCommand { get; }
 
-    public GamesViewModel(IGamesService gamesService)
+    public GamesViewModel(ApplicationState state, IGamesService gamesService) : base(state)
     {
         _gamesService = gamesService;
         ReloadCommand = ReactiveCommand.CreateFromTask(ReloadGamesAsync);

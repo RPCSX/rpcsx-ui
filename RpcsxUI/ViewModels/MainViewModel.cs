@@ -1,5 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.DependencyInjection;
 using ReactiveUI;
+using RpcsxUI.States;
 using System;
 using System.Reactive;
 using System.Reactive.Disposables;
@@ -8,13 +9,7 @@ namespace RpcsxUI.ViewModels;
 
 public class MainViewModel : ViewModelBase, IScreen
 {
-    private bool _isGoBackVisible = false;
-
-    private bool _isGridViewVisible = true;
-
-    private bool _isListViewVisible = true;
-
-    private bool _isSettingsVisible = true;
+    
 
     public RoutingState Router { get; } = new RoutingState();
 
@@ -22,31 +17,13 @@ public class MainViewModel : ViewModelBase, IScreen
 
     public ReactiveCommand<Unit, Unit> GoBack { get; }
 
-    public bool IsGoBackVisible
-    {
-        get => _isGoBackVisible;
-        set => this.RaiseAndSetIfChanged(ref _isGoBackVisible, value);
-    }
+    public ReactiveCommand<Unit, Unit> SetListViewCommand { get; }
 
-    public bool IsGridViewVisible
-    {
-        get => _isGridViewVisible;
-        set => this.RaiseAndSetIfChanged(ref _isGridViewVisible, value);
-    }
+    public ReactiveCommand<Unit, Unit> SetGridViewCommand { get; }
 
-    public bool IsListViewVisible
-    {
-        get => _isListViewVisible;
-        set => this.RaiseAndSetIfChanged(ref _isListViewVisible, value);
-    }
+    
 
-    public bool IsSettingsVisible
-    {
-        get => _isSettingsVisible;
-        set => this.RaiseAndSetIfChanged(ref _isSettingsVisible, value);
-    }
-
-    public MainViewModel()
+    public MainViewModel(ApplicationState state) : base(state)
     {
         GoToSettingsCommand = ReactiveCommand.CreateFromObservable(
             () => Router.Navigate.Execute(Ioc.Default.GetRequiredService<SettingsViewModel>())
@@ -62,6 +39,17 @@ public class MainViewModel : ViewModelBase, IScreen
             UpdateNavigationElements();
         });
 
+        SetListViewCommand = ReactiveCommand.Create(() =>
+        {
+            State.IsListView = true;
+            State.IsGridView = false;
+        });
+
+        SetGridViewCommand = ReactiveCommand.Create(() =>
+        {
+            State.IsListView = false;
+            State.IsGridView = true;
+        });
 
         Router.Navigate.Subscribe(navigated =>
         {
@@ -80,17 +68,17 @@ public class MainViewModel : ViewModelBase, IScreen
     {
         if (Router.NavigationStack.Count == 0)
         {
-            IsGoBackVisible = false;
-            IsGridViewVisible = true;
-            IsListViewVisible = true;
-            IsSettingsVisible = true;
+            State.IsGoBackVisible = false;
+            State.IsGridViewVisible = true;
+            State.IsListViewVisible = true;
+            State.IsSettingsVisible = true;
         }
         else if (Router.NavigationStack[^1] is SettingsViewModel)
         {
-            IsGoBackVisible = true;
-            IsGridViewVisible = false;
-            IsListViewVisible = false;
-            IsSettingsVisible = false;
+            State.IsGoBackVisible = true;
+            State.IsGridViewVisible = false;
+            State.IsListViewVisible = false;
+            State.IsSettingsVisible = false;
         }
     }
 }

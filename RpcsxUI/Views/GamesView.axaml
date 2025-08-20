@@ -20,12 +20,12 @@
 
 	<Grid RowDefinitions="*,Auto">
 
-		<DataGrid Grid.Row="0" ItemsSource="{Binding Games}" IsReadOnly="True">
+		<DataGrid Grid.Row="0" ItemsSource="{Binding Games}"  IsReadOnly="True" SelectionMode="Single" IsVisible="{Binding State.IsListView}">
 			<DataGrid.Columns>
 				<DataGridTemplateColumn Header="Icon">
 					<DataGridTemplateColumn.CellTemplate>
 						<DataTemplate x:DataType="models:GameModel">
-							<Image Source="avares://RpcsxUI/Assets/avalonia-logo.ico" Height="30" />
+							<Image Source="avares://RpcsxUI/Assets/ICON0.PNG" Height="50" Margin="3" />
 						</DataTemplate>
 					</DataGridTemplateColumn.CellTemplate>
 				</DataGridTemplateColumn>
@@ -37,6 +37,45 @@
 			</DataGrid.Columns>
 		</DataGrid>
 
+		<WrapPanel Grid.Row="0"
+		   Orientation="Horizontal"
+		   HorizontalAlignment="{OnPlatform Default=Left, Android=Center, iOS=Center}"
+		   Margin="5"
+		   IsVisible="{Binding State.IsGridView}">
+			<ItemsControl ItemsSource="{Binding Games}">
+				<ItemsControl.ItemsPanel>
+					<ItemsPanelTemplate>
+						<WrapPanel />
+					</ItemsPanelTemplate>
+				</ItemsControl.ItemsPanel>
+				<ItemsControl.ItemTemplate>
+					<DataTemplate>
+
+						<Button Width="180"
+								Height="130"
+								Padding="0"
+								Margin="3">
+
+							<Border BorderThickness="1"
+									BorderBrush="LightGray"
+									CornerRadius="5">
+								<Grid RowDefinitions="Auto, 80">
+									<Image Grid.Row="0" Source="avares://RpcsxUI/Assets/ICON0.PNG" />
+									<TextBlock Grid.Row="1"
+											   Text="{Binding Name}"
+											   Margin="3"
+											   HorizontalAlignment="Center"
+										       VerticalAlignment="Top"/>
+								</Grid>
+
+							</Border>
+						</Button>
+
+					</DataTemplate>
+				</ItemsControl.ItemTemplate>
+			</ItemsControl>
+		</WrapPanel>
+		
 	<Grid Grid.Row="1" ColumnDefinitions="30,*,*" VerticalAlignment="Bottom" Margin="3">
 
 		<Button Grid.Column="0"

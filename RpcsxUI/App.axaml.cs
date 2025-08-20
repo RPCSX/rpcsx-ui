@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using ReactiveUI;
 using RpcsxUI.Auxiliary;
+using RpcsxUI.States;
 using RpcsxUI.ViewModels;
 using RpcsxUI.Views;
 
@@ -28,6 +29,9 @@ public partial class App : Application
 
         // Register infrastructure providers
         services.AddProviders();
+
+        // Register app state
+        services.AddSingleton<ApplicationState>();
 
         // Build the service provider 
         Ioc.Default.ConfigureServices(services.BuildServiceProvider());

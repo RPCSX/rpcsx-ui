@@ -63,7 +63,7 @@ public static class ConfigurationExtensions
 #pragma warning restore CS0219
         services.AddImplementations<IProvidersBase>();
 #else
-        services.AddSingleton<IGamesService, GamesService>();
+        services.AddSingleton<IGamesProvider, GamesProvider>();
 #endif
         return services;
     }

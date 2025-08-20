@@ -10,7 +10,7 @@ using Projektanker.Icons.Avalonia.MaterialDesign;
 namespace RpcsxUI.Android;
 
 [Activity(
-    Label = "RpcsxUI.Android",
+    Label = "rpcsx",
     Theme = "@style/MyTheme.NoActionBar",
     Icon = "@drawable/icon",
     MainLauncher = true,
