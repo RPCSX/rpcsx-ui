@@ -1,0 +1,60 @@
+name: Build RPCSX-UI
+
+on:
+  push:
+    paths-ignore:
+        - "**/*.md"
+  pull_request:
+    paths-ignore:
+        - "**/*.md"
+  workflow_dispatch:
+
+
+concurrency:
+  group: ${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        dotnet-version: [ '9.0.x' ]
+        include:
+          - name: Windows x86-64
+            platform: win32
+            arch: x64
+            machine: windows-latest
+
+          - name: Linux x86-64
+            platform: linux
+            arch: x64
+            machine: ubuntu-latest
+
+          - name: macOS arm64
+            platform: darwin
+            arch: arm64
+            machine: macos-15
+
+
+    runs-on: ${{ matrix.machine }}
+    name: ${{ matrix.name }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@main
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: dotnet restore
+
+      - name: Build ${{ matrix.name }}
+        run: dotnet build -c Release
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@main
+        with:
+          name: RPCSX-UI For ${{ matrix.name }}
+          path: out/make/*
+          compression-level: 0
+          if-no-files-found: error
