@@ -45,15 +45,21 @@ jobs:
         with:
           fetch-depth: 0
 
-
-      - name: Install workloads
-        run: |
-          dotnet workload install android \
-          dotnet workload install ios \
-          dotnet workload install maccatalyst \
-          dotnet workload install macos \
-          dotnet workload install wasm-tools \
-
+      - name: Install android workload
+        run: dotnet workload install android
+        
+      - name: Install ios workload
+        run: dotnet workload install ios
+        
+      - name: Install maccatalyst workload
+        run: dotnet workload install maccatalyst
+        
+      - name: Install macos workload
+        run: dotnet workload install macos
+        
+      - name: Install wasm-tools workload
+        run: dotnet workload install wasm-tools
+        
       - name: Install dependencies
         run: dotnet restore
 
