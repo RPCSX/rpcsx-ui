@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace RpcsxUI.Core.Providers;
 
-public interface IGamesProvider
+public interface IGamesProvider : IProvidersBase
 {
     Task<GameCoreModel[]> GetGamesAsync();
 }

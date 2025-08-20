@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace RpcsxUI.Core.Services.Abstractions;
 
-public interface IGamesService
+public interface IGamesService : IServicesBase
 {
     Task<GameCoreModel[]> GetGamesAsync();
 }
