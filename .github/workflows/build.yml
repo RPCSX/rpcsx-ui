@@ -44,6 +44,10 @@ jobs:
         uses: actions/checkout@main
         with:
           fetch-depth: 0
+          
+      - name: Set Xcode version
+        if: matrix.platform == 'darwin'      
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app
 
       - name: Install android workload
         run: dotnet workload install android
