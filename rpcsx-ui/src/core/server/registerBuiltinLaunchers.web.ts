@@ -2,7 +2,8 @@ import { dirname } from "path";
 import { addLauncher, Launcher, LaunchParams, Process } from "./Launcher";
 import { Target } from "./Target";
 import { fork, spawn } from "child_process";
-import { Duplex, EventEmitter } from "stream";
+import { Duplex } from "stream";
+import { EventEmitter } from "events";
 
 const nativeLauncher: Launcher = {
     launch: async (path: string, args: string[], params: LaunchParams) => {

@@ -1908,40 +1908,46 @@ declare global {
             navigationFile.content = `${generatedHeader}
 ${Object.keys(views).map(x => `import { ${x} } from '${pathWithoutExt(views[x])}'`).join(';\n')};
 import * as bridge from '$core/bridge';
+import { TopViewSelector } from '$core/ViewSelector';
+import * as SplashScreen from 'expo-splash-screen';
+import { BackHandler } from 'react-native';
+import { useEffect, useState } from 'react';
+
+SplashScreen.preventAutoHideAsync();
 
 const views: Record<string, (...props: any[]) => React.JSX.Element> = {
 ${Object.keys(views).map(x => `    "${x}": ${x}`).join(',\n')}
 };
 
-let onViewChangeCb: ((view: React.JSX.Element) => void) | undefined;
+let onViewChangeCb: (() => void) | undefined;
 let viewStack: React.JSX.Element[] = [];
-
-export function onViewChange(cb?: (view: React.JSX.Element | undefined) => void) {
-    onViewChangeCb = cb;
-    if (cb && viewStack.length != 0) {
-        cb(viewStack[viewStack.length - 1]);
-    }
-}
 
 function update() {
     if (onViewChangeCb) {
-        onViewChangeCb(viewStack[viewStack.length - 1]);
+        onViewChangeCb();
     }
 }
 
-export function viewPush(name: string, props: any) {
+function renderView(name: string, props: any) {
     const View = views[name];
-    viewStack.push(<View {...props} />);
+    return <View key={name} {...props} />;
+}
+
+function viewPush(name: string, props: any) {
+    if (viewStack.length == 0) {
+        SplashScreen.hideAsync();
+    }
+
+    viewStack.push(renderView(name, props));
     update();
 }
 
-export function viewSet(name: string, props: any) {
-    const View = views[name];
-    viewStack = [<View {...props} />];
+function viewSet(name: string, props: any) {
+    viewStack = [renderView(name, props)];
     update();
 }
 
-export function viewPop() {
+function viewPop() {
     if (viewStack.length < 2) {
         return false;
     }
@@ -1949,6 +1955,36 @@ export function viewPop() {
     viewStack.pop();
     update();
     return true;
+}
+
+export function Navigation() {
+    const [renderItem, setRenderItem] = useState<number>(viewStack.length - 1);
+
+    useEffect(() => {
+        onViewChangeCb = () => {
+            if (viewStack.length > 0) {
+                const item = viewStack.length - 1;
+                if (item != renderItem) {
+                    setRenderItem(item);
+                }
+            }
+        };
+    });
+
+    useEffect(() => {
+        const backAction = () => {
+            return viewPop();
+        };
+
+        const backHandler = BackHandler.addEventListener(
+            'hardwareBackPress',
+            backAction
+        );
+
+        return () => backHandler.remove();
+    }, []);
+
+    return <TopViewSelector stack={viewStack} index={viewStack.length - 1} />;
 }
 
 bridge.onViewPush(viewPush);
@@ -1985,63 +2021,28 @@ export async function startup() {
         if (indexFile) {
             indexFile.content = `${generatedHeader}
 import '@expo/metro-runtime';
-// import { Asset } from 'expo-asset';
-import * as SplashScreen from 'expo-splash-screen';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { StrictMode } from 'react';
-import { registerRootComponent } from 'expo';
-import * as navigation from './navigation';
-import { useEffect, useState } from 'react';
-import * as bridge from '$core/bridge';
-import { BackHandler } from 'react-native';
-import { TopViewSelector } from '$core/ViewSelector';
-import { startup } from './startup';
 
-SplashScreen.preventAutoHideAsync();
+// import { Asset } from 'expo-asset';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { registerRootComponent } from 'expo';
+import { Navigation } from './navigation';
+import { useEffect } from 'react';
+import * as bridge from '$core/bridge';
+import { startup } from './startup';
 
 const startupPromise = startup();
 
 function App() {
-    const [renderElement, setRenderElement] = useState<React.JSX.Element | undefined>(undefined);
-    const [initialized, setInitialized] = useState<boolean>(false);
-    const [viewInitializationSent, setViewInitializationSent] = useState<boolean>(false);
-
     useEffect(() => {
-        navigation.onViewChange(view => {
-            setRenderElement(view);
-
-            if (!initialized) {
-                SplashScreen.hideAsync();
-                setInitialized(true);
-            }
+        startupPromise.then(() => {
+            bridge.sendViewInitializationComplete();
         });
-
-        if (!viewInitializationSent) {
-            startupPromise.then(() => {
-                bridge.sendViewInitializationComplete();
-            });
-
-            setViewInitializationSent(true);
-        }
-
-        const backAction = () => {
-            return navigation.viewPop();
-        };
-
-        const backHandler = BackHandler.addEventListener(
-            'hardwareBackPress',
-            backAction
-        );
-
-        return () => backHandler.remove();
-    });
+    }, []);
 
     return (
-        <StrictMode>
-            <SafeAreaProvider>
-                <TopViewSelector view={renderElement}/>
-            </SafeAreaProvider>
-        </StrictMode>
+        <SafeAreaProvider>
+            <Navigation />
+        </SafeAreaProvider>
     )
 }
 

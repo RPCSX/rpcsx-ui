@@ -1,4 +1,4 @@
-import { ComponentProps, ReactElement, useEffect, useState } from 'react';
+import { ComponentProps, memo, ReactElement, useEffect, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, View, FlatList } from 'react-native';
 import { useThemeColor } from '$core/useThemeColor'
 import { } from '@react-navigation/elements';
@@ -19,7 +19,6 @@ import Animated, {
     cancelAnimation,
     interpolateColor,
 } from 'react-native-reanimated';
-import { useColorScheme } from '$core/useColorScheme';
 
 
 const games: (ExecutableInfo & ExplorerItem)[] = [
@@ -223,7 +222,7 @@ type ScreenTabProps = {
 
 const AnimatedThemedText = Animated.createAnimatedComponent(ThemedText);
 
-function ScreenTab(props: Omit<ComponentProps<typeof HapticPressable>, "children"> & ScreenTabProps) {
+const ScreenTab = memo(function (props: Omit<ComponentProps<typeof HapticPressable>, "children"> & ScreenTabProps) {
     const [activeState, setActiveState] = useState(props.active);
     const animation = useSharedValue(props.active ? 100 : 0);
 
@@ -258,11 +257,11 @@ function ScreenTab(props: Omit<ComponentProps<typeof HapticPressable>, "children
             }
         />
     );
-}
+});
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-function ExplorerItemHeader({ item, active, ...rest }: { item: ExplorerItem, active: boolean, } & ComponentProps<typeof Pressable>) {
+const ExplorerItemHeader = memo(function ({ item, active, ...rest }: { item: ExplorerItem, active: boolean, } & ComponentProps<typeof Pressable>) {
     const [activeState, setActiveState] = useState(active);
     const animation = useSharedValue(active ? 100 : 0);
 
@@ -311,30 +310,32 @@ function ExplorerItemHeader({ item, active, ...rest }: { item: ExplorerItem, act
             <View style={styles.image}><ThemedIcon iconSet="Ionicons" name="extension-puzzle-sharp" size={100} /><ThemedText>{getName(item)}</ThemedText></View>
         }
     </AnimatedPressable>
-}
+});
 
-function ExplorerItemBody({ item }: { item: ExplorerItem }) {
-    return (<Animated.ScrollView style={{ margin: 80, flex: 1, flexGrow: 5 }}>
-        {item.description && <ThemedText type='subtitle'>{item.description && getLocalizedString(item.description)}</ThemedText>}
-    </Animated.ScrollView>)
-}
+const ExplorerItemBody = memo(function ({ item }: { item: ExplorerItem }) {
+    return (
+        <View>
+            {item.description && <ThemedText type='subtitle'>{item.description && getLocalizedString(item.description)}</ThemedText>}
+        </View>
+    )
+});
 
-function ExplorerView({ items }: { items: ExplorerItem[] }) {
+const ExplorerView = function ({ items }: { items: ExplorerItem[] }) {
     const styles = StyleSheet.create({
         topContainer: {
-            flex: 1,
-            flexGrow: 1,
+            width: "100%",
+            height: "100%"
         },
         scrollContainer: {
+            minHeight: 150,
+            maxHeight: 250,
             flex: 1,
-            flexGrow: 1,
-            marginHorizontal: 60,
+            marginTop: 30,
+            marginBottom: 60,
         },
         scrollContentContainer: {
         },
         descriptionContainer: {
-            flex: 1,
-            flexGrow: 1,
             flexDirection: 'column',
         }
     });
@@ -342,21 +343,25 @@ function ExplorerView({ items }: { items: ExplorerItem[] }) {
     const [selectedItem, selectItem] = useState(0);
 
     return (
-        <View style={styles.topContainer}>
-            <ScrollView style={styles.descriptionContainer} showsVerticalScrollIndicator={false}>
-                <FlatList data={items} style={styles.scrollContainer} contentContainerStyle={styles.scrollContentContainer} horizontal={true} showsHorizontalScrollIndicator={false} renderItem={
-                    ({ item, index }) => {
-                        const name = getName(item);
-                        return <ExplorerItemHeader key={index + name + item.type + item.version} item={item} style={{ margin: 30 }} onPress={() => selectItem(index)} active={index == selectedItem}></ExplorerItemHeader>
-                    }
-                }>
-                </FlatList>
-
-                <DownShowViewSelector list={items} renderItem={item => <ExplorerItemBody item={item} />} selectedItem={selectedItem} />
+        <View style={[styles.topContainer, {}]}>
+            <ScrollView style={styles.descriptionContainer} contentContainerStyle={{}} showsVerticalScrollIndicator={false}>
+                <View style={{ marginHorizontal: 60 }}>
+                    <FlatList data={items} style={styles.scrollContainer} contentContainerStyle={styles.scrollContentContainer} horizontal={true} showsHorizontalScrollIndicator={false} renderItem={
+                        ({ item, index }) => {
+                            const name = getName(item);
+                            return <ExplorerItemHeader key={index + name + item.type + item.version} item={item} style={{ margin: 30 }} onPress={() => selectItem(index)} active={index == selectedItem}></ExplorerItemHeader>
+                        }
+                    }>
+                    </FlatList>
+                    <DownShowViewSelector
+                        list={items}
+                        renderItem={item => <ExplorerItemBody item={item} />}
+                        selectedItem={selectedItem} />
+                </View>
             </ScrollView>
         </View>
     );
-}
+};
 
 type Screen = {
     title: string;
@@ -371,10 +376,16 @@ type Props = {
 };
 
 const ExplorerStyles = StyleSheet.create({
-    rootContainer: { height: "100%", width: "100%" },
+    rootContainer: {
+        width: "100%",
+        height: "100%"
+    },
+    headerContainer: {
+        flex: 1,
+    },
     menuContainer: {
+        height: 40,
         flexDirection: 'row',
-        minHeight: 50,
         marginLeft: 60,
         marginRight: 40,
         marginTop: 60
@@ -422,12 +433,11 @@ const screens: Screen[] = [
 
 export function Explorer(props?: Props) {
     const [background, setBackground] = useState<string | undefined>(undefined);
-    const [activeTab, setActiveTab] = useState(1);
-    const theme = useColorScheme();
+    const [activeTab, setActiveTab] = useState(0);
 
     return (
-        <View style={[ExplorerStyles.rootContainer, { backgroundColor: theme == 'dark' ? "black" : "white", backgroundImage: background }]}>
-            <View style={ExplorerStyles.menuContainer}>
+        <View style={[ExplorerStyles.rootContainer, { backgroundImage: background }]}>
+            <View style={[ExplorerStyles.menuContainer, {}]}>
                 <View style={ExplorerStyles.containerTabs}>
                     <View style={ExplorerStyles.containerMenuItems}>
                         {
@@ -437,7 +447,7 @@ export function Explorer(props?: Props) {
                         }
                     </View>
                 </View>
-                <View style={ExplorerStyles.containerButtons}>
+                <View style={[ExplorerStyles.containerButtons]}>
                     <View style={ExplorerStyles.containerMenuItems}>
                         <HapticPressable><ThemedIcon iconSet="Ionicons" name="search" size={40} /></HapticPressable>
                         <HapticPressable onPress={() => settings.pushSettingsView({})}><ThemedIcon iconSet="Ionicons" name="settings-outline" size={40} /></HapticPressable>
@@ -446,9 +456,9 @@ export function Explorer(props?: Props) {
                 </View>
             </View>
 
-            <LeftRightViewSelector list={screens} style={{ flex: 1, flexGrow: 1 }} renderItem={item => item.view((image) => setBackground(image))} selectedItem={activeTab} />
+            <LeftRightViewSelector list={screens} style={{ flex: 1 }} renderItem={item => item.view((image) => setBackground(image))} selectedItem={activeTab} />
         </View>
     )
-}
+};
 
 

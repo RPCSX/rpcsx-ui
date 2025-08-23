@@ -1,4 +1,4 @@
-import { ComponentProps, useEffect, useState } from 'react';
+import { ComponentProps, memo, useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View, Switch, Alert, TextInput, Modal, useWindowDimensions, BackHandler } from 'react-native';
 import { useThemeColor } from '$core/useThemeColor'
 import ThemedIcon from '$core/ThemedIcon';
@@ -25,7 +25,7 @@ type SettingsTabProps = {
     iconSet: 'Ionicons' | 'FontAwesome6' | 'MaterialIcons';
 };
 
-function SettingsTab(props: Omit<ComponentProps<typeof HapticPressable>, "children"> & SettingsTabProps) {
+const SettingsTab = memo(function (props: Omit<ComponentProps<typeof HapticPressable>, "children"> & SettingsTabProps) {
     const [activeState, setActiveState] = useState(props.active);
     const animation = useSharedValue(props.active ? 100 : 0);
 
@@ -60,7 +60,7 @@ function SettingsTab(props: Omit<ComponentProps<typeof HapticPressable>, "childr
             </Animated.View>
         </HapticPressable>
     );
-}
+})
 
 enum SettingItemType {
     Text,
@@ -159,7 +159,7 @@ type SettingsItemProps =
     SettingItemSingleSelectionProps |
     SettingItemMultipleSelectionProps;
 
-function TextInputModal({ visible, onClose, value, onSave, title, placeholder, mode = SettingTextMode.Plain }: {
+const TextInputModal = memo(function ({ visible, onClose, value, onSave, title, placeholder, mode = SettingTextMode.Plain }: {
     visible: boolean;
     onClose: () => void;
     value: string;
@@ -187,7 +187,7 @@ function TextInputModal({ visible, onClose, value, onSave, title, placeholder, m
         try {
             const result = await pickDirectory({ requestLongTermAccess: true });
             setInputValue(result.uri);
-        } catch {}
+        } catch { }
     };
 
     return (
@@ -231,9 +231,9 @@ function TextInputModal({ visible, onClose, value, onSave, title, placeholder, m
             </View>
         </Modal>
     );
-}
+});
 
-function NumberInputModal({ visible, onClose, value, onSave, title, placeholder }: {
+const NumberInputModal = memo(function ({ visible, onClose, value, onSave, title, placeholder }: {
     visible: boolean;
     onClose: () => void;
     value: number;
@@ -289,9 +289,9 @@ function NumberInputModal({ visible, onClose, value, onSave, title, placeholder 
             </View>
         </Modal>
     );
-}
+});
 
-function DateTimeModal({ visible, onClose, value, onSave, title, mode }: {
+const DateTimeModal = memo(function ({ visible, onClose, value, onSave, title, mode }: {
     visible: boolean;
     onClose: () => void;
     value: Date;
@@ -380,9 +380,9 @@ function DateTimeModal({ visible, onClose, value, onSave, title, mode }: {
             </View>
         </Modal>
     );
-}
+});
 
-function ListManagerModal({ visible, onClose, items, onSave, title, placeholder }: {
+const ListManagerModal = memo(function ({ visible, onClose, items, onSave, title, placeholder }: {
     visible: boolean;
     onClose: () => void;
     items: string[];
@@ -472,9 +472,9 @@ function ListManagerModal({ visible, onClose, items, onSave, title, placeholder 
             </View>
         </Modal>
     );
-}
+});
 
-function SingleSelectionModal({ visible, onClose, options, selectedIndex, onSave, title }: {
+const SingleSelectionModal = memo(function ({ visible, onClose, options, selectedIndex, onSave, title }: {
     visible: boolean;
     onClose: () => void;
     options: string[];
@@ -542,9 +542,9 @@ function SingleSelectionModal({ visible, onClose, options, selectedIndex, onSave
             </View>
         </Modal>
     );
-}
+});
 
-function MultipleSelectionModal({ visible, onClose, options, selectedIndices, onSave, title }: {
+const MultipleSelectionModal = memo(function ({ visible, onClose, options, selectedIndices, onSave, title }: {
     visible: boolean;
     onClose: () => void;
     options: string[];
@@ -617,9 +617,9 @@ function MultipleSelectionModal({ visible, onClose, options, selectedIndices, on
             </View>
         </Modal>
     );
-}
+});
 
-function SettingsItem(props: SettingsItemProps & { isLast: boolean }) {
+const SettingsItem = memo(function (props: SettingsItemProps & { isLast: boolean }) {
     const borderColor = useThemeColor("outline");
     const backgroundColor = useThemeColor("surface");
     const primaryColor = useThemeColor('primary');
@@ -779,7 +779,7 @@ function SettingsItem(props: SettingsItemProps & { isLast: boolean }) {
             )}
         </>
     );
-}
+});
 
 type SettingsSection = {
     title: string;
@@ -1032,11 +1032,11 @@ const settingsCategories: SettingsCategory[] = [
     }
 ];
 
-function SettingsContent({ category }: { category: SettingsCategory }) {
+const SettingsContent = memo(function ({ category }: { category: SettingsCategory }) {
     return (
         <ScrollView style={styles.settingsContent} showsVerticalScrollIndicator={false}>
             {category.sections.map((section, sectionIndex) => (
-                <View key={sectionIndex} style={styles.settingsSection}>
+                <View key={category.title + sectionIndex} style={styles.settingsSection}>
                     <ThemedText type='subtitle' style={styles.sectionTitle}>
                         {section.title}
                     </ThemedText>
@@ -1049,7 +1049,7 @@ function SettingsContent({ category }: { category: SettingsCategory }) {
             ))}
         </ScrollView>
     );
-}
+});
 
 type Props = {
     category?: string;
