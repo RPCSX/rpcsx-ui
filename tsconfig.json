@@ -1,8 +1,10 @@
 {
-  "files": [],
-  "references": [
-    {
-      "path": "rpcsx-ui/.rpcsx-ui-kit/tsconfig.json"
-    }
+  "compilerOptions": {},
+  "extends": "expo/tsconfig.base",
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
   ]
 }

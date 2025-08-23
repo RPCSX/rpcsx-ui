@@ -7,6 +7,180 @@
         },
         {
             "name": "settings"
+        },
+        {
+            "name": "progress"
         }
-    ]
+    ],
+    "contributions": {
+        "types": {
+            "item": {
+                "type": "object",
+                "params": {
+                    "type": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "array",
+                        "item-type": "$core/localized-string"
+                    },
+                    "description": {
+                        "type": "array",
+                        "item-type": "$core/localized-string",
+                        "optional": true
+                    },
+                    "location": {
+                        "type": "string",
+                        "optional": true
+                    },
+                    "icon": {
+                        "type": "array",
+                        "item-type": "$core/localized-icon",
+                        "optional": true
+                    },
+                    "publisher": {
+                        "type": "string",
+                        "optional": true
+                    },
+                    "version": {
+                        "type": "string",
+                        "optional": true
+                    },
+                    "size": {
+                        "type": "number",
+                        "optional": true
+                    },
+                    "actions": {
+                        "type": "json-object",
+                        "optional": true
+                    },
+                    "progress": {
+                        "type": "number",
+                        "optional": true
+                    },
+                    "launcher": {
+                        "type": "launcher-info",
+                        "optional": true
+                    },
+                    "title-id": {
+                        "type": "string",
+                        "optional": true
+                    },
+                    "content-id": {
+                        "type": "string",
+                        "optional": true
+                    }
+                }
+            },
+            "item-filter": {
+                "type": "object",
+                "params": {
+                    "type": {
+                        "type": "string",
+                        "optional": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "optional": true
+                    },
+                    "location": {
+                        "type": "string",
+                        "optional": true
+                    },
+                    "icon": {
+                        "type": "array",
+                        "item-type": "string",
+                        "optional": true
+                    },
+                    "publisher": {
+                        "type": "string",
+                        "optional": true
+                    },
+                    "version": {
+                        "type": "string",
+                        "optional": true
+                    },
+                    "size": {
+                        "type": "number",
+                        "optional": true
+                    },
+                    "actions": {
+                        "type": "json-object",
+                        "optional": true
+                    },
+                    "progress": {
+                        "type": "number",
+                        "optional": true
+                    },
+                    "launcher": {
+                        "type": "launcher-info",
+                        "optional": true
+                    },
+                    "title-id": {
+                        "type": "string",
+                        "optional": true
+                    },
+                    "content-id": {
+                        "type": "string",
+                        "optional": true
+                    }
+                }
+            }
+        },
+        "methods": {
+            "get": {
+                "handler": "handleGet",
+                "params": {
+                    "filter": {
+                        "type": "item-filter",
+                        "optional": true
+                    },
+                    "query": {
+                        "type": "string",
+                        "optional": true
+                    },
+                    "channel": {
+                        "type": "number",
+                        "optional": true
+                    }
+                },
+                "returns": {
+                    "channel": {
+                        "type": "number"
+                    }
+                }
+            }
+        },
+        "notifications": {
+            "add": {
+                "handler": "handleAdd",
+                "params": {
+                    "items": {
+                        "type": "array",
+                        "item-type": "item"
+                    }
+                }
+            },
+            "remove": {
+                "handler": "handleRemove",
+                "params": {
+                    "items": {
+                        "type": "array",
+                        "item-type": "item-filter"
+                    }
+                }
+            }
+        },
+        "events": {
+            "items": {
+                "channel": {
+                    "type": "number"
+                },
+                "items": {
+                    "type": "array",
+                    "item-type": "item"
+                }
+            }
+        }
+    }
 }

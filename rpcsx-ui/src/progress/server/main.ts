@@ -1,7 +1,7 @@
 // import { ipcMain } from 'electron';
 import { Component } from '$core/Component';
 import { createError } from '$core/Error';
-import * as api from '$';
+// import * as api from '$';
 
 import { Disposable, IDisposable } from '$core/Disposable';
 
@@ -87,20 +87,14 @@ export function progressUpdate(caller: Component, params: ProgressUpdateRequest)
         info.message = params.message.length > 0 ? params.message : undefined;
     }
 
-    api.emitProgressUpdateEvent({ value: { channel: params.channel, ...info } });
+    // api.emitProgressUpdateEvent({ value: { channel: params.channel, ...info } });
 
     subscriptions[params.channel] ??= new Set();
-    // const channelSubscriptions = subscriptions[params.channel];
+    const channelSubscriptions = subscriptions[params.channel];
 
-    // for (const subscriber of channelSubscriptions) {
-    //     subscriber.send("progress/update", {
-    //         value: info.value,
-    //         status: info.status,
-    //         title: info.title,
-    //         description: info.description,
-    //         message: info.message,
-    //     });
-    // }
+    for (const subscriber of channelSubscriptions) {
+        // api.sendProgressUpdateEvent(subscriber, { value: { channel: params.channel, ...info } });
+    }
 
     if (params.status !== undefined) {
         if (params.status == ProgressStatus.Canceled ||
@@ -124,16 +118,8 @@ export function progressSubscribe(caller: Component, params: ProgressSubscribeRe
     subscriptions[params.channel] ??= new Set();
     subscriptions[params.channel].add(caller);
 
-    // FIXME:
-
-    // const info = channels[channel];
-    // event.sender.send("progress/update", {
-    //     value: info.value,
-    //     status: info.status,
-    //     title: info.title,
-    //     description: info.description,
-    //     message: info.message,
-    // });
+    const info = channels[params.channel];
+    // api.sendProgressUpdateEvent(caller, { value: { channel: params.channel, ...info } });
 }
 
 export function progressUnsubscribe(caller: Component, params: ProgressUnsubscribeRequest) {

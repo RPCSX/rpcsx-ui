@@ -2,7 +2,7 @@ export type IDisposable = {
     dispose: () => void | Promise<void>
 }
 
-const noneFn = Object.freeze(function () { });
+export const noneFn = Object.freeze(function () { });
 
 const noneDisposable: IDisposable = Object.freeze({
     dispose: noneFn
@@ -84,6 +84,42 @@ export class Disposable implements IDisposable {
     static Create(...x: (IDisposable | (() => void | Promise<void>))[]): IDisposable {
         const result = this.Unwrap(x);
         return result === noneFn ? noneDisposable : new Disposable(result);
+    }
+
+    static CreateEmpty(): Disposable {
+        return new Disposable(noneFn);
+    }
+
+    add(...x: (IDisposable | (() => void | Promise<void>))[]) {
+        const unwrapped = Disposable.Unwrap(x);
+        if (Disposable.IsNone(this)) {
+            this._impl = unwrapped;
+            return;
+        }
+
+        if (typeof this._impl == "function") {
+            if (typeof unwrapped == "function") {
+                if (!Disposable.IsNone(unwrapped)) {
+                    this._impl = [this._impl, unwrapped];
+                }
+
+                return;
+            }
+
+            unwrapped.unshift(this._impl);
+            this._impl = unwrapped;
+            return;
+        }
+
+        if (typeof unwrapped == "function") {
+            if (!Disposable.IsNone(unwrapped)) {
+                this._impl.push(unwrapped);
+            }
+
+            return;
+        }
+
+        this._impl.push(...unwrapped);
     }
 
     async dispose() {

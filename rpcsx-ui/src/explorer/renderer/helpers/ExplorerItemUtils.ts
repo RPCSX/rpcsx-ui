@@ -1,4 +1,6 @@
-import { Region } from 'models/Region';
+import { Region } from '$/Region';
+import { IconResolution } from '$core/enums';
+import { getLocalizedString, getLocalizedIcon } from '$core/Localized';
 
 export function getRegion(contentId?: string) {
     if (contentId === undefined || contentId.length != 36) {
@@ -18,54 +20,14 @@ export function getRegion(contentId?: string) {
 }
 
 export function getName(item: ExplorerItem, langs: string[] = []) {
-    if (!Array.isArray(item.name)) {
-        return item.name;
-    }
-
-    for (let langIndex = 0; langIndex < langs.length; ++langIndex) {
-        const lang = langs[langIndex];
-
-        for (let nameIndex = 0; nameIndex < item.name.length; ++nameIndex) {
-            if (item.name[nameIndex].lang === lang) {
-                return item.name[nameIndex].text;
-            }
-        }
-    }
-
-    return item.name[0].text;
+    return getLocalizedString(item.name, langs);
 }
 
-export function getIcon(item: ExplorerItem, resolution: IconResolution = 'normal', langs: string[] = []) {
+export function getIcon(item: ExplorerItem, resolution: IconResolution = IconResolution.Normal, langs: string[] = []) {
     if (!item.icon) {
         return undefined;
     }
 
-    if (!Array.isArray(item.icon)) {
-        return item.icon;
-    }
-
-    for (let langIndex = 0; langIndex < langs.length; ++langIndex) {
-        const lang = langs[langIndex];
-
-        for (let iconIndex = 0; iconIndex < item.icon.length; ++iconIndex) {
-            const icon = item.icon[iconIndex];
-            if (icon.lang === lang && icon.resolution === resolution) {
-                return icon.uri;
-            }
-        }
-    }
-
-    for (let langIndex = 0; langIndex < langs.length; ++langIndex) {
-        const lang = langs[langIndex];
-
-        for (let iconIndex = 0; iconIndex < item.icon.length; ++iconIndex) {
-            const icon = item.icon[iconIndex];
-            if (icon.lang === lang) {
-                return icon.uri;
-            }
-        }
-    }
-
-    return item.icon[0].uri;
+    return getLocalizedIcon(item.icon, resolution, langs);
 }
 

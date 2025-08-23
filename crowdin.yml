@@ -6,7 +6,7 @@
 
 "files": [
   {
-    "source": "/src/locales/en.json",
-    "translation": "/src/locales/%locale%.json"
+    "source": "/rpcsx-ui/src/**/locales/en.json",
+    "translation": "%original_path%/%locale%.json"
   }
 ]

@@ -1,5 +1,9 @@
 name: Build RPCSX-UI
 
+defaults:
+  run:
+    shell: bash
+
 on:
   push:
     paths-ignore:
@@ -49,21 +53,25 @@ jobs:
           npm install
 
       - name: Build ${{ matrix.name }}
-        run: npm run build
+        run: npm run build:web:release
 
       - name: Check types
         run: npm run validate
 
+      - name: Install package dependencies for ${{ matrix.name }}
+        run: |
+          (cd electron; npm install)
+
       - name: Package for ${{ matrix.name }}
-        run: npx electron-forge package --platform ${{ matrix.platform }} --arch ${{ matrix.arch }}
+        run: (cd electron; npx electron-forge package --platform ${{ matrix.platform }} --arch ${{ matrix.arch }})
 
       - name: Make for ${{ matrix.name }}
-        run: npx electron-forge make --platform ${{ matrix.platform }} --arch ${{ matrix.arch }}
+        run: (cd electron; npx electron-forge make --platform ${{ matrix.platform }} --arch ${{ matrix.arch }} --skip-package)
 
       - name: Upload artifacts
         uses: actions/upload-artifact@main
         with:
           name: RPCSX-UI For ${{ matrix.name }}
-          path: out/make/*
+          path: electron/out/make/*
           compression-level: 0
           if-no-files-found: error

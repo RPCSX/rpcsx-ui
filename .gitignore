@@ -12,3 +12,8 @@ vite.config.ts.timestamp-*
 /.idea
 /.vscode
 /out
+
+expo-env.d.ts
+.expo/
+android/
+/electron/out/

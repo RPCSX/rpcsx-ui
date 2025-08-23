@@ -1,25 +1,10 @@
-import * as api from '$';
+// import * as api from '$';
 import { Component } from '$core/Component';
 import { createError } from '$core/Error';
-import { ComponentInstance, findComponent, findComponentById, getActivatedComponentList, unregisterComponent } from './ComponentInstance';
-import * as locations from '$core/locations';
-import path from 'path';
-import fs from 'fs/promises';
+import { ComponentInstance, findComponentById, getActivatedComponentList } from './ComponentInstance';
 import * as settings from './Settings';
-import { getLauncher } from './Launcher';
-import { Extension } from './Extension';
 import { Schema, SchemaError, SchemaObject, validateObject } from 'lib/Schema';
-import { ipcMain } from 'electron';
-
-ipcMain.on('view/push', (event, view: string, ...args: any[]) => {
-    event.sender.send('view/push', view, ...args);
-});
-ipcMain.on('view/set', (event, view: string, ...args: any[]) => {
-    event.sender.send('view/set', view, ...args);
-});
-ipcMain.on('view/pop', (event, view: string, ...args: any[]) => {
-    event.sender.send('view/pop', view, ...args);
-});
+import * as extensionApi from './extension-api';
 
 export async function activate() {
     await settings.load();
@@ -48,116 +33,19 @@ export async function deactivateComponent(_caller: Component, request: Component
 }
 
 export async function loadExtension(_caller: Component, request: ExtensionLoadRequest): Promise<ExtensionLoadResponse> {
-    if (findComponentById(request.id)) {
-        return;
-    }
-
-    const extensionManifestLocation = path.join(locations.extensionsPath, request.id, "extension.json");
-
-    const manifestText = await (async () => {
-        try {
-            return await fs.readFile(extensionManifestLocation, "utf8");
-        } catch {
-            throw createError(ErrorCode.InvalidParams, `extension ${request.id} not found`);
-        }
-    })();
-
-    const manifest = await (async () => {
-        try {
-            return JSON.parse(manifestText) as ExtensionInfo;
-        } catch {
-            throw createError(ErrorCode.InternalError, `extension ${request.id} is broken`);
-        }
-    })();
-
-    const launcher = getLauncher(manifest.launcher.type);
-    if (launcher == null) {
-        throw createError(ErrorCode.InternalError, `launcher ${manifest.launcher.type} not found`);
-    }
-
-    const process = await (async () => {
-        try {
-            return launcher.launch(path.join(locations.extensionsPath, request.id, manifest.executable), manifest.args ?? [], {
-                launcherRequirements: manifest.launcher.requirements,
-            });
-        } catch {
-            throw createError(ErrorCode.InternalError, `${request.id}: failed to spawn extension process`);
-        }
-    })();
-
-    new Extension(manifest, process);
+    return extensionApi.loadExtension(request);
 }
 
 export async function unloadExtension(_caller: Component, request: ExtensionUnloadRequest): Promise<ExtensionUnloadResponse> {
-    await unregisterComponent(request.id);
+    return extensionApi.unloadExtension(request);
 }
 
 export async function installExtension(_caller: Component, request: ExtensionInstallRequest): Promise<ExtensionInstallResponse> {
-    // FIXME: unpack package
-    const extensionManifestLocation = path.join(request.path, "extension.json");
-
-    const manifestText = await (async () => {
-        try {
-            return await fs.readFile(extensionManifestLocation, "utf8");
-        } catch {
-            throw createError(ErrorCode.InvalidParams, `extension ${request.path} not found`);
-        }
-    })();
-
-    const manifest = await (async () => {
-        try {
-            return JSON.parse(manifestText) as ExtensionInfo;
-        } catch {
-            throw createError(ErrorCode.InternalError, `extension ${request.path} is broken`);
-        }
-    })();
-
-    if (findComponent(manifest.name, manifest.version)) {
-        throw createError(ErrorCode.InvalidRequest, `extension ${request.path} already installed`);
-    }
-
-    const launcher = getLauncher(manifest.launcher.type);
-    if (launcher == null) {
-        throw createError(ErrorCode.InternalError, `launcher ${manifest.launcher.type} not found`);
-    }
-
-    const process = await (async () => {
-        try {
-            return launcher.launch(path.join(request.path, manifest.executable), manifest.args ?? [], {
-                launcherRequirements: manifest.launcher.requirements,
-            });
-        } catch {
-            throw createError(ErrorCode.InternalError, `${request.path}: failed to spawn extension process`);
-        }
-    })();
-
-    try {
-        const extension = new Extension(manifest, process);
-        return { id: extension.getId() };
-    } catch (e) {
-        process.kill("SIGKILL");
-        throw e;
-    }
+    return extensionApi.installExtension(request);
 }
 
 export async function removeExtension(_caller: Component, request: ExtensionRemoveRequest): Promise<ExtensionRemoveResponse> {
-    if (findComponentById(request.id)) {
-        throw createError(ErrorCode.InvalidRequest, `extension ${request.id} in use`);
-    }
-
-    const extensionLocation = path.join(locations.extensionsPath, request.id);
-
-    try {
-        await fs.stat(extensionLocation);
-    } catch {
-        throw createError(ErrorCode.InvalidRequest, `Extension ${request.id} not found`);
-    }
-
-    try {
-        await fs.rm(extensionLocation, { force: true, recursive: true });
-    } catch (e) {
-        throw createError(ErrorCode.InternalError, `Failed to remove extension ${request.id}: ${e}`);
-    }
+    return extensionApi.removeExtension(request);
 }
 
 function getComponentInstanceSettings(instance: ComponentInstance) {
@@ -261,7 +149,7 @@ export async function handleSettingsSet(caller: Component, request: SettingsSetR
     }
 
     member[name] = request.value;
-    api.emitSettingsUpdateEvent(request);
+    // api.emitSettingsUpdateEvent(request);
 }
 
 export async function handleSettingsGet(caller: Component, request: SettingsGetRequest): Promise<SettingsGetResponse> {

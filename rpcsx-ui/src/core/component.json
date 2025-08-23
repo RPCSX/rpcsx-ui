@@ -37,6 +37,41 @@
                     }
                 }
             },
+            "icon-resolution": {
+                "type": "enum",
+                "enumerators": {
+                    "normal": 0,
+                    "high": 1
+                }
+            },
+            "localized-icon": {
+                "type": "object",
+                "params": {
+                    "uri": {
+                        "type": "string"
+                    },
+                    "lang": {
+                        "type": "string",
+                        "optional": true
+                    },
+                    "resolution": {
+                        "type": "icon-resolution",
+                        "optional": true
+                    }
+                }
+            },
+            "localized-string": {
+                "type": "object",
+                "params": {
+                    "text": {
+                        "type": "string"
+                    },
+                    "lang": {
+                        "type": "string",
+                        "optional": true
+                    }
+                }
+            },
             "client-info": {
                 "type": "object",
                 "params": {
@@ -109,7 +144,8 @@
                         "type": "string"
                     },
                     "requirements": {
-                        "type": "json-object"
+                        "type": "json-object",
+                        "optional": true
                     },
                     "args": {
                         "type": "array",
@@ -122,7 +158,8 @@
                 "type": "object",
                 "params": {
                     "name": {
-                        "type": "string"
+                        "type": "array",
+                        "item-type": "localized-string"
                     },
                     "version": {
                         "type": "string"
@@ -139,11 +176,13 @@
                         "optional": true
                     },
                     "icon": {
-                        "type": "string",
+                        "type": "array",
+                        "item-type": "localized-icon",
                         "optional": true
                     },
                     "description": {
-                        "type": "string",
+                        "type": "array",
+                        "item-type": "localized-string",
                         "optional": true
                     },
                     "region": {
@@ -160,7 +199,8 @@
                 "type": "object",
                 "params": {
                     "name": {
-                        "type": "string"
+                        "type": "array",
+                        "item-type": "localized-string"
                     },
                     "version": {
                         "type": "string"
@@ -177,15 +217,13 @@
                         "optional": true
                     },
                     "icon": {
-                        "type": "string",
+                        "type": "array",
+                        "item-type": "localized-icon",
                         "optional": true
                     },
                     "description": {
-                        "type": "string",
-                        "optional": true
-                    },
-                    "region": {
-                        "type": "string",
+                        "type": "array",
+                        "item-type": "localized-string",
                         "optional": true
                     },
                     "id": {

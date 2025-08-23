@@ -29,15 +29,17 @@ export class Extension implements IComponentImpl {
             reject: (reason?: any) => void;
         };
     } = {};
+
     private nextMessageId = 1;
     private errorHandlers: ErrorHandler[] = [];
     private messageBuffer = "";
     private processingQueue: (() => Promise<void>)[] = [];
     private responseWatchdog: NodeJS.Timeout | null = null;
     private exitController = new AbortController();
+    private componentManifest: ComponentManifest;
 
     constructor(
-        public readonly manifest: ComponentManifest,
+        public readonly manifest: ExtensionInfo,
         public readonly extensionProcess: Process) {
 
         extensionProcess.stdout.on('data', (message: string) => {
@@ -49,6 +51,11 @@ export class Extension implements IComponentImpl {
 
         this.debugLog("Starting");
 
+        this.componentManifest = {
+            ...this.manifest,
+            name: this.manifest.name[0].text
+        };
+
         extensionProcess.on('exit', () => {
             this.debugLog("Exit");
             this.alive = false;
@@ -58,10 +65,10 @@ export class Extension implements IComponentImpl {
                 clearTimeout(this.responseWatchdog);
             }
 
-            uninitializeComponent(this.manifest);
+            uninitializeComponent(this.componentManifest);
         });
 
-        registerComponent(manifest, this);
+        registerComponent(this.componentManifest, this);
     }
 
     private debugLog(message: string) {
@@ -337,7 +344,7 @@ export class Extension implements IComponentImpl {
             const params = "params" in message ? message["params"] as JsonObject : undefined;
             const [componentName, method] = componentMethod.split("/", 1);
             const component = findComponent(componentName);
-            const self = findComponent(this.manifest.name);
+            const self = findComponent(this.componentManifest.name);
 
             if (!component || !self) {
                 this.send({
@@ -409,7 +416,7 @@ export class Extension implements IComponentImpl {
     }
 
     getId() {
-        return getComponentId(this.manifest);
+        return getComponentId(this.componentManifest);
     }
 }
 

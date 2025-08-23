@@ -1,6 +1,3 @@
-import * as fs from 'fs/promises';
-import { Stats } from 'fs';
-
 type GenericSchema = {
     id?: string;
     label?: string;
@@ -176,26 +173,26 @@ async function validateImpl(object: any, schema: Schema, path: string, onError: 
             return emitError(SchemaErrorCode.InvalidType);
         }
 
-        if (schema.mustExist || schema.entity) {
-            let stat: Stats | undefined;
-            try {
-                stat = await fs.stat(object);
-            } catch { }
+        // if (schema.mustExist || schema.entity) {
+        //     let stat: Stats | undefined;
+        //     try {
+        //         stat = await fs.stat(object);
+        //     } catch { }
 
-            if (stat) {
-                if (schema.entity === "directory") {
-                    if (!stat.isDirectory()) {
-                        return emitError(SchemaErrorCode.ExpectedDirectory);
-                    }
-                } else {
-                    if (!stat.isFile()) {
-                        return emitError(SchemaErrorCode.ExpectedFile);
-                    }
-                }
-            } else if (schema.mustExist) {
-                return emitError(SchemaErrorCode.NotExists);
-            }
-        }
+        //     if (stat) {
+        //         if (schema.entity === "directory") {
+        //             if (!stat.isDirectory()) {
+        //                 return emitError(SchemaErrorCode.ExpectedDirectory);
+        //             }
+        //         } else {
+        //             if (!stat.isFile()) {
+        //                 return emitError(SchemaErrorCode.ExpectedFile);
+        //             }
+        //         }
+        //     } else if (schema.mustExist) {
+        //         return emitError(SchemaErrorCode.NotExists);
+        //     }
+        // }
 
         return true;
     }

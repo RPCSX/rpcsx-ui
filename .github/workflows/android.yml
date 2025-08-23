@@ -1,0 +1,66 @@
+name: Build RPCSX-UI For Android
+
+defaults:
+  run:
+    shell: bash
+
+on:
+  push:
+    paths-ignore:
+        - "**/*.md"
+  pull_request:
+    paths-ignore:
+        - "**/*.md"
+  workflow_dispatch:
+
+
+concurrency:
+  group: ${{ github.ref }}-${{ github.event_name }}-${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: RPCSX-UI For Android
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@main
+        with:
+          fetch-depth: 0
+
+      - name: Setup CCache
+        uses: hendrikmuhs/ccache-action@v1.2
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+            distribution: 'temurin'
+            java-version: 17
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Generate Android project
+        run: npm run build:kit && npx expo prebuild --platform android
+
+      - name: Setup Gradle Cache
+        uses: actions/cache@v4
+        with:
+            path: |
+                ~/.gradle/caches
+                ~/.gradle/wrapper
+            key: ${{ runner.os }}-gradle-${{ hashFiles('android/**/*.gradle*', 'android/**/gradle-wrapper.properties') }}
+            restore-keys: |
+                ${{ runner.os }}-gradle-
+
+      - name: Build using Gradle
+        run: ./android/gradlew assembleRelease -p ./android --build-cache && mv android/app/build/outputs/apk/release/app-release.apk ./rpcsx.apk
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@main
+        with:
+          name: RPCSX-UI For Android
+          path: rpcsx.apk
+          compression-level: 0
+          if-no-files-found: error

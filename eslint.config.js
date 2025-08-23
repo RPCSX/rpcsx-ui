@@ -3,33 +3,42 @@ import tseslint from 'typescript-eslint';
 import tsParser from '@typescript-eslint/parser';
 import tsEslintPlugin from '@typescript-eslint/eslint-plugin';
 import globals from "globals";
+import expoConfig from 'eslint-config-expo/flat';
+import { defineConfig } from 'eslint/config';
 
-export default tseslint.config(
-    eslint.configs.recommended,
-    tseslint.configs.recommended,
+
+export default defineConfig([
+    expoConfig,
     {
-        plugins: {
-            '@typescript-eslint': tsEslintPlugin,
-        },
-        languageOptions: {
-            parser: tsParser,
-            globals: {
-                ...globals.browser,
-                ...globals.node,
+        ignores: ['dist/*'],
+    },
+    ...tseslint.config(
+        eslint.configs.recommended,
+        tseslint.configs.recommended,
+        {
+            plugins: {
+                '@typescript-eslint': tsEslintPlugin,
             },
-        },
-        rules: {
-            semi: [
-                "error",
-                "always"
-            ],
-            'no-undef': 'off',
-            "no-unused-vars": "off",
-            'no-empty': "off",
-            '@typescript-eslint/no-explicit-any': "off",
-            "@typescript-eslint/no-unused-vars": "warn",
-            "@typescript-eslint/explicit-function-return-type": "off"
-        },
-    }
-);
+            languageOptions: {
+                parser: tsParser,
+                globals: {
+                    ...globals.browser,
+                    ...globals.node,
+                },
+            },
+            rules: {
+                semi: [
+                    "error",
+                    "always"
+                ],
+                'no-undef': 'off',
+                "no-unused-vars": "off",
+                'no-empty': "off",
+                '@typescript-eslint/no-explicit-any': "off",
+                "@typescript-eslint/no-unused-vars": "warn",
+                "@typescript-eslint/explicit-function-return-type": "off"
+            },
+        }
+    )
+]);
 
