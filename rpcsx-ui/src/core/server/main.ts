@@ -5,6 +5,9 @@ import { ComponentInstance, findComponentById, getActivatedComponentList } from 
 import * as settings from './Settings';
 import { Schema, SchemaError, SchemaObject, validateObject } from 'lib/Schema';
 import * as extensionApi from './extension-api';
+import { registerBuiltinLaunchers } from './registerBuiltinLaunchers';
+
+registerBuiltinLaunchers();
 
 export async function activate() {
     await settings.load();

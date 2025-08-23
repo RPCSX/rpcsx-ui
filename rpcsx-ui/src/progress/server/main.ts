@@ -1,7 +1,7 @@
 // import { ipcMain } from 'electron';
 import { Component } from '$core/Component';
 import { createError } from '$core/Error';
-// import * as api from '$';
+import * as api from '$';
 
 import { Disposable, IDisposable } from '$core/Disposable';
 
@@ -87,13 +87,13 @@ export function progressUpdate(caller: Component, params: ProgressUpdateRequest)
         info.message = params.message.length > 0 ? params.message : undefined;
     }
 
-    // api.emitProgressUpdateEvent({ value: { channel: params.channel, ...info } });
+    api.emitProgressUpdateEvent({ value: { channel: params.channel, ...info } });
 
     subscriptions[params.channel] ??= new Set();
     const channelSubscriptions = subscriptions[params.channel];
 
     for (const subscriber of channelSubscriptions) {
-        // api.sendProgressUpdateEvent(subscriber, { value: { channel: params.channel, ...info } });
+        api.sendProgressUpdateEvent(subscriber, { value: { channel: params.channel, ...info } });
     }
 
     if (params.status !== undefined) {
