@@ -55,7 +55,10 @@ jobs:
                 ${{ runner.os }}-gradle-
 
       - name: Build using Gradle
-        run: ./android/gradlew assembleRelease -p ./android --build-cache && mv android/app/build/outputs/apk/release/app-release.apk ./rpcsx.apk
+        run: |
+          export CMAKE_C_COMPILER_LAUNCHER=ccache
+          export CMAKE_CXX_COMPILER_LAUNCHER=ccache
+          ./android/gradlew assembleRelease -p ./android --build-cache && mv android/app/build/outputs/apk/release/app-release.apk ./rpcsx.apk
 
       - name: Upload artifacts
         uses: actions/upload-artifact@main
