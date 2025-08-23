@@ -196,7 +196,13 @@ export async function createResolver(workspace: GeneratedWorkspace): Promise<Res
             }
         }
 
-        return resolveImpl(source, importer, "");
+        const resolved = resolveImpl(source, importer, "");
+        
+        if (resolved) {
+            return path.toNative(resolved);
+        }
+
+        return undefined;
     };
 }
 

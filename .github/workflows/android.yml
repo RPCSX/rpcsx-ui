@@ -42,7 +42,7 @@ jobs:
         run: npm install
 
       - name: Generate Android project
-        run: npm run build:kit && npx expo prebuild --platform android
+        run: npm run build:kit && npm run build:web:ui:release && npx expo prebuild --platform android
 
       - name: Setup Gradle Cache
         uses: actions/cache@v4

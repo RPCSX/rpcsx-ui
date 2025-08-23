@@ -14,16 +14,20 @@ module.exports = async () => {
 
     if (config.resolver) {
         config.resolver.resolveRequest = (context, moduleName, platform) => {
-            const result = resolver(moduleName, context.originModulePath, platform);
+            try {
+                return context.resolveRequest(context, moduleName, platform);
+            } catch (e) {
+                const result = resolver(moduleName, context.originModulePath, platform);
 
-            if (result) {
-                return {
-                    type: 'sourceFile',
-                    filePath: result
-                };
+                if (result) {
+                    return {
+                        type: 'sourceFile',
+                        filePath: result
+                    };
+                }
+
+                throw e;
             }
-
-            return context.resolveRequest(context, moduleName, platform);
         };
     }
 
