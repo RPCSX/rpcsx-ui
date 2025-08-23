@@ -30,7 +30,10 @@ jobs:
           fetch-depth: 0
 
       - name: Setup CCache
-        uses: hendrikmuhs/ccache-action@v1.2
+        uses: hendrikmuhs/ccache-action@v1.2.18
+        with:
+          key: ${{ github.job }}
+          create-symlink: true
 
       - name: Setup Java
         uses: actions/setup-java@v4
