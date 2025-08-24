@@ -37,7 +37,7 @@ export function LeftRightViewSelector<T extends any>(props: { selectedItem: numb
                 translateX: directionRight ? interpolate(animationValue, [0, 100], [0, -layout.width]) : interpolate(animationValue, [0, 100], [0, layout.width])
             }],
             opacity: interpolate(animationValue, [0, 100], [1, 0]),
-            zIndex: 0
+            display: animationValue >= 99 ? 'none' : 'flex'
         };
     }
 
@@ -48,7 +48,8 @@ export function LeftRightViewSelector<T extends any>(props: { selectedItem: numb
                 translateX: directionRight ? interpolate(animationValue, [0, 100], [layout.width, 0]) : interpolate(animationValue, [0, 100], [-layout.width, 0])
             }],
             opacity: interpolate(animationValue, [0, 100], [0, 1]),
-            zIndex: 1
+            zIndex: 1,
+            display: 'flex'
         };
     }
 
@@ -224,12 +225,15 @@ export function DownShowViewSelector<T extends any>(props: { selectedItem: numbe
     function createHideStyle(_indexIncreased: boolean, animationValue: number): ViewStyle {
         'worklet';
 
+        const y = interpolate(animationValue, [0, 50], [0, layout.height], 'clamp');
+
         return {
             transform: [{
-                translateY: interpolate(animationValue, [0, 50], [0, layout.height], 'clamp')
+                translateY: y
             }],
             opacity: interpolate(animationValue * 10, [0, 50], [1, 0], 'clamp'),
             zIndex: 0,
+            display: animationValue > 50 ? 'none' : 'flex'
         };
     }
 
@@ -242,6 +246,8 @@ export function DownShowViewSelector<T extends any>(props: { selectedItem: numbe
             }],
             opacity: interpolate(animationValue, [50, 100], [0, 1], 'clamp'),
             zIndex: 1,
+            height: "auto",
+            display: animationValue > 50 ? 'flex' : 'none'
         };
     }
 
@@ -279,17 +285,17 @@ export function DownShowViewSelector<T extends any>(props: { selectedItem: numbe
 
     const waitAnimation = props.selectedItem != state.itemIndex[state.index];
 
-    const hideStyle = useAnimatedStyle(() => createHideStyle(indexIncreased, waitAnimation ? 0 : animation.value));
+    const hideStyle = useAnimatedStyle(() => createHideStyle(indexIncreased, waitAnimation ? 100 : animation.value));
     const showStyle = useAnimatedStyle(() => createShowStyle(indexIncreased, waitAnimation ? 0 : animation.value));
 
-    const drawIndex = waitAnimation ? 1 - state.index : state.index;
+    const drawIndex = state.index;
 
     const styles = [
         drawIndex == 0 ? showStyle : hideStyle,
         drawIndex == 1 ? showStyle : hideStyle,
     ];
 
-    const staticStyle: StyleProp<ViewStyle> = { position: 'absolute', height: "100%", width: "100%" };
+    const staticStyle: StyleProp<ViewStyle> = { };
 
     return (
         <View style={props.style}>
