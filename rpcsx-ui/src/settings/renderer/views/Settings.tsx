@@ -1370,7 +1370,6 @@ export function Settings(_props?: Props) {
     const showContent = (!shortView || showContentView) && activeTab >= 0;
     const showCategories = !showContentView || !shortView;
 
-
     useEffect(() => {
         if (currentShortView != shortView) {
             if (!shortView) {
@@ -1382,9 +1381,7 @@ export function Settings(_props?: Props) {
         if ((!shortView || !currentShortView) && activeTab < 0) {
             setActiveTab(0);
         }
-    }, [insets]);
 
-    useEffect(() => {
         const backAction = () => {
             if (shortView && showContent) {
                 onContentBack();
