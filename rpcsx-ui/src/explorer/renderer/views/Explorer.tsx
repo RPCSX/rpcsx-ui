@@ -1,5 +1,5 @@
-import { ComponentProps, memo, ReactElement, useEffect, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, View, FlatList } from 'react-native';
+import { ComponentProps, memo, ReactElement, useEffect, useRef, useState } from 'react';
+import { Image, Pressable, ScrollView, StyleSheet, View, FlatList, Modal, useWindowDimensions } from 'react-native';
 import { useThemeColor } from '$core/useThemeColor'
 import { } from '@react-navigation/elements';
 import ThemedIcon from '$core/ThemedIcon';
@@ -19,6 +19,7 @@ import Animated, {
     cancelAnimation,
     interpolateColor,
 } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 
 const games: (ExecutableInfo & ExplorerItem)[] = [
@@ -31,7 +32,7 @@ const games: (ExecutableInfo & ExplorerItem)[] = [
         },
         description: [
             {
-                text: "Test Game"
+                text: "Test Game " + "aaa".repeat(800)
             }
         ],
         name: [
@@ -39,7 +40,15 @@ const games: (ExecutableInfo & ExplorerItem)[] = [
                 text: "Test Game"
             }
         ],
-        version: "0.1"
+        version: "0.1",
+        actions: {
+            "run": {
+                title: "Play"
+            },
+            "delete": {
+                title: "Delete"
+            }
+        }
     },
     {
         type: 'game',
@@ -58,7 +67,12 @@ const games: (ExecutableInfo & ExplorerItem)[] = [
                 text: "Test Game"
             }
         ],
-        version: "0.1"
+        version: "0.1",
+        actions: {
+            "run": {
+                title: "Install"
+            }
+        }
     },
     {
         type: 'game',
@@ -312,10 +326,181 @@ const ExplorerItemHeader = memo(function ({ item, active, ...rest }: { item: Exp
     </AnimatedPressable>
 });
 
+function MainActionButton(props: { text: string }) {
+    const surfaceColor = useThemeColor('surfaceBright');
+    const outlineColor = useThemeColor('outline');
+
+    const style = StyleSheet.create({
+        container: {
+            flex: 1,
+            borderRadius: 30,
+            maxWidth: 300,
+            height: 60,
+            alignItems: 'center',
+            justifyContent: 'center'
+        }
+    });
+
+    return <Pressable style={[style.container, { borderColor: outlineColor, backgroundColor: surfaceColor }]}>
+        <ThemedText style={{ fontSize: 20 }}>{props.text}</ThemedText>
+    </Pressable>
+}
+
+function AdditionalActionsButton(props: {}) {
+    const surfaceColor = useThemeColor('surfaceBright');
+    const textColor = useThemeColor('text');
+    const outlineColor = useThemeColor('outline');
+    const surfaceContainerColor = useThemeColor("surfaceContainer");
+    const [visible, setVisible] = useState(false);
+    const pressableRef = useRef<View>(null);
+    const modalRef = useRef<View>(null);
+    const [dotsLayout, setDotsLayout] = useState({ x: 0, y: 0, width: 0, height: 0 });
+    const [modalLayout, setModalLayout] = useState({ width: 0, height: 0 });
+    const insets = useSafeAreaInsets();
+    const layout = useWindowDimensions();
+
+    const styles = StyleSheet.create({
+        container: {
+            flexDirection: 'row',
+            borderRadius: 30,
+            width: 60,
+            height: 60,
+            alignItems: 'center',
+            justifyContent: 'center',
+            textAlign: 'center',
+            gap: 5,
+        },
+        dot: {
+            borderRadius: 30,
+            width: 6,
+            height: 6
+        },
+        modalOverlay: {
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+            paddingHorizontal: 20,
+        }
+    });
+
+    useEffect(() => {
+        if (visible) {
+            fetchLayouts();
+        }
+    });
+
+    const fetchLayouts = () => {
+        pressableRef.current?.measureInWindow((x, y, width, height) => {
+            width = Math.ceil(width);
+            height = Math.ceil(height);
+            x = Math.ceil(x);
+            y = Math.ceil(y);
+
+            if (dotsLayout.x != x || dotsLayout.y != y || dotsLayout.width != width || dotsLayout.height != height) {
+                setDotsLayout({ x, y, width, height });
+            }
+        });
+
+        modalRef.current?.measureInWindow((_x, _y, width, height) => {
+            width = Math.ceil(width);
+            height = Math.ceil(height);
+
+            if (modalLayout.width != width || modalLayout.height != height) {
+                console.log(modalLayout.width, modalLayout.height, width, height);
+                setModalLayout({ width, height });
+            }
+        });
+    };
+
+    const toggleModal = () => {
+        setVisible(!visible);
+        if (!visible) {
+            fetchLayouts();
+        }
+    };
+
+    const modalPosition = (() => {
+        let x = dotsLayout.x + dotsLayout.width;
+        let y = dotsLayout.y;
+
+        if (x + modalLayout.width > layout.width - insets.right) {
+            y -= modalLayout.height + 10;
+            x -= (x + modalLayout.width) - (layout.width - insets.right);
+        }
+
+        if (y + modalLayout.height > layout.height - insets.bottom) {
+            // y -= (y + modalLayout.height) - (layout.height - insets.bottom);
+            y -= modalLayout.height / 2;
+        }
+
+        return { x, y };
+    })();
+
+    const actions = [
+        { "title": "Play on ..." },
+        { "title": "Install" },
+        { "title": "Download" },
+        { "title": "Delete" },
+    ];
+
+    return (
+        <View>
+            <Pressable ref={pressableRef} onPress={toggleModal} style={[styles.container, { borderColor: outlineColor, backgroundColor: surfaceColor }]}>
+                <View style={[styles.dot, { backgroundColor: textColor }]} />
+                <View style={[styles.dot, { backgroundColor: textColor }]} />
+                <View style={[styles.dot, { backgroundColor: textColor }]} />
+            </Pressable>
+
+            <Modal transparent animationType="fade" visible={visible}>
+                <Pressable style={[styles.modalOverlay]} onPress={toggleModal}>
+                    <View ref={modalRef} style={{ padding: 3, width: 300, backgroundColor: surfaceContainerColor, transform: [{ translateX: modalPosition.x }, { translateY: modalPosition.y }] }}>
+                        {
+                            actions.map((action) => {
+                                return (
+                                    <Pressable key={ action.title } style={{ padding: 10 }}>
+                                        <ThemedText style={{ fontSize: 20 }}>{action.title}</ThemedText>
+                                    </Pressable>
+                                )
+                            })
+                        }
+                    </View>
+                </Pressable>
+            </Modal>
+        </View>
+    );
+}
+
+function ActionsView(props: { actions?: JsonObject }) {
+    const style = StyleSheet.create({
+        container: {
+            flexDirection: 'row',
+            gap: 40,
+            margin: 40,
+            alignItems: 'center',
+            justifyContent: 'flex-start'
+        }
+    });
+
+    return props.actions && <View style={style.container}>
+        {<MainActionButton text={getActionTitle(Object.values(props.actions)[0])} />}
+        {Object.values(props.actions).length > 1 && <AdditionalActionsButton />}
+    </View>
+}
+
+function getActionTitle(action: Json) {
+    if (action && typeof action == "object") {
+        if ("title" in action && typeof action.title == 'string') {
+            return action.title;
+        }
+    }
+
+    return "<no title>"
+}
+
 const ExplorerItemBody = memo(function ({ item }: { item: ExplorerItem }) {
     return (
         <View>
             {item.description && <ThemedText type='subtitle'>{item.description && getLocalizedString(item.description)}</ThemedText>}
+            <ActionsView actions={item.actions} />
         </View>
     )
 });
@@ -324,40 +509,30 @@ const ExplorerView = function ({ items }: { items: ExplorerItem[] }) {
     const styles = StyleSheet.create({
         topContainer: {
             width: "100%",
-            height: "100%"
+            height: "100%",
+            flexDirection: 'column',
         },
         scrollContainer: {
-            minHeight: 150,
-            maxHeight: 250,
-            flex: 1,
-            marginTop: 30,
-            marginBottom: 60,
-        },
-        scrollContentContainer: {
-        },
-        descriptionContainer: {
-            flexDirection: 'column',
+            width: "100%",
         }
     });
 
     const [selectedItem, selectItem] = useState(0);
 
     return (
-        <View style={[styles.topContainer, {}]}>
-            <ScrollView style={styles.descriptionContainer} contentContainerStyle={{}} showsVerticalScrollIndicator={false}>
-                <View style={{ marginHorizontal: 60 }}>
-                    <FlatList data={items} style={styles.scrollContainer} contentContainerStyle={styles.scrollContentContainer} horizontal={true} showsHorizontalScrollIndicator={false} renderItem={
-                        ({ item, index }) => {
-                            const name = getName(item);
-                            return <ExplorerItemHeader key={index + name + item.type + item.version} item={item} style={{ margin: 30 }} onPress={() => selectItem(index)} active={index == selectedItem}></ExplorerItemHeader>
-                        }
-                    }>
-                    </FlatList>
-                    <DownShowViewSelector
-                        list={items}
-                        renderItem={item => <ExplorerItemBody item={item} />}
-                        selectedItem={selectedItem} />
-                </View>
+        <View style={styles.topContainer}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+                <FlatList data={items} style={styles.scrollContainer} horizontal={true} showsHorizontalScrollIndicator={false} renderItem={
+                    ({ item, index }) => {
+                        const name = getName(item);
+                        return <ExplorerItemHeader key={index + name + item.type + item.version} item={item} style={{ margin: 20 }} onPress={() => selectItem(index)} active={index == selectedItem}></ExplorerItemHeader>
+                    }
+                }>
+                </FlatList>
+                <DownShowViewSelector
+                    list={items}
+                    renderItem={item => <ExplorerItemBody item={item} />}
+                    selectedItem={selectedItem} />
             </ScrollView>
         </View>
     );
@@ -384,39 +559,43 @@ const ExplorerStyles = StyleSheet.create({
         flex: 1,
     },
     menuContainer: {
-        height: 40,
         flexDirection: 'row',
-        marginLeft: 60,
-        marginRight: 40,
-        marginTop: 60
-    },
-    containerButtons: {
-        flexDirection: 'column',
-        flex: 1,
-        alignItems: 'flex-end',
-        flexGrow: 1,
-        gap: 40,
-    },
-    containerMenuItems: {
-        flexDirection: 'row',
-        flex: 1,
-        alignItems: 'flex-start',
-        flexWrap: 'wrap',
-        gap: 40,
+        paddingTop: 60,
+        paddingLeft: 20,
+        paddingRight: 20,
+        marginBottom: 10,
+        justifyContent: 'space-between'
     },
     containerTabs: {
+        flexShrink: 4,
         flexDirection: 'column',
-        flex: 1,
-        flexGrow: 1,
+        justifyContent: 'center'
+    },
+    containerButtons: {
+        flexShrink: 1,
+        flexWrap: 'wrap',
+        flexDirection: 'column',
+        justifyContent: 'center',
+    },
+    containerTabItems: {
+        flexDirection: 'row',
+        alignItems: 'flex-end',
         justifyContent: 'flex-start',
-        alignItems: 'flex-start',
-        gap: 40,
+        flexWrap: 'wrap',
+        gap: 30,
+    },
+    containerButtonItems: {
+        flexDirection: 'row',
+        alignItems: 'flex-end',
+        justifyContent: 'flex-end',
+        flexWrap: 'nowrap',
+        gap: 30,
     },
     contentContainer: {
-        flexDirection: 'row',
-        flexGrow: 1,
+        marginLeft: 10,
+        marginRight: 10,
+        marginBottom: 10,
         flex: 1,
-        margin: 40,
     },
 });
 
@@ -432,14 +611,29 @@ const screens: Screen[] = [
 ];
 
 export function Explorer(props?: Props) {
+    const insets = useSafeAreaInsets();
     const [background, setBackground] = useState<string | undefined>(undefined);
     const [activeTab, setActiveTab] = useState(0);
 
+    const safeArea = StyleSheet.create({
+        header: {
+            paddingTop: Math.max(ExplorerStyles.menuContainer.paddingTop - insets.top / 3, insets.top),
+            paddingLeft: Math.max(ExplorerStyles.menuContainer.paddingLeft - insets.left / 3, insets.left),
+            paddingRight: Math.max(ExplorerStyles.menuContainer.paddingRight - insets.right / 3, insets.right),
+        },
+        content: {
+            marginLeft: Math.max(ExplorerStyles.contentContainer.marginLeft - insets.left / 3, insets.left),
+            marginRight: Math.max(ExplorerStyles.contentContainer.marginRight - insets.right / 3, insets.right),
+            marginBottom: Math.max(ExplorerStyles.contentContainer.marginBottom - insets.bottom / 3, insets.bottom),
+        }
+    });
+
+
     return (
         <View style={[ExplorerStyles.rootContainer, { backgroundImage: background }]}>
-            <View style={[ExplorerStyles.menuContainer, {}]}>
+            <View style={[ExplorerStyles.menuContainer, safeArea.header]}>
                 <View style={ExplorerStyles.containerTabs}>
-                    <View style={ExplorerStyles.containerMenuItems}>
+                    <View style={ExplorerStyles.containerTabItems}>
                         {
                             screens.map((screen, index) =>
                                 <ScreenTab key={screen.title} title={screen.title} active={activeTab == index} onPress={() => setActiveTab(index)} />
@@ -448,7 +642,7 @@ export function Explorer(props?: Props) {
                     </View>
                 </View>
                 <View style={[ExplorerStyles.containerButtons]}>
-                    <View style={ExplorerStyles.containerMenuItems}>
+                    <View style={ExplorerStyles.containerButtonItems}>
                         <HapticPressable><ThemedIcon iconSet="Ionicons" name="search" size={40} /></HapticPressable>
                         <HapticPressable onPress={() => settings.pushSettingsView({})}><ThemedIcon iconSet="Ionicons" name="settings-outline" size={40} /></HapticPressable>
                         <HapticPressable><ThemedIcon iconSet="FontAwesome6" name="user" size={40} /></HapticPressable>
@@ -456,7 +650,7 @@ export function Explorer(props?: Props) {
                 </View>
             </View>
 
-            <LeftRightViewSelector list={screens} style={{ flex: 1 }} renderItem={item => item.view((image) => setBackground(image))} selectedItem={activeTab} />
+            <LeftRightViewSelector list={screens} style={[ExplorerStyles.contentContainer, safeArea.content]} renderItem={item => item.view((image) => setBackground(image))} selectedItem={activeTab} />
         </View>
     )
 };
