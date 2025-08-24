@@ -1340,13 +1340,15 @@ const styles = StyleSheet.create({
 
 export function Settings(_props?: Props) {
     const dimension = useWindowDimensions();
-    const shortView = dimension.width <= CATEGORIES_THRESHOLD;
+    const currentShortView = dimension.width <= CATEGORIES_THRESHOLD;
+    const [shortView, setShortView] = useState(currentShortView);
     const [activeTab, setActiveTab] = useState(shortView ? -1 : 0);
     const [lastActiveTab, setLastActiveTab] = useState(0);
     const backgroundColor = useThemeColor("background");
     const surfaceContainerColor = useThemeColor("surfaceContainer");
     const secondaryContainerColor = useThemeColor("surfaceContainerHigh");
     const [showContentView, setContentView] = useState(false);
+    const insets = useSafeAreaInsets();
 
 
     // Mock navigation function for back button
@@ -1370,10 +1372,19 @@ export function Settings(_props?: Props) {
 
 
     useEffect(() => {
-        if (!shortView && activeTab < 0) {
-            setActiveTab(0);
+        if (currentShortView != shortView) {
+            if (!shortView) {
+                setContentView(true);
+            }
+            setShortView(currentShortView);
         }
 
+        if ((!shortView || !currentShortView) && activeTab < 0) {
+            setActiveTab(0);
+        }
+    }, [insets]);
+
+    useEffect(() => {
         const backAction = () => {
             if (shortView && showContent) {
                 onContentBack();
@@ -1392,7 +1403,6 @@ export function Settings(_props?: Props) {
         return () => backHandler.remove();
     });
 
-    const insets = useSafeAreaInsets();
     const safeArea = StyleSheet.create({
         categories: {
             paddingLeft: insets.left,
@@ -1437,15 +1447,6 @@ export function Settings(_props?: Props) {
 
     const contentView = (
         <View style={[styles.contentContainer, safeArea.content, { backgroundColor: shortView ? surfaceContainerColor : secondaryContainerColor }]}>
-            {
-                shortView && <View style={[styles.contentHeaderContainer, { backgroundColor: surfaceContainerColor }]}>
-                    <HapticPressable onPress={onContentBack} style={styles.backButton}>
-                        <ThemedIcon iconSet="Ionicons" name="chevron-back" size={28} />
-                    </HapticPressable>
-                    <ThemedText type="title" style={styles.headerTitle}>{settingsCategories[activeTab < 0 ? lastActiveTab : activeTab].title}</ThemedText>
-                    <View style={styles.headerSpacer} />
-                </View>
-            }
             <UpDownViewSelector
                 list={settingsCategories}
                 style={[styles.contentSelector, { backgroundColor: secondaryContainerColor }]}
@@ -1455,7 +1456,19 @@ export function Settings(_props?: Props) {
         </View>
     )
 
-    const viewList = [categoriesView, contentView];
+    const shortContentView = (
+        <View style={[styles.contentContainer, safeArea.content, { backgroundColor: shortView ? surfaceContainerColor : secondaryContainerColor }]}>
+            <View style={[styles.contentHeaderContainer, { backgroundColor: surfaceContainerColor }]}>
+                <HapticPressable onPress={onContentBack} style={styles.backButton}>
+                    <ThemedIcon iconSet="Ionicons" name="chevron-back" size={28} />
+                </HapticPressable>
+                <ThemedText type="title" style={styles.headerTitle}>{settingsCategories[activeTab < 0 ? lastActiveTab : activeTab].title}</ThemedText>
+                <View style={styles.headerSpacer} />
+            </View>
+
+            <SettingsContent category={settingsCategories[activeTab < 0 ? lastActiveTab : activeTab]} />
+        </View>
+    )
 
     return (
         <View style={[styles.rootContainer, { backgroundColor }]}>
@@ -1466,7 +1479,7 @@ export function Settings(_props?: Props) {
             }
             {shortView &&
                 <LeftRightViewSelector style={[styles.splitViewContainer]}
-                    list={viewList} renderItem={x => x} selectedItem={showCategories ? 0 : 1}
+                list={[categoriesView, shortContentView]} renderItem={x => x} selectedItem={showCategories ? 0 : 1}
                 />
             }
         </View>

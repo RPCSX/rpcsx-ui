@@ -13,29 +13,51 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useThemeColor } from './useThemeColor';
 
-export function ViewSelector<T extends any, ShowStyle extends ViewStyle, HideStyle extends ViewStyle>(props: {
-    selectedItem: number,
-    list: T[],
-    renderItem: (item: T) => React.JSX.Element,
-    style?: StyleProp<ViewStyle>,
-    showStyle: (indexIncreased: boolean, value: number) => ShowStyle,
-    hideStyle: (indexIncreased: boolean, value: number) => HideStyle,
-    activate: () => number
-}) {
+type SelectorState = {
+    views: (React.JSX.Element | undefined)[];
+    index: number;
+    itemIndex: number[];
+};
+
+export function LeftRightViewSelector<T extends any>(props: { selectedItem: number, list: T[], renderItem: (item: T) => React.JSX.Element, style?: StyleProp<ViewStyle> }) {
+    const layout = useWindowDimensions();
+
+    function activate() {
+        return withTiming(100, {
+            duration: 400,
+            easing: Easing.inOut(Easing.ease)
+        });
+    }
+
+    function createHideStyle(directionRight: boolean, animationValue: number): ViewStyle {
+        'worklet';
+
+        return {
+            transform: [{
+                translateX: directionRight ? interpolate(animationValue, [0, 100], [0, -layout.width]) : interpolate(animationValue, [0, 100], [0, layout.width])
+            }],
+            opacity: interpolate(animationValue, [0, 100], [1, 0]),
+            zIndex: 0
+        };
+    }
+
+    function createShowStyle(directionRight: boolean, animationValue: number): ViewStyle {
+        'worklet';
+        return {
+            transform: [{
+                translateX: directionRight ? interpolate(animationValue, [0, 100], [layout.width, 0]) : interpolate(animationValue, [0, 100], [-layout.width, 0])
+            }],
+            opacity: interpolate(animationValue, [0, 100], [0, 1]),
+            zIndex: 1
+        };
+    }
+
     const animation = useSharedValue(100);
 
-    type SelectorState = {
-        views: (React.JSX.Element | undefined)[];
-        index: number;
-        itemIndex: number[];
-    };
-
-    const currentView = props.list[props.selectedItem];
-
     const [state, setState] = useState<SelectorState>({
-        views: [currentView ? props.renderItem(currentView) : undefined, undefined],
+        views: [props.selectedItem >= 0 ? props.renderItem(props.list[props.selectedItem]) : undefined, undefined],
         index: 0,
-        itemIndex: [currentView ? props.selectedItem : -1, -1]
+        itemIndex: [props.selectedItem >= 0 ? props.selectedItem : -1, -1]
     });
 
     const [indexIncreased, setIndexIncreased] = useState<boolean>(false);
@@ -46,11 +68,11 @@ export function ViewSelector<T extends any, ShowStyle extends ViewStyle, HideSty
             if (state.itemIndex[0] >= 0) {
                 setIndexIncreased(props.selectedItem > prevItemIndex);
                 animation.value = 0;
-                animation.value = props.activate();
+                animation.value = activate();
             }
 
             const nextRenderIndex = (state.index + 1) & 1;
-            state.views[nextRenderIndex] = props.renderItem(currentView);
+            state.views[nextRenderIndex] = props.renderItem(props.list[props.selectedItem]);
             state.itemIndex[nextRenderIndex] = props.selectedItem;
 
             setState({
@@ -64,8 +86,8 @@ export function ViewSelector<T extends any, ShowStyle extends ViewStyle, HideSty
 
     const waitAnimation = props.selectedItem != state.itemIndex[state.index];
 
-    const hideStyle = useAnimatedStyle(() => props.hideStyle(indexIncreased, waitAnimation ? 0 : animation.value));
-    const showStyle = useAnimatedStyle(() => props.showStyle(indexIncreased, waitAnimation ? 0 : animation.value));
+    const hideStyle = useAnimatedStyle(() => createHideStyle(indexIncreased, waitAnimation ? 0 : animation.value));
+    const showStyle = useAnimatedStyle(() => createShowStyle(indexIncreased, waitAnimation ? 0 : animation.value));
 
     const drawIndex = waitAnimation ? 1 - state.index : state.index;
 
@@ -78,53 +100,14 @@ export function ViewSelector<T extends any, ShowStyle extends ViewStyle, HideSty
 
     return (
         <View style={props.style}>
-            <Animated.View style={[staticStyle, styles[0]]}>
+            <Animated.View style={[styles[0], staticStyle]}>
                 {state.views[0]}
             </Animated.View>
-            <Animated.View style={[staticStyle, styles[1]]}>
+            <Animated.View style={[styles[1], staticStyle]}>
                 {state.views[1]}
             </Animated.View>
         </View >
     );
-}
-
-
-export function LeftRightViewSelector<T extends any>(props: { selectedItem: number, list: T[], renderItem: (item: T) => React.JSX.Element, style?: StyleProp<ViewStyle> }) {
-    const layout = useWindowDimensions();
-
-    function activate() {
-        return withTiming(100, {
-            duration: 400,
-            easing: Easing.inOut(Easing.ease)
-        });
-    }
-
-    function hideStyle(directionRight: boolean, animationValue: number): ViewStyle {
-        'worklet';
-
-        return {
-            transform: [{
-                translateX: directionRight ? interpolate(animationValue, [0, 100], [0, -layout.width]) : interpolate(animationValue, [0, 100], [0, layout.width])
-            }],
-            opacity: interpolate(animationValue, [0, 100], [1, 0])
-        };
-    }
-
-    function showStyle(directionRight: boolean, animationValue: number): ViewStyle {
-        'worklet';
-        return {
-            transform: [{
-                translateX: directionRight ? interpolate(animationValue, [0, 100], [layout.width, 0]) : interpolate(animationValue, [0, 100], [-layout.width, 0])
-            }],
-            opacity: interpolate(animationValue, [0, 100], [0, 1])
-        };
-    }
-
-    return <ViewSelector {...props}
-        activate={activate}
-        showStyle={showStyle}
-        hideStyle={hideStyle}
-    />;
 }
 
 export function UpDownViewSelector<T extends any>(props: { selectedItem: number, list: T[], renderItem: (item: T) => React.JSX.Element, style?: StyleProp<ViewStyle> }) {
@@ -137,7 +120,7 @@ export function UpDownViewSelector<T extends any>(props: { selectedItem: number,
         });
     }
 
-    function hideStyle(directionDown: boolean, animationValue: number): ViewStyle {
+    function createHideStyle(directionDown: boolean, animationValue: number): ViewStyle {
         'worklet';
         const y = directionDown ? interpolate(animationValue, [0, 100], [0, -layout.height]) : interpolate(animationValue, [0, 100], [0, layout.height]);
 
@@ -146,11 +129,12 @@ export function UpDownViewSelector<T extends any>(props: { selectedItem: number,
                 translateY: y
             }],
             height: Math.max(layout.height, layout.height - y),
-            opacity: interpolate(animationValue, [0, 100], [1, 0])
+            opacity: interpolate(animationValue, [0, 100], [1, 0]),
+            zIndex: 0
         };
     }
 
-    function showStyle(directionDown: boolean, animationValue: number): ViewStyle {
+    function createShowStyle(directionDown: boolean, animationValue: number): ViewStyle {
         'worklet';
         const y = directionDown ? interpolate(animationValue, [0, 100], [layout.height, 0]) : interpolate(animationValue, [0, 100], [-layout.height, 0]);
         return {
@@ -158,15 +142,67 @@ export function UpDownViewSelector<T extends any>(props: { selectedItem: number,
                 translateY: y
             }],
             height: Math.max(layout.height, y + layout.height),
-            opacity: interpolate(animationValue, [0, 100], [0, 1])
+            opacity: interpolate(animationValue, [0, 100], [0, 1]),
+            zIndex: 1
         };
     }
 
-    return <ViewSelector {...props}
-        activate={activate}
-        showStyle={showStyle}
-        hideStyle={hideStyle}
-    />;
+    const animation = useSharedValue(100);
+
+    const [state, setState] = useState<SelectorState>({
+        views: [props.selectedItem >= 0 ? props.renderItem(props.list[props.selectedItem]) : undefined, undefined],
+        index: 0,
+        itemIndex: [props.selectedItem >= 0 ? props.selectedItem : -1, -1]
+    });
+
+    const [indexIncreased, setIndexIncreased] = useState<boolean>(false);
+    const prevItemIndex = state.itemIndex[state.index];
+
+    useEffect(() => {
+        if (props.selectedItem != prevItemIndex) {
+            if (state.itemIndex[0] >= 0) {
+                setIndexIncreased(props.selectedItem > prevItemIndex);
+                animation.value = 0;
+                animation.value = activate();
+            }
+
+            const nextRenderIndex = (state.index + 1) & 1;
+            state.views[nextRenderIndex] = props.renderItem(props.list[props.selectedItem]);
+            state.itemIndex[nextRenderIndex] = props.selectedItem;
+
+            setState({
+                views: state.views,
+                index: nextRenderIndex,
+                itemIndex: state.itemIndex,
+            });
+        }
+
+    }, [props.selectedItem]);
+
+    const waitAnimation = props.selectedItem != state.itemIndex[state.index];
+
+    const hideStyle = useAnimatedStyle(() => createHideStyle(indexIncreased, waitAnimation ? 0 : animation.value));
+    const showStyle = useAnimatedStyle(() => createShowStyle(indexIncreased, waitAnimation ? 0 : animation.value));
+
+    const drawIndex = waitAnimation ? 1 - state.index : state.index;
+
+    const styles = [
+        drawIndex == 0 ? showStyle : hideStyle,
+        drawIndex == 1 ? showStyle : hideStyle,
+    ];
+
+    const staticStyle: StyleProp<ViewStyle> = { position: 'absolute', height: "100%", width: "100%" };
+
+    return (
+        <View style={props.style}>
+            <Animated.View style={[styles[0], staticStyle]}>
+                {state.views[0]}
+            </Animated.View>
+            <Animated.View style={[styles[1], staticStyle]}>
+                {state.views[1]}
+            </Animated.View>
+        </View >
+    );
 }
 
 export function DownShowViewSelector<T extends any>(props: { selectedItem: number, list: T[], renderItem: (item: T) => React.JSX.Element, style?: StyleProp<ViewStyle> }) {
@@ -185,33 +221,86 @@ export function DownShowViewSelector<T extends any>(props: { selectedItem: numbe
         );
     }
 
-    function hideStyle(_indexIncreased: boolean, animationValue: number): ViewStyle {
+    function createHideStyle(_indexIncreased: boolean, animationValue: number): ViewStyle {
         'worklet';
 
         return {
             transform: [{
                 translateY: interpolate(animationValue, [0, 50], [0, layout.height], 'clamp')
             }],
-            opacity: interpolate(animationValue * 10, [0, 50], [1, 0], 'clamp')
+            opacity: interpolate(animationValue * 10, [0, 50], [1, 0], 'clamp'),
+            zIndex: 0,
         };
     }
 
-    function showStyle(_indexIncreased: boolean, animationValue: number): ViewStyle {
+    function createShowStyle(_indexIncreased: boolean, animationValue: number): ViewStyle {
         'worklet';
 
         return {
             transform: [{
                 translateY: 0
             }],
-            opacity: interpolate(animationValue, [50, 100], [0, 1], 'clamp')
+            opacity: interpolate(animationValue, [50, 100], [0, 1], 'clamp'),
+            zIndex: 1,
         };
     }
 
-    return <ViewSelector {...props}
-        activate={activate}
-        showStyle={showStyle}
-        hideStyle={hideStyle}
-    />;
+    const animation = useSharedValue(100);
+
+    const [state, setState] = useState<SelectorState>({
+        views: [props.selectedItem >= 0 ? props.renderItem(props.list[props.selectedItem]) : undefined, undefined],
+        index: 0,
+        itemIndex: [props.selectedItem >= 0 ? props.selectedItem : -1, -1]
+    });
+
+    const [indexIncreased, setIndexIncreased] = useState<boolean>(false);
+    const prevItemIndex = state.itemIndex[state.index];
+
+    useEffect(() => {
+        if (props.selectedItem != prevItemIndex) {
+            if (state.itemIndex[0] >= 0) {
+                setIndexIncreased(props.selectedItem > prevItemIndex);
+                animation.value = 0;
+                animation.value = activate();
+            }
+
+            const nextRenderIndex = (state.index + 1) & 1;
+            state.views[nextRenderIndex] = props.renderItem(props.list[props.selectedItem]);
+            state.itemIndex[nextRenderIndex] = props.selectedItem;
+
+            setState({
+                views: state.views,
+                index: nextRenderIndex,
+                itemIndex: state.itemIndex,
+            });
+        }
+
+    }, [props.selectedItem]);
+
+    const waitAnimation = props.selectedItem != state.itemIndex[state.index];
+
+    const hideStyle = useAnimatedStyle(() => createHideStyle(indexIncreased, waitAnimation ? 0 : animation.value));
+    const showStyle = useAnimatedStyle(() => createShowStyle(indexIncreased, waitAnimation ? 0 : animation.value));
+
+    const drawIndex = waitAnimation ? 1 - state.index : state.index;
+
+    const styles = [
+        drawIndex == 0 ? showStyle : hideStyle,
+        drawIndex == 1 ? showStyle : hideStyle,
+    ];
+
+    const staticStyle: StyleProp<ViewStyle> = { position: 'absolute', height: "100%", width: "100%" };
+
+    return (
+        <View style={props.style}>
+            <Animated.View style={[styles[0], staticStyle]}>
+                {state.views[0]}
+            </Animated.View>
+            <Animated.View style={[styles[1], staticStyle]}>
+                {state.views[1]}
+            </Animated.View>
+        </View >
+    );
 }
 
 export function TopViewSelector(props: { stack: React.JSX.Element[], index: number }) {
