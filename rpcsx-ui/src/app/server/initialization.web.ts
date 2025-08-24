@@ -1,11 +1,11 @@
-import { app, net, protocol, session, BrowserWindow, ipcMain } from 'electron';
+import { app, net, session, BrowserWindow, ipcMain } from 'electron';
 import * as locations from '$core/locations.js';
+import * as core from '$core';
 import { PathLike } from 'fs';
 import path from 'path';
 import fs from 'fs/promises';
 import url from 'url';
 import { Future } from '$core/Future.js';
-import { shutdown } from '../../core/server/ComponentInstance';
 import * as explorer from '$explorer';
 import { Window } from '$core/Window';
 
@@ -19,19 +19,6 @@ function toWindow(browserWindow: BrowserWindow): Window {
 
 function setupElectron() {
     const uiDirectory = path.join(locations.builtinResourcesPath, "ui");
-
-    protocol.registerSchemesAsPrivileged([
-        {
-            scheme: 'app',
-            privileges: {
-                standard: true,
-                secure: true,
-                allowServiceWorkers: true,
-                supportFetchAPI: true,
-                codeCache: true
-            },
-        },
-    ]);
 
     const fixPath = async (loc: PathLike) => {
         loc = loc.toString();
@@ -183,7 +170,7 @@ export function initialize() {
     });
 
     app.on('window-all-closed', async () => {
-        await shutdown();
+        await core.shutdown({});
 
         if (process.platform !== 'darwin') {
             app.quit();

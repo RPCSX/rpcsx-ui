@@ -321,6 +321,16 @@ export async function initializeComponent(info: ComponentManifest) {
     }
 }
 
+export async function activateComponentByName(name: string) {
+    const manifest = findComponent(name)?.getManifest();
+
+    if (!manifest) {
+        throw createError(ErrorCode.InvalidParams, `component ${name} not found`);
+    }
+
+    return activateComponent(manifest);
+}
+
 export async function activateComponent(info: ComponentManifest) {
     const id = getComponentId(info);
 
@@ -429,28 +439,4 @@ export async function unregisterComponent(id: ComponentId) {
     }
 
     delete registeredComponents[id];
-}
-
-
-export async function startup() {
-    Object.values(registeredComponents).forEach(component => console.log(component.getId()));
-    await Promise.all(Object.values(registeredComponents).map(component => initializeComponent(component.getManifest())));
-
-    for (const component of Object.values(registeredComponents)) {
-        try {
-            await activateComponent(component.getManifest());
-        } catch (e) {
-            console.error(`failed to activate ${component.getId()}`, e);
-        }
-    }
-}
-
-export async function shutdown() {
-    for (const component of Object.values(registeredComponents)) {
-        try {
-            await unregisterComponent(component.getId());
-        } catch (e) {
-            console.error(`failed to shutdown ${component.getId()}`, e);
-        }
-    }
 }

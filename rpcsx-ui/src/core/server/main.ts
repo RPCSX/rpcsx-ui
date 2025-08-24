@@ -1,20 +1,45 @@
-// import * as api from '$';
+import * as self from '$';
 import { Component } from '$core/Component';
 import { createError } from '$core/Error';
-import { ComponentInstance, findComponentById, getActivatedComponentList } from './ComponentInstance';
+import { ComponentInstance, findComponentById, getActivatedComponentList, getComponentList, initializeComponent } from './ComponentInstance';
+import * as instance from './ComponentInstance';
 import * as settings from './Settings';
 import { Schema, SchemaError, SchemaObject, validateObject } from 'lib/Schema';
 import * as extensionApi from './extension-api';
 import { registerBuiltinLaunchers } from './registerBuiltinLaunchers';
+import { initialize } from './initialize';
 
+initialize();
 registerBuiltinLaunchers();
 
 export async function activate() {
     await settings.load();
+
+    const components = getComponentList();
+
+    await Promise.all(Object.values(components).map(component => initializeComponent(component.getManifest())));
+
+    for (const component of Object.values(components)) {
+        try {
+            await instance.activateComponent(component.getManifest());
+        } catch (e) {
+            console.error(`failed to activate ${component.getId()}`, e);
+        }
+    }
 }
 
 export async function deactivate() {
     await settings.save();
+
+    const components = getComponentList();
+
+    for (const component of Object.values(components)) {
+        try {
+            await instance.unregisterComponent(component.getId());
+        } catch (e) {
+            console.error(`failed to shutdown ${component.getId()}`, e);
+        }
+    }
 }
 
 export async function activateComponent(_caller: Component, request: ComponentActivateRequest): Promise<ComponentActivateResponse> {
@@ -73,7 +98,7 @@ function getComponentSettings(component: Component) {
 
         const result: { settings: any, schema: SchemaObject } = {
             settings: {},
-            schema: { 
+            schema: {
                 type: "object",
                 properties: {}
             }
@@ -85,7 +110,7 @@ function getComponentSettings(component: Component) {
 
                 result.settings[instance.getName()] = settings;
                 result.schema.properties[instance.getName()] = schema;
-            } catch {}
+            } catch { }
         });
 
         return result;
@@ -152,7 +177,7 @@ export async function handleSettingsSet(caller: Component, request: SettingsSetR
     }
 
     member[name] = request.value;
-    // api.emitSettingsUpdateEvent(request);
+    self.emitSettingsUpdateEvent(request);
 }
 
 export async function handleSettingsGet(caller: Component, request: SettingsGetRequest): Promise<SettingsGetResponse> {
@@ -160,4 +185,9 @@ export async function handleSettingsGet(caller: Component, request: SettingsGetR
     const path = request.path.split("/");
 
     return { value: getObjectMember(settings, path), schema: getObjectMember(schema, path) };
+}
+
+export async function shutdown(caller: Component, _request: ShutdownRequest): Promise<ShutdownResponse> {
+    console.warn(`shutdown invoked by ${caller.getId()}`);
+    instance.uninitializeComponent(self.thisComponent().getManifest());
 }

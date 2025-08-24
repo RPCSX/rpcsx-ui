@@ -1019,6 +1019,7 @@ import { Component } from "$core/Component";
 import { thisComponent } from "$/component-info";
 import * as core from "$core";
 ${this.viewBody && "import { Window } from '$core/Window';" }
+export { thisComponent } from "$/component-info";
 
 ${this.body}
 
@@ -1637,13 +1638,13 @@ export class TsServerMainGenerator implements ComponentGenerator {
         const startupFile = await fileDb.createFile(path.join(genDir, "startup.ts"), mergeTimestamps(serverComponents.map(x => x.manifestFile)));
         if (startupFile) {
             startupFile.content = `${generatedHeader}
-import { startup as componentsStartup } from '$core/ComponentInstance';
+import { activateComponentByName } from '$core/ComponentInstance';
 ${serverComponents.map(x => `import { register${generateLabelName(x.manifest.name, true)}Component } from '$${x.manifest.name}/component'`).join(";\n")};
 
-export function startup() {
 ${serverComponents.map(x => `   register${generateLabelName(x.manifest.name, true)}Component()`).join(";\n")};
 
-    return componentsStartup();
+export function startup() {
+    return activateComponentByName("core");
 }
 `;
         }
@@ -1903,96 +1904,6 @@ declare global {
             return path.join(parsed.dir, parsed.name);
         };
 
-        const navigationFile = await fileDb.createFile(path.join(genDir, "navigation.tsx"), viewsListFile);
-        if (navigationFile) {
-            navigationFile.content = `${generatedHeader}
-${Object.keys(views).map(x => `import { ${x} } from '${pathWithoutExt(views[x])}'`).join(';\n')};
-import * as bridge from '$core/bridge';
-import { TopViewSelector } from '$core/ViewSelector';
-import * as SplashScreen from 'expo-splash-screen';
-import { BackHandler } from 'react-native';
-import { useEffect, useState } from 'react';
-
-SplashScreen.preventAutoHideAsync();
-
-const views: Record<string, (...props: any[]) => React.JSX.Element> = {
-${Object.keys(views).map(x => `    "${x}": ${x}`).join(',\n')}
-};
-
-let onViewChangeCb: (() => void) | undefined;
-let viewStack: React.JSX.Element[] = [];
-
-function update() {
-    if (onViewChangeCb) {
-        onViewChangeCb();
-    }
-}
-
-function renderView(name: string, props: any) {
-    const View = views[name];
-    return <View key={name} {...props} />;
-}
-
-function viewPush(name: string, props: any) {
-    if (viewStack.length == 0) {
-        SplashScreen.hideAsync();
-    }
-
-    viewStack.push(renderView(name, props));
-    update();
-}
-
-function viewSet(name: string, props: any) {
-    viewStack = [renderView(name, props)];
-    update();
-}
-
-function viewPop() {
-    if (viewStack.length < 2) {
-        return false;
-    }
-
-    viewStack.pop();
-    update();
-    return true;
-}
-
-export function Navigation() {
-    const [renderItem, setRenderItem] = useState<number>(viewStack.length - 1);
-
-    useEffect(() => {
-        onViewChangeCb = () => {
-            if (viewStack.length > 0) {
-                const item = viewStack.length - 1;
-                if (item != renderItem) {
-                    setRenderItem(item);
-                }
-            }
-        };
-    });
-
-    useEffect(() => {
-        const backAction = () => {
-            return viewPop();
-        };
-
-        const backHandler = BackHandler.addEventListener(
-            'hardwareBackPress',
-            backAction
-        );
-
-        return () => backHandler.remove();
-    }, []);
-
-    return <TopViewSelector stack={viewStack} index={viewStack.length - 1} />;
-}
-
-bridge.onViewPush(viewPush);
-bridge.onViewSet(viewSet);
-bridge.onViewPop(viewPop);
-`;
-        }
-
         const startupFile = await fileDb.createFile(path.join(genDir, "startup.ts"), viewsListFile);
 
         if (startupFile) {
@@ -2020,33 +1931,18 @@ export async function startup() {
 
         if (indexFile) {
             indexFile.content = `${generatedHeader}
-import '@expo/metro-runtime';
-
-// import { Asset } from 'expo-asset';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { registerRootComponent } from 'expo';
-import { Navigation } from './navigation';
-import { useEffect } from 'react';
-import * as bridge from '$core/bridge';
+import { main } from '$core/main';
 import { startup } from './startup';
 
-const startupPromise = startup();
+${Object.keys(views).map(x => `import { ${x} } from '${pathWithoutExt(views[x])}'`).join(';\n')};
 
-function App() {
-    useEffect(() => {
-        startupPromise.then(() => {
-            bridge.sendViewInitializationComplete();
-        });
-    }, []);
+const serverInitializationPromise = startup();
 
-    return (
-        <SafeAreaProvider>
-            <Navigation />
-        </SafeAreaProvider>
-    )
-}
+const builtinViews: Record<string, (...props: any[]) => React.JSX.Element> = {
+${Object.keys(views).map(x => `    "${x}": ${x}`).join(',\n')}
+};
 
-registerRootComponent(App);
+main(builtinViews, serverInitializationPromise);
 `;
         }
 
