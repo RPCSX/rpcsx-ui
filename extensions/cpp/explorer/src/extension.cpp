@@ -89,7 +89,7 @@ tryFetchGame(const std::filesystem::directory_entry &entry) {
     return {};
   }
 
-  auto data = sfo::load(paramSfoPath);
+  auto data = sfo::load(paramSfoPath.string());
   if (data.errc != sfo::error::ok) {
     std::println(stderr, "{}: error {}", entry.path().string(), data.errc);
     return {};

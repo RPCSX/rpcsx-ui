@@ -377,7 +377,7 @@ ${Object.keys(body).map(field => {
                 return `    json.at("${label}").get_to(value.${label});`;
             }
             return `    if (json.contains("${label}")) {
-        value.${label} = json["${label}"];
+        value.${label} = json["${label}"].get<std::remove_reference_t<decltype(*value.${label})>>();
     } else {
         value.${label} = std::nullopt;
     }`;
