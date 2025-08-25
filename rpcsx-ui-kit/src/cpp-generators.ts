@@ -425,7 +425,7 @@ struct ${label} {
 
         this.content += `
     auto ${label}(${params}std::function<void(${returnType})> result) {
-        return protocol().call("${name}", ${params ? "params" : "{}"}, std::move(result));
+        return protocol().call("${component}/${name}", ${params ? "params" : "{}"}, std::move(result));
     }`
     }
 
@@ -436,7 +436,7 @@ struct ${label} {
 
         this.content += `
     void ${label}(${params}) {
-        protocol().notify("${name}", ${params ? "params" : "{}"});
+        protocol().notify("${component}/${name}", ${params ? "params" : "{}"});
     }`
     }
 
@@ -454,7 +454,7 @@ struct ${label} {
 
         this.content += `
     auto on${uLabel}(std::function<void(${typeName})> callback) {
-        return protocol().onEvent("${name}", std::move(callback));
+        return protocol().onEvent("${component}/${name}", std::move(callback));
     }`
     }
 };

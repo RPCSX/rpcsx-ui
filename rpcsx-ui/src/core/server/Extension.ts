@@ -342,7 +342,7 @@ export class Extension implements IComponentImpl {
         if ("method" in message) {
             const componentMethod = message["method"] as string;
             const params = "params" in message ? message["params"] as JsonObject : undefined;
-            const [componentName, method] = componentMethod.split("/", 1);
+            const [componentName, ...method] = componentMethod.split("/");
             const component = findComponent(componentName);
             const self = findComponent(this.componentManifest.name);
 
@@ -359,14 +359,14 @@ export class Extension implements IComponentImpl {
 
             if (id !== null) {
                 try {
-                    const result = await component.call(self, method, params);
+                    const result = await component.call(self, method.join("/"), params);
                     this.send({ jsonrpc: "2.0", id, result });
                 } catch (error) {
                     this.send({ jsonrpc: "2.0", id, error });
                 }
             } else {
                 try {
-                    component.notify(self, method, params);
+                    component.notify(self, method.join("/"), params);
                 } catch (error) {
                     this.send({ jsonrpc: "2.0", error });
                 }
