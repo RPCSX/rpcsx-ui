@@ -63,6 +63,11 @@ export class ComponentInstance implements ComponentContext {
     }
 
     async activate(settings?: JsonObject) {
+
+        if (!this.isInitialized()) {
+            await this.initialize();
+        }
+
         this.activated = true;
 
         try {
@@ -101,20 +106,35 @@ export class ComponentInstance implements ComponentContext {
             return;
         }
 
+        this.initialized = false;
+
         if (this.activated) {
-            await this.deactivate();
+            try {
+                await this.deactivate();
+            } catch (e) {
+                console.error(`Exception in component ${this.getId()} deactivation implementation`, e);
+            }
         }
 
-        await this.impl.dispose();
-        this.initialized = false;
+        try {
+            await this.impl.dispose();
+        } catch (e) {
+            console.error(`Exception in component ${this.getId()} dispose implementation`, e);
+        }
     }
 
     async dispose() {
-        try {
-            unregisterComponent(this.getId());
-        } catch { }
+        if (this.isActivated()) {
+            try {
+                await this.deactivate();
+            } catch (e) {
+                console.error(`Exception during component ${this.getId()} deactivation`, e);
+            }
+        }
 
-        await this.shutdown();
+        if (this.isInitialized()) {
+            await this.shutdown();
+        }
     }
 
     subscribe<K, T extends Record<keyof T, any[]> | [never] = [never]>(emitter: NodeJS.EventEmitter<T>, channel: Key<K, T>, listener: Listener<K, T, (...args: any[]) => void>) {
@@ -445,12 +465,10 @@ export async function unregisterComponent(id: ComponentId) {
         throw createError(ErrorCode.InvalidParams, `component ${id} is not registered`);
     }
 
-    if (component.isActivated()) {
-        await component.deactivate();
-    }
-
-    if (component.isInitialized()) {
-        await component.shutdown();
+    try {
+        await component.dispose();
+    } catch (e) {
+        console.error(`Exception during component ${id} dispose`, e);
     }
 
     delete registeredComponents[id];

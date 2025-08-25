@@ -467,11 +467,6 @@ const ExplorerView = function ({ items }: { items: ExplorerItem[] }) {
     );
 };
 
-type Screen = {
-    title: string;
-    view: (setBackgroundImage: (image: string | undefined) => void) => ReactElement;
-}
-
 type Props = {
     layout?: "list" | "grid";
     filter?: ExplorerItemFilter;
@@ -534,6 +529,7 @@ export function Explorer(props?: Props) {
     const [background, setBackground] = useState<string | undefined>(undefined);
     const [activeTab, setActiveTab] = useState(0);
     const [games, setGames] = useState<ExplorerItem[]>([]);
+    const [updateId, setUpdateId] = useState(0);
 
     const safeArea = StyleSheet.create({
         header: {
@@ -552,19 +548,20 @@ export function Explorer(props?: Props) {
         self.onExplorerItems(event => {
             games.push(...event.items.filter(item => item.type == 'game'));
             setGames(games);
+            setUpdateId(updateId + 1);
         });
 
         self.explorerGet({});
     }, []);
 
-    const screens: Screen[] = [
+    const screens = [
         {
             title: "Games",
-            view: () => <ExplorerView items={games} />
+            view: games
         },
         {
             title: "Extensions",
-            view: () => <ExplorerView items={extensions} />
+            view: extensions
         }
     ];
 
@@ -589,7 +586,8 @@ export function Explorer(props?: Props) {
                 </View>
             </View>
 
-            <LeftRightViewSelector list={screens} style={[ExplorerStyles.contentContainer, safeArea.content]} renderItem={item => item.view((image) => setBackground(image))} selectedItem={activeTab} />
+            <LeftRightViewSelector key={updateId} list={screens} style={[ExplorerStyles.contentContainer, safeArea.content]} renderItem={item =>
+                <ExplorerView items={item.view} />} selectedItem={activeTab} />
         </View>
     )
 };

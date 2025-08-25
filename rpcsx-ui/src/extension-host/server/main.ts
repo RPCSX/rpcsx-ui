@@ -9,9 +9,13 @@ export function activate() {
 
 export async function deactivate() {
     for (const extension of activatedExtensions) {
-        core.componentDeactivate({
-            id: extension
-        });
+        try {
+            await core.componentDeactivate({
+                id: extension
+            });
+        } catch (e) {
+            console.warn(`failed to deactivate extension '${extension}'`, e);
+        }
     }
 }
 

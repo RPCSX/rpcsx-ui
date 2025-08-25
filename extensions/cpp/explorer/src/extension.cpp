@@ -141,12 +141,15 @@ tryFetchGame(const std::filesystem::directory_entry &entry) {
 struct ExplorerExtension : rpcsx::ui::Extension<rpcsx::ui::Explorer> {
   std::thread explorerThread;
   std::vector<std::string> locations;
-  std::atomic<bool> cancelled{ false };
+  std::atomic<bool> cancelled{false};
 
   using Base::Base;
 
   Response<Initialize> handle(const Request<Initialize> &) override {
-    return {};
+    return Initialize::Response{.extension = {
+                                    .name = {{EXTENSION_NAME}},
+                                    .version = EXTENSION_VERSION,
+                                }};
   }
 
   Response<Activate> handle(const Request<Activate> &request) override {
@@ -214,6 +217,7 @@ struct ExplorerExtension : rpcsx::ui::Extension<rpcsx::ui::Explorer> {
   Response<Shutdown> handle(const Request<Shutdown> &) override {
     cancelled = true;
     explorerThread.join();
+    std::exit(0);
     return {};
   }
 };

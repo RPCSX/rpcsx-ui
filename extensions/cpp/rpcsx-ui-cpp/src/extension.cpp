@@ -84,14 +84,10 @@ static std::span<const std::byte> asBytes(std::string_view text) {
 
 struct JsonRpcProtocol : Protocol {
   JsonRpcProtocol(Transport *transport) : Protocol(transport) {
-    mMethodHandlers["$/initialize"] =
-        createMethodHandler<rpcsx::ui::Initialize>(this);
-    mMethodHandlers["$/activate"] =
-        createMethodHandler<rpcsx::ui::Activate>(this);
-    // mMethodHandlers["$/deactivate"] =
-    // createMethodHandler<rpcsx::ui::Deactivate>(this);
-    mNotifyHandlers["$/shutdown"] =
-        createNotifyHandler<rpcsx::ui::Shutdown>(this);
+    mMethodHandlers["$/initialize"] = createMethodHandler<Initialize>(this);
+    mMethodHandlers["$/activate"] = createMethodHandler<Activate>(this);
+    // mMethodHandlers["$/deactivate"] = createMethodHandler<Deactivate>(this);
+    mNotifyHandlers["$/shutdown"] = createNotifyHandler<Shutdown>(this);
   }
 
   void call(std::string_view method, json params,
@@ -359,7 +355,6 @@ int main(int argc, const char *argv[]) {
   }
 
   Protocol::setDefault(protocol.get());
-  auto exptension = extensionBuilder(protocol.get());
+  auto extension = extensionBuilder(protocol.get());
   return protocol->processMessages();
 }
-

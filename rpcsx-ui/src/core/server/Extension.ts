@@ -90,7 +90,7 @@ export class Extension implements IComponentImpl {
 
         let isInvalid = false;
 
-        if (response.extension.name != this.manifest.name) {
+        if (response.extension.name[0].text != this.manifest.name[0].text) {
             this.debugLog(`executable sends unexpected name ${response.extension.name}`);
             isInvalid = true;
         }
