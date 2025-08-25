@@ -170,7 +170,7 @@ export function initialize() {
     });
 
     app.on('window-all-closed', async () => {
-        await core.shutdown({});
+        await core.shutdown(undefined);
 
         if (process.platform !== 'darwin') {
             app.quit();

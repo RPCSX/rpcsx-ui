@@ -119,7 +119,7 @@ export function progressSubscribe(caller: Component, params: ProgressSubscribeRe
     subscriptions[params.channel].add(caller);
 
     const info = channels[params.channel];
-    // api.sendProgressUpdateEvent(caller, { value: { channel: params.channel, ...info } });
+    api.sendProgressUpdateEvent(caller, { value: { channel: params.channel, ...info } });
 }
 
 export function progressUnsubscribe(caller: Component, params: ProgressUnsubscribeRequest) {

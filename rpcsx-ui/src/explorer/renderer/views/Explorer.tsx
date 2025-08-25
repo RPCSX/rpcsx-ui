@@ -1,7 +1,6 @@
 import { ComponentProps, memo, ReactElement, useEffect, useRef, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, View, FlatList, Modal, useWindowDimensions } from 'react-native';
 import { useThemeColor } from '$core/useThemeColor'
-import { } from '@react-navigation/elements';
 import ThemedIcon from '$core/ThemedIcon';
 import { ThemedText } from '$core/ThemedText';
 import { getIcon, getName } from "$/ExplorerItemUtils"
@@ -9,6 +8,7 @@ import { HapticPressable } from '$core/HapticPressable';
 import { DownShowViewSelector, LeftRightViewSelector } from '$core/ViewSelector';
 import { getLocalizedString } from '$core/Localized';
 import * as settings from '$settings';
+import * as self from '$explorer';
 
 import Animated, {
     Easing,
@@ -21,79 +21,6 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-
-const games: (ExecutableInfo & ExplorerItem)[] = [
-    {
-        type: 'game',
-        executable: "test-executable",
-        launcher: {
-            type: "test-launcher",
-            requirements: {}
-        },
-        description: [
-            {
-                text: "Test Game " + "aaa".repeat(800)
-            }
-        ],
-        name: [
-            {
-                text: "Test Game"
-            }
-        ],
-        version: "0.1",
-        actions: {
-            "run": {
-                title: "Play"
-            },
-            "delete": {
-                title: "Delete"
-            }
-        }
-    },
-    {
-        type: 'game',
-        executable: "test-executable",
-        launcher: {
-            type: "test-launcher",
-            requirements: {}
-        },
-        description: [
-            {
-                text: "Test Game"
-            }
-        ],
-        name: [
-            {
-                text: "Test Game"
-            }
-        ],
-        version: "0.1",
-        actions: {
-            "run": {
-                title: "Install"
-            }
-        }
-    },
-    {
-        type: 'game',
-        executable: "test-executable",
-        launcher: {
-            type: "test-launcher",
-            requirements: {}
-        },
-        description: [
-            {
-                text: "Test Game"
-            }
-        ],
-        name: [
-            {
-                text: "Test Game"
-            }
-        ],
-        version: "0.1"
-    },
-];
 const extensions: (ExtensionInfo & ExplorerItem)[] = [
     {
         type: 'extension',
@@ -456,7 +383,7 @@ function AdditionalActionsButton(props: {}) {
                         {
                             actions.map((action) => {
                                 return (
-                                    <Pressable key={ action.title } style={{ padding: 10 }}>
+                                    <Pressable key={action.title} style={{ padding: 10 }}>
                                         <ThemedText style={{ fontSize: 20 }}>{action.title}</ThemedText>
                                     </Pressable>
                                 )
@@ -521,19 +448,21 @@ const ExplorerView = function ({ items }: { items: ExplorerItem[] }) {
 
     return (
         <View style={styles.topContainer}>
-            <ScrollView showsVerticalScrollIndicator={false}>
-                <FlatList data={items} style={styles.scrollContainer} horizontal={true} showsHorizontalScrollIndicator={false} renderItem={
-                    ({ item, index }) => {
-                        const name = getName(item);
-                        return <ExplorerItemHeader key={index + name + item.type + item.version} item={item} style={{ margin: 20 }} onPress={() => selectItem(index)} active={index == selectedItem}></ExplorerItemHeader>
-                    }
-                }>
-                </FlatList>
-                <DownShowViewSelector
-                    list={items}
-                    renderItem={item => <ExplorerItemBody item={item} />}
-                    selectedItem={selectedItem} />
-            </ScrollView>
+            {items.length > 0 &&
+                <ScrollView showsVerticalScrollIndicator={false}>
+                    <FlatList data={items} style={styles.scrollContainer} horizontal={true} showsHorizontalScrollIndicator={false} renderItem={
+                        ({ item, index }) => {
+                            const name = getName(item);
+                            return <ExplorerItemHeader key={index + name + item.type + item.version} item={item} style={{ margin: 20 }} onPress={() => selectItem(index)} active={index == selectedItem}></ExplorerItemHeader>
+                        }
+                    }>
+                    </FlatList>
+                    <DownShowViewSelector
+                        list={items}
+                        renderItem={item => <ExplorerItemBody item={item} />}
+                        selectedItem={selectedItem} />
+                </ScrollView>
+            }
         </View>
     );
 };
@@ -599,21 +528,12 @@ const ExplorerStyles = StyleSheet.create({
     },
 });
 
-const screens: Screen[] = [
-    {
-        title: "Games",
-        view: () => <ExplorerView items={games} />
-    },
-    {
-        title: "Extensions",
-        view: () => <ExplorerView items={extensions} />
-    }
-];
 
 export function Explorer(props?: Props) {
     const insets = useSafeAreaInsets();
     const [background, setBackground] = useState<string | undefined>(undefined);
     const [activeTab, setActiveTab] = useState(0);
+    const [games, setGames] = useState<ExplorerItem[]>([]);
 
     const safeArea = StyleSheet.create({
         header: {
@@ -628,6 +548,25 @@ export function Explorer(props?: Props) {
         }
     });
 
+    useEffect(() => {
+        self.onExplorerItems(event => {
+            games.push(...event.items.filter(item => item.type == 'game'));
+            setGames(games);
+        });
+
+        self.explorerGet({});
+    }, []);
+
+    const screens: Screen[] = [
+        {
+            title: "Games",
+            view: () => <ExplorerView items={games} />
+        },
+        {
+            title: "Extensions",
+            view: () => <ExplorerView items={extensions} />
+        }
+    ];
 
     return (
         <View style={[ExplorerStyles.rootContainer, { backgroundImage: background }]}>

@@ -162,8 +162,8 @@ template <> struct std::formatter<sfo::format> {
     return ctx.begin();
   }
 
-  constexpr std::format_context::iterator
-  format(sfo::format format, std::format_context &ctx) const {
+  std::format_context::iterator format(sfo::format format,
+                                       std::format_context &ctx) const {
     std::string_view name;
     switch (format) {
     case sfo::format::array:
@@ -195,8 +195,8 @@ template <> struct std::formatter<std::source_location> {
     return ctx.begin();
   }
 
-  constexpr std::format_context::iterator
-  format(const std::source_location &location, std::format_context &ctx) const {
+  std::format_context::iterator format(const std::source_location &location,
+                                       std::format_context &ctx) const {
     std::format_to(ctx.out(), "{}:{}", location.file_name(), location.line());
     return ctx.out();
   }
@@ -208,8 +208,8 @@ template <> struct std::formatter<sfo::registry> {
     return ctx.begin();
   }
 
-  constexpr std::format_context::iterator
-  format(const sfo::registry &registry, std::format_context &ctx) const {
+  std::format_context::iterator format(const sfo::registry &registry,
+                                       std::format_context &ctx) const {
     for (const auto &entry : registry) {
       if (entry.second.type() == sfo::format::array) {
         // Format them last

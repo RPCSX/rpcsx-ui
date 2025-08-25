@@ -38,13 +38,13 @@ const viewPushCb = new Callback<(name: string, props: any) => void>();
 const viewSetCb = new Callback<(name: string, props: any) => void>();
 const viewPopCb = new Callback<() => void>();
 
-export function setOnCall(cb: (...args: any[]) => any) {
+export function setOnCall(cb: (method: string, params: any) => any) {
     callCb.set(cb);
 }
-export function setOnInvoke(cb: (...args: any[]) => void | Promise<void>) {
+export function setOnInvoke(cb: (notification: string, params: any) => void | Promise<void>) {
     invokeCb.set(cb);
 }
-export function setOnEvent(cb: (...args: any[]) => () => void) {
+export function setOnEvent(cb: (event: string, params: any) => () => void) {
     eventCb.set(cb);
 }
 

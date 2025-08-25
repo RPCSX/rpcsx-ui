@@ -43,7 +43,7 @@ export async function invoke(method: string, params: any): Promise<void> {
         return;
     }
 
-    return window.electron.ipcRenderer.invoke(method, params);
+    return window.electron.ipcRenderer.send(method, params);
 }
 
 export async function call(method: string, params: any): Promise<any> {
@@ -51,7 +51,7 @@ export async function call(method: string, params: any): Promise<any> {
         throw createError(ErrorCode.InvalidRequest, "electron is not available");
     }
 
-    return window.electron.ipcRenderer.send(method, params);
+    return window.electron.ipcRenderer.invoke(method, params);
 }
 
 export function sendViewInitializationComplete() {

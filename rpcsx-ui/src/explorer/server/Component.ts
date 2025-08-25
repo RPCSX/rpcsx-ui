@@ -1,8 +1,7 @@
 import { Component, ComponentId } from "$core/Component";
-import * as api from "$";
+import * as self from "$";
 import * as progress from "$progress";
 import { IDisposable } from "$core/Disposable";
-import { createError } from "$core/Error";
 
 type Item = ExplorerItem & {
     source: ComponentId;
@@ -11,6 +10,7 @@ type Item = ExplorerItem & {
 export class ExplorerComponent implements IDisposable {
     items: Item[] = [];
     progressToItem: Record<number, Item> = {};
+    subscriptions: Record<number, Component> = {};
 
     dispose() {
         this.items = [];
@@ -26,6 +26,11 @@ export class ExplorerComponent implements IDisposable {
     add(caller: Component, params: ExplorerAddRequest) {
         // FIXME: merge items?
         this.items.push(...params.items.map(x => ({ ...x, source: caller.getId() })));
+
+        Object.keys(this.subscriptions).forEach(subscription => {
+            const key = parseInt(subscription);
+            self.sendExplorerItemsEvent(this.subscriptions[key], { items: params.items, channel: key });
+        });
     }
 
     fuzzyMatch(a: string, b: string) {
@@ -60,7 +65,7 @@ export class ExplorerComponent implements IDisposable {
                 return false;
             }
 
-            return 
+            return this.fuzzyMatch(value[0].text, filter);
         };
 
         const matchFilterSize = (value: number | undefined, filter: number | undefined) => {
@@ -105,7 +110,7 @@ export class ExplorerComponent implements IDisposable {
             matchFilterSize(item.size, filter.size) &&
             // matchFilterString(item.actions, filter.actions) &&
             matchFilterNumber(item.progress, filter.progress) &&
-            matchFilterString(item.launcher, filter.launcher) &&
+            // matchFilterString(item.launcher, filter.launcher) &&
             matchFilterString(item.titleId, filter.titleId) &&
             matchFilterString(item.contentId, filter.contentId);
     }
@@ -133,24 +138,28 @@ export class ExplorerComponent implements IDisposable {
             name: "explorer-get",
             title: "Explorer progress"
         })).channel;
-
+        
         progress.onProgressUpdate(({ value }) => {
             if (value.status == ProgressStatus.Canceled) {
-                this.cancel(progressChannel);
+                delete this.subscriptions[progressChannel];
             }
         });
 
-        caller.onClose(() => progress.progressUpdate({
-            channel: progressChannel,
-            status: ProgressStatus.Canceled
-        }));
+        this.subscriptions[progressChannel] = caller;
 
-        api.sendExplorerItemsEvent(caller, {
-            channel: 0,
-            items: []
+        caller.onClose(() => {
+            progress.progressUpdate({
+                channel: progressChannel,
+                status: ProgressStatus.Canceled
+            });
+
+            delete this.subscriptions[progressChannel];
         });
 
-        params.query;
+        self.sendExplorerItemsEvent(caller, {
+            channel: progressChannel,
+            items: this.items
+        });
 
         return { channel: progressChannel };
     }

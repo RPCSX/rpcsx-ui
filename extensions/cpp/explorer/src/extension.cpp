@@ -103,6 +103,7 @@ tryFetchGame(const std::filesystem::directory_entry &entry) {
   }
 
   ExplorerItem info;
+  info.type = "game";
 
   auto name = sfo::get_string(data.sfo, "TITLE");
   if (name.empty()) {
@@ -138,8 +139,9 @@ tryFetchGame(const std::filesystem::directory_entry &entry) {
 }
 
 struct ExplorerExtension : rpcsx::ui::Extension<rpcsx::ui::Explorer> {
-  std::jthread explorerThread;
+  std::thread explorerThread;
   std::vector<std::string> locations;
+  std::atomic<bool> cancelled{ false };
 
   using Base::Base;
 
@@ -165,7 +167,7 @@ struct ExplorerExtension : rpcsx::ui::Extension<rpcsx::ui::Explorer> {
 
     locations = request.settings.at("locations");
 
-    explorerThread = std::jthread([this](std::stop_token token) {
+    explorerThread = std::thread([this] {
       ExplorerItem batchItems[8];
       std::size_t batchSize = 0;
 
@@ -187,7 +189,7 @@ struct ExplorerExtension : rpcsx::ui::Extension<rpcsx::ui::Explorer> {
       for (auto &location : locations) {
         for (auto &entry :
              std::filesystem::recursive_directory_iterator(location)) {
-          if (token.stop_requested()) {
+          if (cancelled) {
             return;
           }
 
@@ -209,7 +211,11 @@ struct ExplorerExtension : rpcsx::ui::Extension<rpcsx::ui::Explorer> {
     return {};
   }
 
-  Response<Shutdown> handle(const Request<Shutdown> &) override { return {}; }
+  Response<Shutdown> handle(const Request<Shutdown> &) override {
+    cancelled = true;
+    explorerThread.join();
+    return {};
+  }
 };
 
 auto extension_main() {
