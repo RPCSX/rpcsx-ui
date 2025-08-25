@@ -20,6 +20,10 @@ export async function activate() {
     await Promise.all(Object.values(components).map(component => initializeComponent(component.getManifest())));
 
     for (const component of Object.values(components)) {
+        if (component.getName() == "core") {
+            continue;
+        }
+
         try {
             await instance.activateComponent(component.getManifest());
         } catch (e) {
@@ -34,6 +38,9 @@ export async function deactivate() {
     const components = getComponentList();
 
     for (const component of Object.values(components)) {
+        if (component.getName() == "core") {
+            continue;
+        }
         try {
             await instance.unregisterComponent(component.getId());
         } catch (e) {
@@ -189,5 +196,5 @@ export async function handleSettingsGet(caller: Component, request: SettingsGetR
 
 export async function shutdown(caller: Component, _request: ShutdownRequest): Promise<ShutdownResponse> {
     console.warn(`shutdown invoked by ${caller.getId()}`);
-    instance.uninitializeComponent(self.thisComponent().getManifest());
+    await instance.uninitializeComponent(self.thisComponent().getManifest());
 }

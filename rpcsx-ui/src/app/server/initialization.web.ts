@@ -117,8 +117,7 @@ async function activateMainWindow() {
 
 setupElectron();
 
-export function initialize() {
-    console.log('web initialization');
+export async function initialize() {
     ipcMain.on('window/create', (_event, options) => {
         const win = new BrowserWindow({
             webPreferences: {
@@ -129,11 +128,6 @@ export function initialize() {
 
         win.loadURL(`app://-/${options.url}`);
     });
-
-    // console.log(await github.githubReleases({
-    //     owner: "RPCSX",
-    //     repository: "rpcsx"
-    // }));
 
     const createWindow = async () => {
         await activateMainWindow();
@@ -152,28 +146,31 @@ export function initialize() {
         uiInitializedFuture.dispose();
 
         console.log('initialization complete');
-        explorer.pushExplorerView(toWindow(MainWindow), {
+        return explorer.pushExplorerView(toWindow(MainWindow), {
             filter: {
                 type: 'game'
             }
         });
     };
 
-    app.whenReady().then(() => {
-        createWindow();
-
-        app.on('activate', () => {
-            if (BrowserWindow.getAllWindows().length === 0) {
-                createWindow();
-            }
-        });
+    app.on('activate', () => {
+        if (BrowserWindow.getAllWindows().length === 0) {
+            createWindow();
+        }
     });
 
     app.on('window-all-closed', async () => {
-        await core.shutdown(undefined);
+        try {
+            await core.shutdown(undefined);
+        } catch (e) {
+            console.error("shutdown throws exception", e);
+        }
 
         if (process.platform !== 'darwin') {
             app.quit();
         }
     });
+
+    await app.whenReady();
+    return createWindow();
 }

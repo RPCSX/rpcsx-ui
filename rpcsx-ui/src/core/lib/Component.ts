@@ -19,6 +19,6 @@ export type ComponentId = string;
 
 export type Component = {
     getId(): ComponentId;
-    onClose(listener: () => void): IDisposable;
+    onClose(listener: () => void | Promise<void>): IDisposable;
     sendEvent(event: string, params?: any): void;
 };

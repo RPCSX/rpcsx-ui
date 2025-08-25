@@ -139,22 +139,24 @@ export class ExplorerComponent implements IDisposable {
             title: "Explorer progress"
         })).channel;
         
+        const closeDisposable = caller.onClose(async () => {
+            delete this.subscriptions[progressChannel];
+
+            await progress.progressUpdate({
+                channel: progressChannel,
+                status: ProgressStatus.Canceled
+            });
+        });
+
         progress.onProgressUpdate(({ value }) => {
             if (value.status == ProgressStatus.Canceled) {
+                closeDisposable.dispose();
                 delete this.subscriptions[progressChannel];
             }
         });
 
         this.subscriptions[progressChannel] = caller;
 
-        caller.onClose(() => {
-            progress.progressUpdate({
-                channel: progressChannel,
-                status: ProgressStatus.Canceled
-            });
-
-            delete this.subscriptions[progressChannel];
-        });
 
         self.sendExplorerItemsEvent(caller, {
             channel: progressChannel,

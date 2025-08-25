@@ -60,14 +60,14 @@ export function progressCreate(source: Component, params: ProgressCreateRequest)
     return { channel };
 }
 
-export function progressUpdate(caller: Component, params: ProgressUpdateRequest) {
+export async function progressUpdate(caller: Component, params: ProgressUpdateRequest) {
     const info = channels[params.channel];
 
     if (!info) {
         throw { code: ErrorCode.InvalidParams };
     }
 
-    if (info.creator != caller) {
+    if (info.creator.getId() != caller.getId()) {
         throw { code: ErrorCode.InvalidRequest };
     }
 
@@ -101,7 +101,7 @@ export function progressUpdate(caller: Component, params: ProgressUpdateRequest)
             params.status == ProgressStatus.Complete ||
             params.status == ProgressStatus.Error) {
             if (info.disposable) {
-                info.disposable.dispose();
+                await info.disposable.dispose();
             }
 
             delete channels[params.channel];

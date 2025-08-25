@@ -207,10 +207,7 @@ export class ComponentInstance implements ComponentContext {
         const externalDisposable = externalEmitter.event(listener);
         const emitterDisposable = emitter.event(listener);
 
-        const disposable = Disposable.Create(() => {
-            externalDisposable.dispose();
-            emitterDisposable.dispose();
-
+        const disposable = Disposable.Create(async () => {
             if (!externalEmitter.hasListeners()) {
                 delete caller.externalEventEmitter[externalEvent];
             }
@@ -219,6 +216,17 @@ export class ComponentInstance implements ComponentContext {
                 delete this.eventEmitter[event];
             }
 
+            try {
+                await externalDisposable.dispose();
+            } catch (e) {
+                console.error('externalDisposable throws error', e);
+            }
+
+            try {
+                await emitterDisposable.dispose();
+            } catch (e) {
+                console.error('emitterDisposable throws error', e);
+            }
         });
 
         caller.manage(disposable);

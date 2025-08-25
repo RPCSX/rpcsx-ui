@@ -12,8 +12,16 @@ export function onComponentActivation(component: ComponentInstance) {
         const rendererComponent: Component = {
             getId: () => ":renderer",
             onClose: (listener) => {
-                webContents.on("destroyed", listener);
-                return Disposable.Create(() => { webContents.off("destroyed", listener); });
+                const wrapped = async () => {
+                    try {
+                        await listener();
+                    } catch (e) {
+                        console.error("onClose listener throws exception", e);
+                    }
+                };
+
+                webContents.on("destroyed", wrapped);
+                return Disposable.Create(() => { webContents.off("destroyed", wrapped); });
             },
             sendEvent: (event, params) => {
                 webContents.send(`${component.getName()}/${event}`, params);

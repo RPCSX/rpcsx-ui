@@ -10,7 +10,7 @@ const mainWindow: Window = {
 };
 
 export function initialize() {
-    explorer.pushExplorerView(mainWindow, {
+    return explorer.pushExplorerView(mainWindow, {
         filter: {
             type: 'game'
         }
