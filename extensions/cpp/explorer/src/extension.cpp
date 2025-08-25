@@ -218,6 +218,6 @@ struct ExplorerExtension : rpcsx::ui::Extension<rpcsx::ui::Explorer> {
   }
 };
 
-auto extension_main() {
+ExtensionBuilder extension_main() {
   return rpcsx::ui::createExtension<ExplorerExtension>();
 }
