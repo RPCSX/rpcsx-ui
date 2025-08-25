@@ -1,37 +1,75 @@
 #pragma once
 #include "Protocol.hpp"
-#include <format>
+#include <cstdarg>
 
 namespace rpcsx::ui {
-template <typename... Args>
-void log(LogLevel level, std::format_string<Args...> fmt, Args &&...args) {
-  Protocol::getDefault()->sendLogMessage(
-      level, std::vformat(fmt.get(), std::make_format_args(args...)));
+[[gnu::format(__printf__, 2, 3)]]
+inline void log(LogLevel level, const char *fmt, ...) {
+  char buffer[256];
+
+  va_list args;
+  va_start(args, fmt);
+  int written = std::vsnprintf(buffer, sizeof(buffer), fmt, args);
+  va_end(args);
+
+  buffer[255] = 0;
+
+  Protocol::getDefault()->sendLogMessage(level, buffer);
 }
 
-template <typename... Args>
-void ilog(std::format_string<Args...> fmt, Args &&...args) {
-  Protocol::getDefault()->sendLogMessage(
-      LogLevel::Info, std::vformat(fmt.get(), std::make_format_args(args...)));
+[[gnu::format(__printf__, 1, 2)]]
+inline void ilog(const char *fmt, ...) {
+  char buffer[256];
+
+  va_list args;
+  va_start(args, fmt);
+  int written = std::vsnprintf(buffer, sizeof(buffer), fmt, args);
+  va_end(args);
+
+  buffer[255] = 0;
+
+  Protocol::getDefault()->sendLogMessage(LogLevel::Info, buffer);
 }
 
-template <typename... Args>
-void elog(std::format_string<Args...> fmt, Args &&...args) {
-  Protocol::getDefault()->sendLogMessage(
-      LogLevel::Error, std::vformat(fmt.get(), std::make_format_args(args...)));
+[[gnu::format(__printf__, 1, 2)]]
+inline void elog(const char *fmt, ...) {
+  char buffer[256];
+
+  va_list args;
+  va_start(args, fmt);
+  int written = std::vsnprintf(buffer, sizeof(buffer), fmt, args);
+  va_end(args);
+
+  buffer[255] = 0;
+
+  Protocol::getDefault()->sendLogMessage(LogLevel::Error, buffer);
 }
 
-template <typename... Args>
-void wlog(std::format_string<Args...> fmt, Args &&...args) {
-  Protocol::getDefault()->sendLogMessage(
-      LogLevel::Warning,
-      std::vformat(fmt.get(), std::make_format_args(args...)));
+[[gnu::format(__printf__, 1, 2)]] inline void wlog(const char *fmt, ...) {
+  char buffer[256];
+
+  va_list args;
+  va_start(args, fmt);
+  int written = std::vsnprintf(buffer, sizeof(buffer), fmt, args);
+  va_end(args);
+
+  buffer[255] = 0;
+
+  Protocol::getDefault()->sendLogMessage(LogLevel::Warning, buffer);
 }
 
-template <typename... Args>
-[[noreturn]] void fatal(std::format_string<Args...> fmt, Args &&...args) {
-  Protocol::getDefault()->sendLogMessage(
-      LogLevel::Fatal, std::vformat(fmt.get(), std::make_format_args(args...)));
+[[gnu::format(__printf__, 1, 2), noreturn]] inline void fatal(const char *fmt,
+                                                              ...) {
+  char buffer[256];
+
+  va_list args;
+  va_start(args, fmt);
+  int written = std::vsnprintf(buffer, sizeof(buffer), fmt, args);
+  va_end(args);
+
+  buffer[255] = 0;
+
+  Protocol::getDefault()->sendLogMessage(LogLevel::Fatal, buffer);
 
   std::exit(1);
 }

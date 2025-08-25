@@ -1,5 +1,5 @@
 #include "./sfo.hpp"
-#include <print>
+#include "rpcsx/ui/log.hpp"
 #include <rpcsx/ui/extension.hpp>
 #include <thread>
 
@@ -91,7 +91,7 @@ tryFetchGame(const std::filesystem::directory_entry &entry) {
 
   auto data = sfo::load(paramSfoPath.string());
   if (data.errc != sfo::error::ok) {
-    std::println(stderr, "{}: error {}", entry.path().string(), data.errc);
+    elog("%s: error %d", entry.path().c_str(), data.errc);
     return {};
   }
 

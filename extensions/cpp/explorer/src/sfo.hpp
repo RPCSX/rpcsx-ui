@@ -1,10 +1,8 @@
 #pragma once
 
 #include "rpcsx/ui/file.hpp"
-#include "rpcsx/ui/refl.hpp"
 #include <cstddef>
 #include <cstdint>
-#include <format>
 #include <functional>
 #include <map>
 #include <source_location>
@@ -155,102 +153,3 @@ constexpr bool is_cat_hdd(std::string_view cat) {
   return cat.size() == 2u && cat[1] != 'D' && cat != "DG" && cat != "MS";
 }
 } // namespace sfo
-
-template <> struct std::formatter<sfo::format> {
-  constexpr std::format_parse_context::iterator
-  parse(std::format_parse_context &ctx) {
-    return ctx.begin();
-  }
-
-  std::format_context::iterator format(sfo::format format,
-                                       std::format_context &ctx) const {
-    std::string_view name;
-    switch (format) {
-    case sfo::format::array:
-      name = rpcsx::ui::getNameOf<sfo::format::array>();
-      break;
-    case sfo::format::string:
-      name = rpcsx::ui::getNameOf<sfo::format::string>();
-      break;
-    case sfo::format::integer:
-      name = rpcsx::ui::getNameOf<sfo::format::integer>();
-      break;
-    }
-
-    if (name.empty()) {
-      std::format_to(ctx.out(), "({}){:#x}",
-                     rpcsx::ui::getNameOf<sfo::format>(),
-                     std::to_underlying(format));
-      return ctx.out();
-    }
-
-    std::format_to(ctx.out(), "{}", name);
-    return ctx.out();
-  }
-};
-
-template <> struct std::formatter<std::source_location> {
-  constexpr std::format_parse_context::iterator
-  parse(std::format_parse_context &ctx) {
-    return ctx.begin();
-  }
-
-  std::format_context::iterator format(const std::source_location &location,
-                                       std::format_context &ctx) const {
-    std::format_to(ctx.out(), "{}:{}", location.file_name(), location.line());
-    return ctx.out();
-  }
-};
-
-template <> struct std::formatter<sfo::registry> {
-  constexpr std::format_parse_context::iterator
-  parse(std::format_parse_context &ctx) {
-    return ctx.begin();
-  }
-
-  std::format_context::iterator format(const sfo::registry &registry,
-                                       std::format_context &ctx) const {
-    for (const auto &entry : registry) {
-      if (entry.second.type() == sfo::format::array) {
-        // Format them last
-        continue;
-      }
-
-      std::format_to(ctx.out(), "{}: ", entry.first);
-
-      const sfo::entry &data = entry.second;
-
-      if (data.type() == sfo::format::integer) {
-        std::format_to(ctx.out(), "0x{:x}\n", data.as_integer());
-      } else {
-        std::format_to(ctx.out(), "\"{}\"\n", data.as_string());
-      }
-    }
-
-    for (const auto &entry : registry) {
-      if (entry.second.type() != sfo::format::array) {
-        // Formatted before
-        continue;
-      }
-
-      std::format_to(ctx.out(), "{}: [", entry.first);
-
-      for (bool first = true; auto byte : std::span<const std::uint8_t>(
-                                  reinterpret_cast<const std::uint8_t *>(
-                                      entry.second.as_string().data()),
-                                  entry.second.size())) {
-        if (first) {
-          first = false;
-        } else {
-          std::format_to(ctx.out(), ", ");
-        }
-
-        std::format_to(ctx.out(), "{:x}", byte);
-      }
-
-      std::format_to(ctx.out(), "]\n");
-    }
-
-    return ctx.out();
-  }
-};

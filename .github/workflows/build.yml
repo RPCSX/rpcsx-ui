@@ -33,10 +33,10 @@ jobs:
             arch: x64
             machine: ubuntu-latest
 
-          # - name: macOS arm64
-          #   platform: darwin
-          #   arch: arm64
-          #   machine: macos-15
+          - name: macOS arm64
+            platform: darwin
+            arch: arm64
+            machine: macos-15
 
 
     runs-on: ${{ matrix.machine }}

@@ -1,6 +1,5 @@
 #include "sfo.hpp"
 #include "rpcsx/ui/file.hpp"
-#include "rpcsx/ui/format.hpp"
 #include "rpcsx/ui/log.hpp"
 #include <cassert>
 #include <cstring>
@@ -81,7 +80,7 @@ std::uint32_t sfo::entry::size() const {
     return sizeof(std::uint32_t);
   }
 
-  fatal("sfo: invalid format ({})", m_format);
+  fatal("sfo: invalid format (%d)", static_cast<int>(m_format));
 }
 
 bool sfo::entry::is_valid() const {
@@ -104,8 +103,11 @@ sfo::load_result_t sfo::load(ReadableByteStream stream,
 #define PSF_CHECK(cond, err)                                                   \
   if (!static_cast<bool>(cond)) {                                              \
     if (true || err != error::stream)                                          \
-      elog("sfo: Error loading '{}': {}. {}", filename, err,                   \
-           std::source_location::current());                                   \
+      elog("sfo: Error loading '%s': %d. %s:%u:%u",                            \
+           std::string(filename).c_str(), static_cast<int>(err),               \
+           std::source_location::current().file_name(),                        \
+           std::source_location::current().line(),                             \
+           std::source_location::current().column());                          \
     result.sfo.clear();                                                        \
     result.errc = err;                                                         \
     return result;                                                             \
@@ -192,10 +194,10 @@ sfo::load_result_t sfo::load(ReadableByteStream stream,
                                 std::move(value)));
     } else {
       // Possibly unsupported format, entry ignored
-      elog("sfo: Unknown entry format (key='{}', fmt={}, len=0x{:x}, "
-           "max=0x{:x})",
-           key, indices[i].param_fmt, indices[i].param_len,
-           indices[i].param_max);
+      elog("sfo: Unknown entry format (key='%s', fmt=%d, len=0x%x, "
+           "max=0x%x)",
+           std::string(key).c_str(), static_cast<int>(indices[i].param_fmt),
+           indices[i].param_len, indices[i].param_max);
     }
   }
 
@@ -262,11 +264,13 @@ bool sfo::check_registry(
 
     if (!entry_ok) {
       if (value.type() == format::string) {
-        elog("sfo: {}: Entry '{}' is invalid: string='{}'", src_loc, key,
-             value.as_string());
+        elog("sfo: %s:%u:%u: Entry '%s' is invalid: string='%s'",
+             src_loc.file_name(), src_loc.line(), src_loc.column(), key.c_str(),
+             value.as_string().c_str());
       } else {
         // TODO: Better logging of other types
-        elog("sfo: {}: Entry {} is invalid", src_loc, key, value.as_string());
+        elog("sfo: %s:%u:%u: Entry %s is invalid", src_loc.file_name(),
+             src_loc.line(), src_loc.column(), key.c_str());
       }
     }
 
