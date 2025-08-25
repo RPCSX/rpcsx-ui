@@ -59,7 +59,7 @@
                         "optional": true
                     },
                     "launcher": {
-                        "type": "launcher-info",
+                        "type": "$core/launcher-info",
                         "optional": true
                     },
                     "title-id": {
@@ -113,7 +113,7 @@
                         "optional": true
                     },
                     "launcher": {
-                        "type": "launcher-info",
+                        "type": "$core/launcher-info",
                         "optional": true
                     },
                     "title-id": {

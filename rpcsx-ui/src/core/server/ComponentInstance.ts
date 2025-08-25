@@ -63,19 +63,26 @@ export class ComponentInstance implements ComponentContext {
     }
 
     async activate(settings?: JsonObject) {
-        if (!settings) {
-            const schema = this.getContribution("settings");
-            if (schema) {
-                settings = settingsGet(this.getName(), schema as Record<string, Schema>);
+        this.activated = true;
+
+        try {
+            if (!settings) {
+                const schema = this.getContribution("settings");
+                if (schema) {
+                    settings = settingsGet(this.getName(), schema as Record<string, Schema>);
+                }
+
+                settings ??= {};
             }
 
-            settings ??= {};
+            onComponentActivation(this);
+            await this.impl.activate(this, settings);
+        } catch (e) {
+            this.activated = false;
+            throw e;
         }
 
-        await this.impl.activate(this, settings);
-        onComponentActivation(this);
         this.emitEvent(activateEvent);
-        this.activated = true;
     }
 
     async deactivate() {

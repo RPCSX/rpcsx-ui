@@ -77,7 +77,7 @@ export class Extension implements IComponentImpl {
             if (line.length == 0) {
                 continue;
             }
-            process.stderr.write(`${date} [${this.manifest.name}-v${this.manifest.version}] ${line}\n`);
+            process.stderr.write(`${date} [${this.manifest.name[0].text}-v${this.manifest.version}] ${line}\n`);
         }
     }
 

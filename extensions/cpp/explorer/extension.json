@@ -1,0 +1,29 @@
+{
+    "name": [
+        {
+            "text": "@EXTENSION_NAME@"
+        }
+    ],
+    "version": "@EXTENSION_VERSION@",
+    "executable": "@EXTENSION_EXECUTABLE@",
+    "args": [],
+    "launcher": {
+        "type": "@EXTENSION_TARGET@",
+        "requirements": {}
+    },
+    "contributions": {
+        "settings": {
+            "locations": {
+                "type": "array",
+                "required": true,
+                "description": "Search locations",
+                "minItems": 1,
+                "items": {
+                    "type": "path",
+                    "mustExist": true,
+                    "entity": "directory"
+                }
+            }
+        }
+    }
+}

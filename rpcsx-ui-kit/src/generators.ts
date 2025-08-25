@@ -97,7 +97,7 @@ function pascalToCamelCase(name: string) {
     return name[0].toLowerCase() + name.slice(1);
 }
 
-function generateLabelName(entityName: string, isPascalCase = false) {
+export function generateLabelName(entityName: string, isPascalCase = false) {
     const name = entityName.replaceAll(" ", "-").replaceAll("_", "-").replaceAll(".", "-").replaceAll("/", "-").split("-");
     return [...(isPascalCase ? name[0][0].toUpperCase() + name[0].slice(1).toLowerCase() : name[0].toLowerCase()), ...name.slice(1).map(word => {
         if (word.length == 0) {
@@ -107,7 +107,7 @@ function generateLabelName(entityName: string, isPascalCase = false) {
     })].reduce((a, b) => a + b);
 }
 
-function generateComponentLabelName(componentName: string, entityName: string, isPascalCase = false) {
+export function generateComponentLabelName(componentName: string, entityName: string, isPascalCase = false) {
     return generateLabelName(componentName == 'core' ? entityName : `${componentName}/${entityName}`, isPascalCase);
 }
 
@@ -869,7 +869,7 @@ export function set${name}View(target: Window, params: ${name}Props) {
         return `${generatedHeader}
 import { thisComponent } from "$/component-info";
 import * as ${generateLabelName(this.externalComponent, false)} from '$${this.externalComponent}/api';
-${this.viewBody && "import { Window } from '$core/Window';" }
+${this.viewBody && "import { Window } from '$core/Window';"}
 
 ${this.body}
 ${this.viewBody}
@@ -997,7 +997,7 @@ export function set${name}View(target: Window, params: ${name}Props) {
 import { createError } from "$core/Error";
 import { Component } from "$core/Component";
 import * as core from "$core";
-${this.viewBody && "import { Window } from '$core/Window';" }
+${this.viewBody && "import { Window } from '$core/Window';"}
 
 export async function call(_caller: Component, _method: string, _params: JsonObject | undefined): Promise<JsonObject | void> {
     throw createError(ErrorCode.MethodNotFound);
@@ -1018,7 +1018,7 @@ import { createError } from "$core/Error";
 import { Component } from "$core/Component";
 import { thisComponent } from "$/component-info";
 import * as core from "$core";
-${this.viewBody && "import { Window } from '$core/Window';" }
+${this.viewBody && "import { Window } from '$core/Window';"}
 export { thisComponent } from "$/component-info";
 
 ${this.body}
@@ -1135,7 +1135,7 @@ export function popView() {
     }
 };
 
-function generateContributions<Params extends [], RT extends ContributionGenerator>(component: Component, Generator: new (...params: Params) => RT, ...params: Params) {
+export function generateContributions<Params extends any[], RT extends ContributionGenerator>(component: Component, Generator: new (...params: Params) => RT, ...params: Params) {
     const generator = new Generator(...params);
     const contributions = component.manifest.contributions ?? {};
 
@@ -1345,7 +1345,7 @@ export class TsServerGenerator implements ProjectGenerator {
         return ["lib"].includes(projectId);
     }
 
-    async generateContributionFile<Params extends []>(sourceComponent: Component, project: Project, fileDb: FileDb, generatedFileName: string, Generator: new (...params: Params) => ContributionGenerator, ...params: Params) {
+    async generateContributionFile<Params extends any[]>(sourceComponent: Component, project: Project, fileDb: FileDb, generatedFileName: string, Generator: new (...params: Params) => ContributionGenerator, ...params: Params) {
         const projectPath = path.join(this.config.outDir, project.component.manifest.name, project.name);
         const genDir = path.join(projectPath, "src");
         const generatedFilePath = path.join(genDir, generatedFileName);
@@ -1360,7 +1360,7 @@ export class TsServerGenerator implements ProjectGenerator {
         }
     }
 
-    async generateProject<Params extends []>(project: Project, fileDb: FileDb, projectName: string, generatedFileName: string, Generator: new (...params: Params) => ContributionGenerator, ...params: Params) {
+    async generateProject<Params extends any[]>(project: Project, fileDb: FileDb, projectName: string, generatedFileName: string, Generator: new (...params: Params) => ContributionGenerator, ...params: Params) {
         const newProjectPath = path.join(this.config.outDir, project.component.manifest.name, projectName);
         const genDir = path.join(newProjectPath, "src");
         const generatedFilePath = path.join(genDir, generatedFileName);

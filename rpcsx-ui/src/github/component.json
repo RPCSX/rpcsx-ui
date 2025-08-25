@@ -1,7 +1,6 @@
 {
     "name": "github",
     "version": "0.1.0",
-
     "contributions": {
         "settings": {
             "url": {
@@ -10,6 +9,17 @@
             }
         },
         "types": {
+            "asset": {
+                "type": "object",
+                "params": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "browser_download_url": {
+                        "type": "string"
+                    }
+                }
+            },
             "release": {
                 "type": "object",
                 "params": {
@@ -19,17 +29,6 @@
                     "assets": {
                         "type": "array",
                         "item-type": "asset"
-                    }
-                }
-            },
-            "asset": {
-                "type": "object",
-                "params": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "browser_download_url": {
-                        "type": "string"
                     }
                 }
             }

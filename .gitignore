@@ -17,3 +17,4 @@ expo-env.d.ts
 .expo/
 android/
 /electron/out/
+extensions/cpp/rpcsx-ui

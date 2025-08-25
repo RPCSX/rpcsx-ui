@@ -11,7 +11,7 @@ export async function loadExtension(request: ExtensionLoadRequest): Promise<Exte
         return;
     }
 
-    const extensionManifestLocation = path.join(locations.extensionsPath, request.id, "extension.json");
+    const extensionManifestLocation = path.join(locations.localExtensionsPath, request.id, "extension.json");
 
     const manifestText = await (async () => {
         try {
@@ -36,7 +36,7 @@ export async function loadExtension(request: ExtensionLoadRequest): Promise<Exte
 
     const process = await (async () => {
         try {
-            return launcher.launch(path.join(locations.extensionsPath, request.id, manifest.executable), manifest.args ?? [], {
+            return launcher.launch(path.join(locations.localExtensionsPath, request.id, manifest.executable), manifest.args ?? [], {
                 launcherRequirements: manifest.launcher.requirements ?? {},
             });
         } catch {

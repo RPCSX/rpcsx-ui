@@ -9,6 +9,14 @@ updates:
         patterns: 
           - "*"
   - package-ecosystem: "npm"
+    directory: "/electron"
+    schedule:
+      interval: "weekly"
+    groups:
+      deps:
+        patterns: 
+          - "*"
+  - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
