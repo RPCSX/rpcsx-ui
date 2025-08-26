@@ -37,14 +37,26 @@
                     }
                 }
             },
-            "icon-resolution": {
+            "image-resolution": {
                 "type": "enum",
                 "enumerators": {
                     "normal": 0,
                     "high": 1
                 }
             },
-            "localized-icon": {
+            "localized-resource": {
+                "type": "object",
+                "params": {
+                    "uri": {
+                        "type": "string"
+                    },
+                    "lang": {
+                        "type": "string",
+                        "optional": true
+                    }
+                }
+            },
+            "localized-image": {
                 "type": "object",
                 "params": {
                     "uri": {
@@ -55,7 +67,7 @@
                         "optional": true
                     },
                     "resolution": {
-                        "type": "icon-resolution",
+                        "type": "image-resolution",
                         "optional": true
                     }
                 }
@@ -177,7 +189,7 @@
                     },
                     "icon": {
                         "type": "array",
-                        "item-type": "localized-icon",
+                        "item-type": "localized-image",
                         "optional": true
                     },
                     "description": {
@@ -218,7 +230,7 @@
                     },
                     "icon": {
                         "type": "array",
-                        "item-type": "localized-icon",
+                        "item-type": "localized-image",
                         "optional": true
                     },
                     "description": {

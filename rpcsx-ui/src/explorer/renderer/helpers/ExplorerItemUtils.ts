@@ -1,6 +1,6 @@
 import { Region } from '$/Region';
-import { IconResolution } from '$core/enums';
-import { getLocalizedString, getLocalizedIcon } from '$core/Localized';
+import { ImageResolution } from '$core/enums';
+import { getLocalizedString } from '$core/Localized';
 
 export function getRegion(contentId?: string) {
     if (contentId === undefined || contentId.length != 36) {
@@ -23,11 +23,41 @@ export function getName(item: ExplorerItem, langs: string[] = []) {
     return getLocalizedString(item.name, langs);
 }
 
-export function getIcon(item: ExplorerItem, resolution: IconResolution = IconResolution.Normal, langs: string[] = []) {
+export function getIcon(item: ExplorerItem, resolution: ImageResolution = ImageResolution.Normal, langs: string[] = []) {
     if (!item.icon) {
         return undefined;
     }
 
-    return getLocalizedIcon(item.icon, resolution, langs);
+    return getLocalizedImage(item.icon, resolution, langs);
+}
+
+export function getLocalizedImage(icon: LocalizedImage[], resolution: ImageResolution = ImageResolution.Normal, langs: string[] = []) {
+    if (icon.length == 0) {
+        return undefined;
+    }
+
+    for (let langIndex = 0; langIndex < langs.length; ++langIndex) {
+        const lang = langs[langIndex];
+
+        for (let iconIndex = 0; iconIndex < icon.length; ++iconIndex) {
+            const localizedIcon = icon[iconIndex];
+            if (localizedIcon.lang === lang && localizedIcon.resolution === resolution) {
+                return localizedIcon.uri;
+            }
+        }
+    }
+
+    for (let langIndex = 0; langIndex < langs.length; ++langIndex) {
+        const lang = langs[langIndex];
+
+        for (let iconIndex = 0; iconIndex < icon.length; ++iconIndex) {
+            const localizedIcon = icon[iconIndex];
+            if (localizedIcon.lang === lang) {
+                return localizedIcon.uri;
+            }
+        }
+    }
+
+    return icon[0].uri;
 }
 

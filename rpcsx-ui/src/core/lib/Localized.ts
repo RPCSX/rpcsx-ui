@@ -13,28 +13,21 @@ export function getLocalizedString(string: LocalizedString[], langs: string[] = 
     return string[0].text;
 }
 
-export function getLocalizedIcon(icon: LocalizedIcon[], resolution: IconResolution = IconResolution.Normal, langs: string[] = []) {
-    for (let langIndex = 0; langIndex < langs.length; ++langIndex) {
-        const lang = langs[langIndex];
-
-        for (let iconIndex = 0; iconIndex < icon.length; ++iconIndex) {
-            const localizedIcon = icon[iconIndex];
-            if (localizedIcon.lang === lang && localizedIcon.resolution === resolution) {
-                return localizedIcon.uri;
-            }
-        }
+export function getLocalizedResource(resources: LocalizedResource[], langs: string[] = []) {
+    if (resources.length == 0) {
+        return undefined;
     }
 
     for (let langIndex = 0; langIndex < langs.length; ++langIndex) {
         const lang = langs[langIndex];
 
-        for (let iconIndex = 0; iconIndex < icon.length; ++iconIndex) {
-            const localizedIcon = icon[iconIndex];
-            if (localizedIcon.lang === lang) {
-                return localizedIcon.uri;
+        for (let resourceIndex = 0; resourceIndex < resources.length; ++resourceIndex) {
+            const localizedResource = resources[resourceIndex];
+            if (localizedResource.lang === lang) {
+                return localizedResource.uri;
             }
         }
     }
 
-    return icon[0].uri;
+    return resources[0].uri;
 }

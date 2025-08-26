@@ -1,9 +1,10 @@
-import { ComponentProps, memo, ReactElement, useEffect, useRef, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, View, FlatList, Modal, useWindowDimensions } from 'react-native';
+import { ComponentProps, memo, useEffect, useRef, useState } from 'react';
+import * as React from 'react';
+import { Image, Pressable, ScrollView, StyleSheet, View, FlatList, Modal, useWindowDimensions, ImageBackground } from 'react-native';
 import { useThemeColor } from '$core/useThemeColor'
 import ThemedIcon from '$core/ThemedIcon';
 import { ThemedText } from '$core/ThemedText';
-import { getIcon, getName } from "$/ExplorerItemUtils"
+import { getIcon, getName, getLocalizedImage } from "$/ExplorerItemUtils"
 import { HapticPressable } from '$core/HapticPressable';
 import { DownShowViewSelector, LeftRightViewSelector } from '$core/ViewSelector';
 import { getLocalizedString } from '$core/Localized';
@@ -242,7 +243,8 @@ const ExplorerItemHeader = memo(function ({ item, active, ...rest }: { item: Exp
             justifyContent: 'center',
             flexWrap: 'nowrap',
             height: "100%",
-            minWidth: 100,
+            minWidth: 250,
+            minHeight: 100
         },
     });
 
@@ -432,7 +434,7 @@ const ExplorerItemBody = memo(function ({ item }: { item: ExplorerItem }) {
     )
 });
 
-const ExplorerView = function ({ items }: { items: ExplorerItem[] }) {
+const ExplorerView = function ({ items, setBackground }: { items: ExplorerItem[], setBackground: (uri?: string) => void }) {
     const styles = StyleSheet.create({
         topContainer: {
             width: "100%",
@@ -444,7 +446,13 @@ const ExplorerView = function ({ items }: { items: ExplorerItem[] }) {
         }
     });
 
-    const [selectedItem, selectItem] = useState(0);
+    const [selectedItem, setSelectedItem] = useState(0);
+
+    const selectItem = (index: number) => {
+        setSelectedItem(index);
+
+        setBackground(items[index].background ? getLocalizedImage(items[index].background) : undefined);
+    };
 
     return (
         <View style={styles.topContainer}>
@@ -523,7 +531,6 @@ const ExplorerStyles = StyleSheet.create({
     },
 });
 
-
 export function Explorer(props?: Props) {
     const insets = useSafeAreaInsets();
     const [background, setBackground] = useState<string | undefined>(undefined);
@@ -548,11 +555,21 @@ export function Explorer(props?: Props) {
         self.onExplorerItems(event => {
             games.push(...event.items.filter(item => item.type == 'game'));
             setGames(games);
-            setUpdateId(updateId + 1);
+            if (updateId == 0) {
+                setUpdateId(updateId + 1);
+            }
+            console.log("received items", event.items.length, games.length);
         });
 
-        self.explorerGet({});
+        if (games.length == 0) {
+            self.explorerGet({});
+        }
     }, []);
+
+    const updateActiveTab = (tab: number) => {
+        setActiveTab(tab);
+        setBackground(undefined);
+    };
 
     const screens = [
         {
@@ -566,29 +583,31 @@ export function Explorer(props?: Props) {
     ];
 
     return (
-        <View style={[ExplorerStyles.rootContainer, { backgroundImage: background }]}>
-            <View style={[ExplorerStyles.menuContainer, safeArea.header]}>
-                <View style={ExplorerStyles.containerTabs}>
-                    <View style={ExplorerStyles.containerTabItems}>
-                        {
-                            screens.map((screen, index) =>
-                                <ScreenTab key={screen.title} title={screen.title} active={activeTab == index} onPress={() => setActiveTab(index)} />
-                            )
-                        }
+        <ImageBackground source={{ uri: background }} style={{ width: "100%", height: "100%" }} resizeMode="cover">
+            <View style={[ExplorerStyles.rootContainer]}>
+                <View style={[ExplorerStyles.menuContainer, safeArea.header]}>
+                    <View style={ExplorerStyles.containerTabs}>
+                        <View style={ExplorerStyles.containerTabItems}>
+                            {
+                                screens.map((screen, index) =>
+                                    <ScreenTab key={screen.title} title={screen.title} active={activeTab == index} onPress={() => updateActiveTab(index)} />
+                                )
+                            }
+                        </View>
+                    </View>
+                    <View style={[ExplorerStyles.containerButtons]}>
+                        <View style={ExplorerStyles.containerButtonItems}>
+                            <HapticPressable><ThemedIcon iconSet="Ionicons" name="search" size={40} /></HapticPressable>
+                            <HapticPressable onPress={() => settings.pushSettingsView({})}><ThemedIcon iconSet="Ionicons" name="settings-outline" size={40} /></HapticPressable>
+                            <HapticPressable><ThemedIcon iconSet="FontAwesome6" name="user" size={40} /></HapticPressable>
+                        </View>
                     </View>
                 </View>
-                <View style={[ExplorerStyles.containerButtons]}>
-                    <View style={ExplorerStyles.containerButtonItems}>
-                        <HapticPressable><ThemedIcon iconSet="Ionicons" name="search" size={40} /></HapticPressable>
-                        <HapticPressable onPress={() => settings.pushSettingsView({})}><ThemedIcon iconSet="Ionicons" name="settings-outline" size={40} /></HapticPressable>
-                        <HapticPressable><ThemedIcon iconSet="FontAwesome6" name="user" size={40} /></HapticPressable>
-                    </View>
-                </View>
-            </View>
 
-            <LeftRightViewSelector key={updateId} list={screens} style={[ExplorerStyles.contentContainer, safeArea.content]} renderItem={item =>
-                <ExplorerView items={item.view} />} selectedItem={activeTab} />
-        </View>
+                <LeftRightViewSelector key={updateId} list={screens} style={[ExplorerStyles.contentContainer, safeArea.content]} renderItem={item =>
+                    <ExplorerView items={item.view} setBackground={setBackground} />} selectedItem={activeTab} />
+            </View>
+        </ImageBackground>
     )
 };
 

@@ -35,7 +35,32 @@
                     },
                     "icon": {
                         "type": "array",
-                        "item-type": "$core/localized-icon",
+                        "item-type": "$core/localized-image",
+                        "optional": true
+                    },
+                    "icon-video": {
+                        "type": "array",
+                        "item-type": "$core/localized-resource",
+                        "optional": true
+                    },
+                    "icon-sound": {
+                        "type": "array",
+                        "item-type": "$core/localized-resource",
+                        "optional": true
+                    },
+                    "background": {
+                        "type": "array",
+                        "item-type": "$core/localized-image",
+                        "optional": true
+                    },
+                    "overlay-image": {
+                        "type": "array",
+                        "item-type": "$core/localized-image",
+                        "optional": true
+                    },
+                    "overlay-image-wide": {
+                        "type": "array",
+                        "item-type": "$core/localized-image",
                         "optional": true
                     },
                     "publisher": {
