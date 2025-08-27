@@ -11,8 +11,10 @@ export const makers = [
     config: {},
   },
   {
-    name: '@electron-forge/maker-zip',
-    platforms: ['darwin'],
+    name: '@electron-forge/maker-dmg',
+    config: {
+      icon: '../rpcsx-ui/assets/images/rpcsx-logo.png'
+    }
   },
   {
     name: '@reforged/maker-appimage',
@@ -22,6 +24,9 @@ export const makers = [
       },
     },
   },
+  {
+    name: '@electron-forge/maker-wix'
+  }
 ];
 export const plugins = [
   {
