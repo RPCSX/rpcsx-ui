@@ -7,6 +7,9 @@ export const packagerConfig = {
 export const rebuildConfig = {};
 export const makers = [
   {
+    name: '@electron-forge/maker-zip',
+  },
+  {
     name: '@electron-forge/maker-squirrel',
     config: {},
   },
