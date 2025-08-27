@@ -8,6 +8,7 @@ import { Schema, SchemaError, SchemaObject, validateObject } from 'lib/Schema';
 import * as extensionApi from './extension-api';
 import { registerBuiltinLaunchers } from './registerBuiltinLaunchers';
 import { initialize } from './initialize';
+import * as objects from './Objects';
 
 initialize();
 registerBuiltinLaunchers();
@@ -197,4 +198,43 @@ export async function handleSettingsGet(caller: Component, request: SettingsGetR
 export async function shutdown(caller: Component, _request: ShutdownRequest): Promise<ShutdownResponse> {
     console.warn(`shutdown invoked by ${caller.getId()}`);
     await instance.uninitializeComponent(self.thisComponent().getManifest());
+}
+
+export async function handleObjectCreate(caller: Component, request: ObjectCreateRequest): Promise<ObjectCreateResponse> {
+    return {
+        object: objects.createObject(caller, request.name, request.interface)
+    };
+}
+
+export async function handleObjectDestroy(caller: Component, request: ObjectDestroyRequest): Promise<ObjectDestroyResponse> {
+    return objects.destroyObject(caller, request.object)
+}
+
+export async function handleFindObject(_caller: Component, request: ObjectFindRequest): Promise<ObjectFindResponse> {
+    return {
+        object: objects.findObject(request.interfaceName, request.objectName)
+    };
+}
+
+export async function handleObjectGetName(_caller: Component, request: ObjectGetNameRequest): Promise<ObjectGetNameResponse> {
+    return {
+        name: objects.getName(request.object)
+    };
+}
+
+
+export async function handleObjectGetList(_caller: Component, request: ObjectGetListRequest): Promise<ObjectGetListResponse> {
+    return {
+        objects: objects.getObjectList(request.interface)
+    };
+}
+
+export async function handleObjectCall(caller: Component, request: ObjectCallRequest): Promise<ObjectCallResponse> {
+    return {
+        result: await objects.call(caller, request.object, request.method, request.params) ?? {}
+    };
+}
+
+export async function handleObjectNotify(caller: Component, request: ObjectNotifyRequest) {
+    return objects.notify(caller, request.object, request.notification, request.params);
 }

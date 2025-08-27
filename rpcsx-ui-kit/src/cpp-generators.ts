@@ -40,9 +40,9 @@ export class ExtensionApiGenerator implements ConfigGenerator {
 
         if (typesFile) {
             try {
-                typesFile.content = generateContributions(component, CppTypesGenerator, namespace, this.getPrefix("/")).toString();
+                typesFile.content = (await generateContributions(component, CppTypesGenerator, namespace, this.getPrefix("/"))).toString();
             } catch (e) {
-                throw Error(`${component.manifest.name}: ${e}`);
+                throw Error(`${component.manifest.name}: ${e}, ${e && typeof e == "object" && ("stack" in e) && Array.isArray(e.stack) && e.stack.join("\n")}`);
             }
         }
 
@@ -50,7 +50,7 @@ export class ExtensionApiGenerator implements ConfigGenerator {
 
         if (apiFile) {
             try {
-                apiFile.content = generateContributions(component, CppApiGenerator, namespace, component.manifest.name).toString();
+                apiFile.content = (await generateContributions(component, CppApiGenerator, namespace, component.manifest.name)).toString();
             } catch (e) {
                 throw Error(`${component.manifest.name}: ${e}`);
             }
@@ -286,6 +286,69 @@ class CppTypesGenerator implements ContributionGenerator {
 `
     }
 
+    generateInterface(component: string, iface: object, name: string) {
+        const labelName = generateComponentLabelName(component, name + "-interface", true);
+        this.generatedTypes[labelName] = `struct ${labelName} {
+    static constexpr auto kInterfaceId = "${component}/${name}";
+    using InterfaceType = ${labelName};
+
+    virtual ~${labelName}() = default;
+
+${"methods" in iface ? iface.methods && Object.keys(iface.methods).map(method => {
+            const methodTypeLabel = generateComponentLabelName(component, method, true);
+            if ("params" in (iface.methods as any)[method]) {
+                return `    virtual ${methodTypeLabel}Response ${generateLabelName(method, false)}(const ${methodTypeLabel}Request &request) = 0;`
+            } else {
+                return `    virtual ${methodTypeLabel}Response ${generateLabelName(method, false)}() = 0;`
+            }
+        }).join("\n") : ""}
+${"notifications" in iface ? iface.notifications && Object.keys(iface.notifications).map(notification => {
+            const methodTypeLabel = generateComponentLabelName(component, notification, true);
+            if ("params" in (iface.notifications as any)[notification]) {
+                return `    virtual void ${generateLabelName(notification, false)}(const ${methodTypeLabel}Request &request) = 0;`
+            } else {
+                return `    virtual void ${generateLabelName(notification, false)}() = 0;`
+            }
+        }).join("\n") : ""}
+        
+    struct Builder {
+        template<typename ObjectBuilder>
+        static void build(ObjectBuilder &builder) {
+${"methods" in iface ? iface.methods && Object.keys(iface.methods).map(method => {
+            if ("params" in (iface.methods as any)[method]) {
+                return `
+            builder.addMethodHandler("${method}",  [](void *object, const nlohmann::json &request) {
+                return nlohmann::json(static_cast<${labelName} *>(object)->${generateLabelName(method, false)}(request));
+            });`
+
+            } else {
+                return `
+            builder.addMethodHandler("${method}",  [](void *object, const nlohmann::json &) {
+                return nlohmann::json(static_cast<${labelName} *>(object)->${generateLabelName(method, false)}());
+            });`
+            }
+        }).join("\n") : ""}
+${"notifications" in iface ? iface.notifications && Object.keys(iface.notifications).map(notification => {
+            if ("params" in (iface.notifications as any)[notification]) {
+                return `
+            builder.addNotificationHandler("${notification}",  [](void *object, const nlohmann::json &request) {
+                static_cast<${labelName} *>(object)->${generateLabelName(notification, false)}(request);
+            });`
+
+            } else {
+                return `
+            builder.addNotificationHandler("${notification}",  [](void *object, const nlohmann::json &) {
+                static_cast<${labelName} *>(object)->${generateLabelName(notification, false)}();
+            });`
+            }
+        }).join("\n") : ""}
+
+        }
+    };
+};
+`
+    }
+
     generateEvent(component: string, event: object, name: string) {
         const labelName = generateComponentLabelName(component, name, true);
         const typeName = `${labelName}Event`;
@@ -399,10 +462,12 @@ class CppApiGenerator implements ContributionGenerator {
 #include "./types.hpp"
 #include <functional>
 #include <utility>
+#include <type_traits>
 
 namespace ${this.namespace} {
-template <typename InstanceT> class ${label}Interface {
+template <typename InstanceT> class ${label}Instance {
 private:
+    auto &extension() { return *static_cast<InstanceT *>(this); }
     auto &protocol() { return static_cast<InstanceT *>(this)->getProtocol(); }
 
 public:${this.content}
@@ -410,7 +475,7 @@ public:${this.content}
 
 struct ${label} {
     template <typename InstanceT>
-    using instance = ${label}Interface<InstanceT>;
+    using instance = ${label}Instance<InstanceT>;
     static constexpr auto name = "${this.componentName}";
 };
 } // namespace ${this.namespace}
@@ -424,7 +489,7 @@ struct ${label} {
         const params = "params" in method ? `const ${uLabel}Request &params, ` : '';
 
         this.content += `
-    auto ${label}(${params}std::function<void(${returnType})> result) {
+    auto ${label}(${params}std::move_only_function<void(${returnType})> result) {
         return protocol().call("${component}/${name}", ${params ? "params" : "{}"}, std::move(result));
     }`
     }
@@ -453,8 +518,20 @@ struct ${label} {
         }
 
         this.content += `
-    auto on${uLabel}(std::function<void(${typeName})> callback) {
+    auto on${uLabel}(std::move_only_function<void(${typeName})> callback) {
         return protocol().onEvent("${component}/${name}", std::move(callback));
     }`
+    }
+
+    generateInterface(component: string, _iface: object, name: string) {
+        const uLabel = generateComponentLabelName(component, name, true);
+        const interfaceLabel = generateComponentLabelName(component, name + "-interface", true);
+
+        this.content += `
+    template<typename InterfaceT, typename... Args> requires (std::is_base_of_v<${interfaceLabel}, InterfaceT>)
+    auto create${uLabel}Object(std::string_view objectName, Args &&... args) requires requires { InterfaceT(std::forward<Args>(args)...); } {
+        return extension().template createObject<InterfaceT>(objectName, std::forward<Args>(args)...);
+    }
+`
     }
 };

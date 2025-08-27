@@ -10,20 +10,5 @@
     "launcher": {
         "type": "@EXTENSION_TARGET@",
         "requirements": {}
-    },
-    "contributions": {
-        "settings": {
-            "locations": {
-                "type": "array",
-                "required": true,
-                "description": "Search locations",
-                "minItems": 1,
-                "items": {
-                    "type": "path",
-                    "mustExist": true,
-                    "entity": "directory"
-                }
-            }
-        }
     }
 }

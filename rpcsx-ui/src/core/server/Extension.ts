@@ -3,6 +3,7 @@ import { Process } from './Launcher';
 import packageJson from '../../../../package.json' with { type: "json" };
 import { Component, ComponentContext } from '$core/Component.js';
 import { findComponent, getComponentId, registerComponent, uninitializeComponent, IComponentImpl } from './ComponentInstance';
+import { createError } from 'lib/Error';
 
 type ResponseValue = void | object | null | number | string | boolean | [];
 type ResponseError = {
@@ -103,7 +104,7 @@ export class Extension implements IComponentImpl {
         // FIXME: register contributions
 
         if (isInvalid) {
-            throw { message: "Version/name mismatch" };
+            throw createError(ErrorCode.InvalidRequest, "Extension initialize request returns invalid name/version");
         }
     }
 
@@ -112,11 +113,11 @@ export class Extension implements IComponentImpl {
             settings
         };
 
-        await this.callMethod<ActivateResponse>("$/activate", request, signal);
+        return await this.callMethod<ActivateResponse>("$/activate", request, signal);
     }
 
     async deactivate() {
-        this.sendNotify("$/deactivate");
+        await this.callMethod("$/deactivate");
     }
 
     async dispose() {
@@ -126,7 +127,9 @@ export class Extension implements IComponentImpl {
             return;
         }
 
-        this.sendNotify("$/shutdown");
+        this.callMethod("$/shutdown").catch(e => {
+            this.debugLog(`shutdown error ${e}`);
+        });
 
         const sleep = (ms: number, abortSignal?: AbortSignal) => new Promise<void>(resolve => {
             if (abortSignal?.aborted) {
@@ -283,15 +286,13 @@ export class Extension implements IComponentImpl {
 
             try {
                 const bodyObject = JSON.parse(body);
-                this.processingQueue.push(async () => {
-                    this.receiveObject(bodyObject);
-                });
+                this.processingQueue.push(() => this.receiveObject(bodyObject));
             } catch {
                 continue;
             }
         }
 
-        this.processQueue();
+        await this.processQueue();
     }
 
     private async processQueue() {

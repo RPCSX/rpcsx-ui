@@ -280,6 +280,9 @@
                     }
                 }
             },
+            "deactivate": {
+                "virtual": true
+            },
             "shutdown": {
                 "handler": "shutdown"
             },
@@ -362,6 +365,92 @@
                         "type": "json-object"
                     }
                 }
+            },
+            "object/create": {
+                "handler": "handleObjectCreate",
+                "params": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "interface": {
+                        "type": "string"
+                    }
+                },
+                "returns": {
+                    "object": {
+                        "type": "number"
+                    }
+                }
+            },
+            "object/destroy": {
+                "handler": "handleObjectDestroy",
+                "params": {
+                    "object": {
+                        "type": "number"
+                    }
+                }
+            },
+            "object/get-name": {
+                "handler": "handleObjectGetName",
+                "params": {
+                    "object": {
+                        "type": "number"
+                    }
+                },
+                "returns": {
+                    "name": {
+                        "type": "string"
+                    }
+                }
+            },
+            "object/find": {
+                "handler": "handleFindObject",
+                "params": {
+                    "interface-name": {
+                        "type": "string"
+                    },
+                    "object-name": {
+                        "type": "string"
+                    }
+                },
+                "returns": {
+                    "object": {
+                        "type": "number"
+                    }
+                }
+            },
+            "object/get-list": {
+                "handler": "handleObjectGetList",
+                "params": {
+                    "interface": {
+                        "type": "string"
+                    }
+                },
+                "returns": {
+                    "objects": {
+                        "type": "array",
+                        "item-type": "number"
+                    }
+                }
+            },
+            "object/call": {
+                "handler": "handleObjectCall",
+                "params": {
+                    "object": {
+                        "type": "number"
+                    },
+                    "method": {
+                        "type": "string"
+                    },
+                    "params": {
+                        "type": "json-object"
+                    }
+                },
+                "returns": {
+                    "result": {
+                        "type": "json-object"
+                    }
+                }
             }
         },
         "notifications": {
@@ -370,6 +459,20 @@
                 "params": {
                     "id": {
                         "type": "number"
+                    }
+                }
+            },
+            "object/notify": {
+                "handler": "handleObjectNotify",
+                "params": {
+                    "object": {
+                        "type": "number"
+                    },
+                    "notification": {
+                        "type": "string"
+                    },
+                    "params": {
+                        "type": "json-object"
                     }
                 }
             }
@@ -381,6 +484,14 @@
                 },
                 "value": {
                     "type": "json"
+                }
+            },
+            "object/created": {
+                "interface": {
+                    "type": "string"
+                },
+                "object": {
+                    "type": "number"
                 }
             }
         }

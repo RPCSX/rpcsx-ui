@@ -137,7 +137,7 @@ fetchLocalizedString(const sfo::registry &registry, const std::string &key) {
 
 static std::vector<LocalizedResource>
 fetchLocalizedResourceFile(const std::filesystem::path &path,
-                        const std::string &name, const std::string &ext) {
+                           const std::string &name, const std::string &ext) {
   std::vector<LocalizedResource> result;
 
   if (std::filesystem::is_regular_file(path / (name + ext))) {
@@ -394,6 +394,49 @@ tryFetchPs3Game(const std::filesystem::directory_entry &entry) {
   return info;
 }
 
+struct ExplorerDescriber : ExplorerDescriberInterface {
+  ExplorerDescribeResponse
+  describe(const ExplorerDescribeRequest &request) override {
+    ExplorerDescribeResponse result;
+
+    unsigned index = -1;
+    for (auto &uri : request.uris) {
+      index++;
+      std::error_code ec;
+      std::filesystem::directory_entry entry(uri, ec);
+      if (ec) {
+        continue;
+      }
+
+      if (auto game = tryFetchGame(entry)) {
+        result.results.push_back({
+            .item = std::move(*game),
+            .uriIndex = int(index),
+        });
+        continue;
+      }
+
+      if (auto fw = tryFetchFw(entry)) {
+        result.results.push_back({
+            .item = std::move(*fw),
+            .uriIndex = int(index),
+        });
+        continue;
+      }
+
+      if (auto game = tryFetchPs3Game(entry)) {
+        result.results.push_back({
+            .item = std::move(*game),
+            .uriIndex = int(index),
+        });
+        continue;
+      }
+    }
+
+    return result;
+  }
+};
+
 struct ExplorerExtension : rpcsx::ui::Extension<rpcsx::ui::Explorer> {
   std::thread explorerThread;
   std::vector<std::string> locations;
@@ -409,69 +452,7 @@ struct ExplorerExtension : rpcsx::ui::Extension<rpcsx::ui::Explorer> {
   }
 
   Response<Activate> handle(const Request<Activate> &request) override {
-    std::fprintf(stderr, "activate request, settings = %s\n",
-                 json(request.settings).dump().c_str());
-
-    settingsGet({.path = "/"},
-                [](const rpcsx::ui::SettingsGetResponse &response) {
-                  std::fprintf(stderr, "settings: schema: %s\n",
-                               nlohmann::json(response.schema).dump().c_str());
-                  std::fprintf(stderr, "settings: value: %s\n",
-                               response.value.dump().c_str());
-                });
-
-    if (!request.settings.contains("locations")) {
-      return {};
-    }
-
-    locations = request.settings.at("locations");
-
-    explorerThread = std::thread([this] {
-      ExplorerItem batchItems[8];
-      std::size_t batchSize = 0;
-
-      auto flush = [&] {
-        if (batchSize > 0) {
-          this->explorerAdd({.items = {batchItems, batchItems + batchSize}});
-          batchSize = 0;
-        }
-      };
-
-      auto submit = [&](ExplorerItem item) {
-        if (batchSize >= std::size(batchItems)) {
-          flush();
-        }
-
-        batchItems[batchSize++] = std::move(item);
-      };
-
-      for (auto &location : locations) {
-        for (auto &entry :
-             std::filesystem::recursive_directory_iterator(location)) {
-          if (cancelled) {
-            return;
-          }
-
-          if (auto game = tryFetchGame(entry)) {
-            submit(std::move(*game));
-            continue;
-          }
-
-          if (auto fw = tryFetchFw(entry)) {
-            submit(std::move(*fw));
-            continue;
-          }
-
-          if (auto game = tryFetchPs3Game(entry)) {
-            submit(std::move(*game));
-            continue;
-          }
-        }
-      }
-
-      flush();
-    });
-
+    createObject<ExplorerDescriber>("ps3/ps4/ps5 explorer");
     return {};
   }
 
@@ -483,6 +464,6 @@ struct ExplorerExtension : rpcsx::ui::Extension<rpcsx::ui::Explorer> {
   }
 };
 
-ExtensionBuilder extension_main() {
+ExtensionBuilder extension_main(int argc, const char *argv[]) {
   return rpcsx::ui::createExtension<ExplorerExtension>();
 }

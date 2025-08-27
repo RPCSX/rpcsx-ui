@@ -1,19 +1,93 @@
-import { Component, ComponentId } from "$core/Component";
+import { Component, ComponentContext } from "$core/Component";
 import * as self from "$";
 import * as progress from "$progress";
 import { IDisposable } from "$core/Disposable";
-
-type Item = ExplorerItem & {
-    source: ComponentId;
-};
+import fs from 'fs/promises';
+import path from 'path';
 
 export class ExplorerComponent implements IDisposable {
-    items: Item[] = [];
-    progressToItem: Record<number, Item> = {};
+    items: ExplorerItem[] = [];
+    progressToItem: Record<number, ExplorerItem> = {};
     subscriptions: Record<number, Component> = {};
+    refreshAbortController = new AbortController();
+    refreshImmediate: NodeJS.Immediate | undefined = undefined;
+    describedLocations = new Set<string>();
+
+    constructor(context: ComponentContext, private locations: string[]) {
+        context.manage(self.onAnyDescriberCreated(() => this.refresh()));
+    }
 
     dispose() {
+        this.refreshAbortController.abort();
+        clearImmediate(this.refreshImmediate);
+        this.refreshImmediate = undefined;
+        this.describedLocations.clear();
         this.items = [];
+    }
+
+    private async tryDescribe(paths: string[], describers: self.DescriberInterface[]) {
+        const described = await Promise.all(describers.map(d => d.describe({ uris: paths })));
+
+        const items = described.map(item => {
+            return item.results.map(result => {
+                const describedLocation = paths[result.uriIndex];
+                if (this.describedLocations.has(describedLocation)) {
+                    return;
+                }
+
+                this.describedLocations.add(describedLocation);
+                return result.item;
+            }).filter(x => x !== undefined);
+        }).flat();
+
+        if (items.length > 0) {
+            this.add({ items });
+        }
+
+        return paths.filter(location => !this.describedLocations.has(location));
+    }
+
+    refresh() {
+        if (this.refreshImmediate) {
+            this.refreshAbortController.abort();
+            this.refreshAbortController = new AbortController();
+            clearImmediate(this.refreshImmediate);
+            this.refreshImmediate = undefined;
+        }
+
+        const abortSignal = this.refreshAbortController.signal;
+
+        this.refreshImmediate = setImmediate(async () => {
+            if (abortSignal.aborted) {
+                return;
+            }
+
+            const describers = await self.getDescriberObjects();
+
+            let workList = [...this.locations.filter(x => !this.describedLocations.has(x))];
+
+            while (workList.length > 0) {
+                const notDescribedLocations = await this.tryDescribe(workList, describers);
+                workList = [];
+
+                if (abortSignal.aborted) {
+                    return;
+                }
+
+                await Promise.all(notDescribedLocations.map(async loc => {
+                    try {
+                        for (const item of await fs.readdir(loc, { withFileTypes: true })) {
+                            workList.push(path.join(item.parentPath, item.name));
+                        }
+                    } catch {}
+                }));
+            }
+
+            if (!abortSignal.aborted) {
+                clearImmediate(this.refreshImmediate);
+                this.refreshImmediate = undefined;
+            }
+        });
     }
 
     async cancel(channel: number) {
@@ -23,9 +97,9 @@ export class ExplorerComponent implements IDisposable {
         });
     }
 
-    add(caller: Component, params: ExplorerAddRequest) {
+    add(params: ExplorerAddRequest) {
         // FIXME: merge items?
-        this.items.push(...params.items.map(x => ({ ...x, source: caller.getId() })));
+        this.items.push(...params.items);
 
         Object.keys(this.subscriptions).forEach(subscription => {
             const key = parseInt(subscription);
@@ -126,14 +200,15 @@ export class ExplorerComponent implements IDisposable {
         return result;
     }
 
-    remove(caller: Component, params: ExplorerRemoveRequest) {
-        const callerId = caller.getId();
+    remove(params: ExplorerRemoveRequest) {
         params.items.forEach(filter => {
-            this.items = this.items.filter(x => x.source != callerId || !this.filterItem(x, filter, true));
+            this.items = this.items.filter(x => !this.filterItem(x, filter, true));
         });
     }
 
     async get(caller: Component, params: ExplorerGetRequest): Promise<ExplorerGetResponse> {
+        // this.refresh();
+
         const progressChannel = params.channel ?? (await progress.progressCreate({
             name: "explorer-get",
             title: "Explorer progress"
@@ -158,10 +233,12 @@ export class ExplorerComponent implements IDisposable {
         this.subscriptions[progressChannel] = caller;
 
 
-        self.sendExplorerItemsEvent(caller, {
-            channel: progressChannel,
-            items: this.items
-        });
+        if (this.items.length > 0) {
+            self.sendExplorerItemsEvent(caller, {
+                channel: progressChannel,
+                items: this.items
+            });
+        }
 
         return { channel: progressChannel };
     }

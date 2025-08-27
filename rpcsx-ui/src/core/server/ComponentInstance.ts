@@ -6,6 +6,7 @@ import { createError } from "$/Error";
 import { get as settingsGet } from './Settings';
 import { Schema } from "$/Schema";
 import { onComponentActivation } from './ComponentActivation';
+import * as objects from './Objects';
 
 type Key<K, T> = T extends [never] ? string | symbol : K | keyof T;
 
@@ -63,7 +64,6 @@ export class ComponentInstance implements ComponentContext {
     }
 
     async activate(settings?: JsonObject) {
-
         if (!this.isInitialized()) {
             await this.initialize();
         }
@@ -78,6 +78,14 @@ export class ComponentInstance implements ComponentContext {
                 }
 
                 settings ??= {};
+            }
+
+            {
+                const interfaces = this.getContribution("interfaces");
+
+                if (interfaces) {
+                    Object.keys(interfaces).forEach(iface => objects.registerInterface(this, iface));
+                }
             }
 
             onComponentActivation(this);
@@ -97,6 +105,15 @@ export class ComponentInstance implements ComponentContext {
         await this.impl.deactivate(this);
         await this.disposeList.dispose();
         Object.values(this.eventEmitter).forEach(e => e.dispose());
+
+        {
+            const interfaces = this.getContribution("interfaces");
+
+            if (interfaces) {
+                Object.keys(interfaces).forEach(iface => objects.unregisterInterface(this, iface));
+            }
+        }
+
         this.eventEmitter = {};
         this.activated = false;
     }
@@ -187,7 +204,55 @@ export class ComponentInstance implements ComponentContext {
         return this.getContribution(path) != undefined;
     }
 
-    async call(caller: ComponentInstance, method: string, params: JsonObject | undefined): Promise<Json | void> {
+
+    async objectCall(caller: ComponentInstance, objectId: number, method: string, params: JsonObject | undefined): Promise<JsonObject | void> {
+        if (!this.isActivated()) {
+            throw createError(ErrorCode.InvalidRequest, `${caller.getId()}: component ${this.getName()} is not active`);
+        }
+
+        if (!this.impl.call) {
+            throw createError(ErrorCode.InvalidParams, `${caller.getId()}: component ${this.getName()} has no interface method support`);
+        }
+
+        return await this.impl.call(this.createCallerView(caller), `$/object/call`, {
+            object: objectId,
+            method,
+            params: params ?? {}
+        });
+    }
+
+    async objectNotify(caller: ComponentInstance, objectId: number, notification: string, params: JsonObject | undefined): Promise<void> {
+        if (!this.isActivated()) {
+            throw createError(ErrorCode.InvalidRequest, `${caller.getId()}: component ${this.getName()} is not active`);
+        }
+
+        if (!this.impl.notify) {
+            throw createError(ErrorCode.InvalidParams, `${caller.getId()}: component ${this.getName()} has no interface support`);
+        }
+
+        return await this.impl.notify(this.createCallerView(caller), `$/object/notify`, {
+            object: objectId,
+            notification,
+            params: params ?? {}
+        });
+    }
+
+    async objectDestroy(caller: ComponentInstance, interfaceName: string, objectId: number) {
+        if (!this.isActivated()) {
+            throw createError(ErrorCode.InvalidRequest, `${caller.getId()}: component ${this.getName()} is not active`);
+        }
+
+        if (!this.impl.notify) {
+            throw createError(ErrorCode.InvalidParams, `${caller.getId()}: component ${this.getName()} has no interface support`);
+        }
+
+        return await this.impl.notify(this.createCallerView(caller), `$/object/destroy`, {
+            objectId,
+            interface: interfaceName
+        });
+    }
+
+    async call(caller: ComponentInstance, method: string, params: JsonObject | undefined): Promise<JsonObject | void> {
         if (!this.isActivated()) {
             throw createError(ErrorCode.InvalidRequest, `${caller.getId()}: component ${this.getName()} is not active`);
         }

@@ -59,6 +59,7 @@ export type ContributionGenerator = {
     generateEvent?(component: string, event: object, name: string): void | Promise<void>;
     generateView?(component: string, path: string, name: string): void | Promise<void>;
     generateSetting?(component: string, schema: object, name: string): void | Promise<void>;
+    generateInterface?(component: string, iface: object, name: string): void | Promise<void>;
     toString(): string;
 };
 
@@ -793,7 +794,7 @@ export async function notify(caller: ComponentInstance, notification: string, pa
     return thisComponent().notify(caller, notification, params);
 }
 
-export async function onEvent(caller: ComponentInstance, event: string, listener: (params?: JsonObject) => Promise<void> | void) {
+export function onEvent(caller: ComponentInstance, event: string, listener: (params?: JsonObject) => Promise<void> | void) {
     return thisComponent().onEvent(caller, event, listener);
 }
 `;
@@ -828,7 +829,7 @@ class ServerComponentApiGenerator implements ContributionGenerator {
         const label = generateComponentLabelName(component, name, false);
         const uLabel = generateComponentLabelName(component, name, true);
         this.body += `export async function ${label}(params: ${uLabel}Request) {
-    return ${generateLabelName(component, false)}.notify(thisComponent(), "${name}", params) as any;
+    return ${generateLabelName(component, false)}.notify(thisComponent(), "${name}", params);
 }
 `;
     }
@@ -837,13 +838,13 @@ class ServerComponentApiGenerator implements ContributionGenerator {
         this.externalComponent ??= component;
         const label = generateComponentLabelName(component, name, true);
         if (Object.keys(event).length == 0) {
-            this.body += `export async function on${label}(handler: () => Promise<void> | void) {
+            this.body += `export function on${label}(handler: () => Promise<void> | void) {
     return ${generateLabelName(component, false)}.onEvent(thisComponent(), "${name}", handler as any);
 }
 `;
             return;
         }
-        this.body += `export async function on${label}(handler: (event: ${label}Event) => Promise<void> | void) {
+        this.body += `export function on${label}(handler: (event: ${label}Event) => Promise<void> | void) {
     return ${generateLabelName(component, false)}.onEvent(thisComponent(), "${name}", handler as any);
 }
 `;
@@ -883,6 +884,7 @@ class ServerPrivateApiGenerator implements ContributionGenerator {
     private callBody = '';
     private notifyBody = '';
     private viewBody = '';
+    private interfaceBody = '';
     private settingBody = `
     async get() { return core.settingsGet({ path: "" }); },
     async set(value: Json) { return core.settingsSet({ path: "", value }); },
@@ -990,6 +992,79 @@ export function set${name}View(target: Window, params: ${name}Props) {
 `;
     }
 
+    generateInterface(component: string, iface: object, name: string) {
+        const uLabel = generateLabelName(name, true);
+        this.interfaceBody += `
+export class ${uLabel}Interface {
+    constructor(private id: number) {}
+
+${"methods" in iface ? iface.methods && Object.keys(iface.methods).map(method => {
+    const methodTypeLabel = generateComponentLabelName(component, method, true);
+    if ("params" in (iface.methods as any)[method]) {
+        return `    async ${generateLabelName(method, false)}(request: ${methodTypeLabel}Request): Promise<${methodTypeLabel}Response> {
+        return (await core.objectCall({ object: this.id, method: "${method}", params: request})).result as ${methodTypeLabel}Response;
+    }
+`
+    } else {
+        return `    async ${generateLabelName(method, false)}(): Promise<${methodTypeLabel}Response> {
+        return (await core.objectCall({ object: this.id, method: "${method}", params: {}})).result as ${methodTypeLabel}Response;
+    }
+`
+    }
+}).join("\n") : ""}
+${"notifications" in iface ? iface.notifications && Object.keys(iface.notifications).map(notification => {
+    const methodTypeLabel = generateComponentLabelName(component, notification, true);
+    if ("params" in (iface.notifications as any)[notification]) {
+        return `    async ${generateLabelName(notification, false)}(request: ${methodTypeLabel}Request) {
+        return core.objectNotify({ object: this.id, notification: "${notification}", params: request});
+    }
+`
+    } else {
+        return `    async ${generateLabelName(notification, false)}() {
+        return core.objectNotify({ object: this.id, notification: "${notification}", params: {}});
+    }
+`
+    }
+}).join("\n") : ""}
+    destroy() {
+        return core.objectDestroy({ object: this.id });
+    }
+
+    async getName() {
+        return (await core.objectGetName({ object: this.id })).name;
+    }
+
+    getId() {
+        return this.id;
+    }
+};
+
+export async function get${uLabel}Objects() {
+  return (await core.objectGetList({ interface: "${component}/${name}" })).objects.map(id => new ${uLabel}Interface(id));
+}
+export async function find${uLabel}Object(name: string) {
+  return new ${uLabel}Interface((await core.objectFind({ interfaceName: "${component}/${name}", objectName: name })).object);
+}
+export async function create${uLabel}Object(name: string) {
+  return new ${uLabel}Interface((await core.objectCreate({ interface: "${component}/${name}", name })).object);
+}
+export function on${uLabel}Created(handler: (object: ${uLabel}Interface) => Promise<void> | void) {
+    return core.onObjectCreated((params) => {
+        if (params.interface == "${component}/${name}") {
+            handler(new ${uLabel}Interface(params.object));
+        }
+    });
+}
+export function onAny${uLabel}Created(handler: () => Promise<void> | void) {
+    return core.onObjectCreated((params) => {
+        if (params.interface == "${component}/${name}") {
+            handler();
+        }
+    });
+}
+`;
+    }
+
 
     toString(): string {
         if (this.body.length === 0) {
@@ -1043,6 +1118,8 @@ ${this.notifyBody}
     }
 }
 
+${this.interfaceBody}
+
 export const settings = {${this.settingBody}};
 
 ${this.viewBody}
@@ -1092,9 +1169,9 @@ export function ${label}(params: ${uLabel}Request) {
         this.body += "\n";
 
         if (Object.keys(event).length == 0) {
-            this.body += `export async function on${label}(handler: () => Promise<void> | void) {`;
+            this.body += `export function on${label}(handler: () => Promise<void> | void) {`;
         } else {
-            this.body += `export async function on${label}(handler: (event: ${label}Event) => Promise<void> | void) {`;
+            this.body += `export function on${label}(handler: (event: ${label}Event) => Promise<void> | void) {`;
         }
 
         this.body += `
@@ -1135,7 +1212,7 @@ export function popView() {
     }
 };
 
-export function generateContributions<Params extends any[], RT extends ContributionGenerator>(component: Component, Generator: new (...params: Params) => RT, ...params: Params) {
+export async function generateContributions<Params extends any[], RT extends ContributionGenerator>(component: Component, Generator: new (...params: Params) => RT, ...params: Params) {
     const generator = new Generator(...params);
     const contributions = component.manifest.contributions ?? {};
 
@@ -1145,31 +1222,31 @@ export function generateContributions<Params extends any[], RT extends Contribut
 
     contributions.events = contributions.events ?? {};
 
-    Object.keys(contributions).forEach(contributionType => {
+    await Promise.all(Object.keys(contributions).map(async contributionType => {
         const contribution = (contributions as Record<string, Record<string, any>>)[contributionType];
         switch (contributionType) {
             case "methods":
-                Object.keys(contribution).forEach(name => {
+                await Promise.all(Object.keys(contribution).map(async name => {
                     if (generator.generateMethod) {
                         try {
-                            generator.generateMethod(component.manifest.name, contribution[name], name);
+                            await generator.generateMethod(component.manifest.name, contribution[name], name);
                         } catch (e) {
                             throw `${name}: ${e}`;
                         }
                     }
-                });
+                }));
                 break;
 
             case "notifications":
-                Object.keys(contribution).forEach(name => {
+                await Promise.all(Object.keys(contribution).map(async name => {
                     if (generator.generateNotification) {
                         try {
-                            generator.generateNotification(component.manifest.name, contribution[name], name);
+                            await generator.generateNotification(component.manifest.name, contribution[name], name);
                         } catch (e) {
                             throw `${name}: ${e}`;
                         }
                     }
-                });
+                }));
                 break;
 
             case "events": {
@@ -1185,58 +1262,124 @@ export function generateContributions<Params extends any[], RT extends Contribut
                     };
                 }
 
-                Object.keys(events).forEach(name => {
+                await Promise.all(Object.keys(events).map(async name => {
                     if (generator.generateEvent) {
                         try {
-                            generator.generateEvent(component.manifest.name, events[name], name);
+                            await generator.generateEvent(component.manifest.name, events[name], name);
                         } catch (e) {
                             throw `${name}: ${e}`;
                         }
                     }
-                });
+                }));
                 break;
             }
 
             case "types":
-                Object.keys(contribution).forEach(name => {
+                await Promise.all(Object.keys(contribution).map(async name => {
                     if (generator.generateType) {
                         try {
-                            generator.generateType(component.manifest.name, contribution[name], name);
+                            await generator.generateType(component.manifest.name, contribution[name], name);
                         } catch (e) {
                             throw `${name}: ${e}`;
                         }
                     }
-                });
+                }));
                 break;
 
             case "views":
-                Object.keys(contribution).forEach(name => {
+                await Promise.all(Object.keys(contribution).map(async name => {
                     if (generator.generateView) {
                         try {
-                            generator.generateView(component.manifest.name, contribution[name], name);
+                            await generator.generateView(component.manifest.name, contribution[name], name);
                         } catch (e) {
                             throw `${name}: ${e}`;
                         }
                     }
-                });
+                }));
                 break;
 
             case "settings":
-                Object.keys(contribution).forEach(name => {
+                await Promise.all(Object.keys(contribution).map(async name => {
                     if (generator.generateSetting) {
                         try {
-                            generator.generateSetting(component.manifest.name, contribution[name], name);
+                            await generator.generateSetting(component.manifest.name, contribution[name], name);
                         } catch (e) {
                             throw `${name}: ${e}`;
                         }
                     }
-                });
+                }));
+                break;
+
+            case "interfaces":
+                await Promise.all(Object.keys(contribution).map(async name => {
+                    const ifaceContribution = contribution[name];
+                    await Promise.all(Object.keys(ifaceContribution).map(async ifaceContributionName => {
+                        const iface = ifaceContribution[ifaceContributionName];
+                        switch (ifaceContributionName) {
+                            case "methods": {
+                                if (!iface || typeof iface != 'object') {
+                                    throw new Error(`${name}: interface methods must be object. ${iface}`);
+                                }
+
+                                const gen = generator.generateMethod?.bind(generator);
+                                if (gen) {
+                                    await Promise.all(Object.keys(iface).map(async method => {
+                                        const object = iface[method];
+                                        if (typeof object != 'object') {
+                                            throw new Error(`${name}: interface method ${method} must be object`);
+                                        }
+
+                                        object.virtual = true;
+
+                                        await gen(component.manifest.name, object, method);
+                                    }));
+                                }
+
+                                break;
+                            }
+
+                            case "notifications": {
+                                if (!iface || typeof iface != 'object') {
+                                    throw new Error(`${name}: interface notifications must be object. ${iface}`);
+                                }
+
+                                const gen = generator.generateNotification?.bind(generator);
+
+                                if (gen) {
+                                    await Promise.all(Object.keys(iface).map(async notification => {
+                                        const object = iface[notification];
+                                        if (typeof object != 'object') {
+                                            throw new Error(`${name}: interface method ${notification} must be object`);
+                                        }
+
+                                        object.virtual = true;
+
+                                        await gen(component.manifest.name, object, notification);
+                                    }));
+                                }
+
+                                break;
+                            }
+
+                            default:
+                                throw new Error(`unknown interface contribution ${ifaceContributionName}`);
+                        }
+                    }));
+
+                    if (generator.generateInterface) {
+                        try {
+                            await generator.generateInterface(component.manifest.name, contribution[name], name);
+                        } catch (e) {
+                            throw `${name}: ${e}`;
+                        }
+                    }
+                }));
                 break;
 
             default:
                 throw `unexpected contribution ${contributionType}`;
         }
-    });
+    }));
 
     return generator;
 }
@@ -1264,7 +1407,7 @@ export class TsLibGenerator implements ProjectGenerator {
 
         if (generatedFile) {
             try {
-                generatedFile.content = generateContributions(project.component, TypesGenerator).toString();
+                generatedFile.content = (await generateContributions(project.component, TypesGenerator)).toString();
             } catch (e) {
                 throw Error(`${project.component.manifest.name}: ${e}`);
             }
@@ -1279,7 +1422,7 @@ export class TsLibGenerator implements ProjectGenerator {
 
         if (generatedFile) {
             try {
-                generatedFile.content = generateContributions(project.component, EnumsGenerator).toString();
+                generatedFile.content = (await generateContributions(project.component, EnumsGenerator)).toString();
             } catch (e) {
                 throw Error(`${project.component.manifest.name}: ${e}`);
             }
@@ -1316,7 +1459,7 @@ export class RendererApiGenerator implements ProjectGenerator {
 
         if (generatedFile) {
             try {
-                generatedFile.content = generateContributions(project.component, RendererComponentApiGenerator).toString();
+                generatedFile.content = (await generateContributions(project.component, RendererComponentApiGenerator)).toString();
             } catch (e) {
                 throw Error(`${project.component.manifest.name}: ${e}`);
             }
@@ -1353,7 +1496,7 @@ export class TsServerGenerator implements ProjectGenerator {
 
         if (generatedFile) {
             try {
-                generatedFile.content = generateContributions(sourceComponent, Generator, ...params).toString();
+                generatedFile.content = (await generateContributions(sourceComponent, Generator, ...params)).toString();
             } catch (e) {
                 throw Error(`${sourceComponent.manifest.name}: ${e}`);
             }
@@ -1368,7 +1511,7 @@ export class TsServerGenerator implements ProjectGenerator {
 
         if (generatedFile) {
             try {
-                generatedFile.content = generateContributions(project.component, Generator, ...params).toString();
+                generatedFile.content = (await generateContributions(project.component, Generator, ...params)).toString();
             } catch (e) {
                 throw Error(`${project.component.manifest.name}: ${e}`);
             }

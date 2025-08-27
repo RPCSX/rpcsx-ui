@@ -12,6 +12,7 @@
 #include <rpcsx-ui.hpp>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <utility>
 
 using namespace rpcsx::ui;
@@ -53,7 +54,7 @@ static auto createMethodHandler(Protocol *protocol) {
       return;
     }
 
-    auto result = protocol->getHandlers().handle(request);
+    auto result = protocol->handle(request);
     if (!result.has_value()) {
       protocol->sendErrorResponse(id, result.error());
       return;
@@ -75,7 +76,7 @@ static auto createNotifyHandler(Protocol *protocol) {
       return;
     }
 
-    protocol->getHandlers().handle(request);
+    protocol->handle(request);
   };
 };
 
@@ -83,16 +84,109 @@ static std::span<const std::byte> asBytes(std::string_view text) {
   return {reinterpret_cast<const std::byte *>(text.data()), text.size()};
 }
 
+struct JsonRpcInterface {
+  std::map<std::string_view, json (*)(void *, const json &)> methods;
+  std::map<std::string_view, void (*)(void *, const json &)> notifications;
+
+  json call(ProtocolObject &object, std::string_view method,
+            const json &params) {
+    auto methodPtr = methods.at(method);
+
+    return methodPtr(object.get(), params);
+  }
+  void notify(ProtocolObject &object, std::string_view notification,
+              const json &params) {
+    auto methodPtr = notifications.at(notification);
+
+    methodPtr(object.get(), params);
+  }
+};
+
+struct JsonRpcInterfaceBuilder : InterfaceBuilder {
+  JsonRpcInterface &result;
+
+  JsonRpcInterfaceBuilder(JsonRpcInterface &interface) : result(interface) {}
+
+  void addMethodHandler(std::string_view method,
+                        json (*handler)(void *, const json &)) {
+    result.methods[method] = handler;
+  }
+
+  void addNotificationHandler(std::string_view notification,
+                              void (*handler)(void *, const json &)) {
+    result.notifications[notification] = handler;
+  }
+};
+
 struct JsonRpcProtocol : Protocol {
+  std::map<std::string_view, JsonRpcInterface> interfaces;
+  std::unordered_map<unsigned, std::pair<ProtocolObject, JsonRpcInterface *>>
+      objects;
+
   JsonRpcProtocol(Transport *transport) : Protocol(transport) {
     mMethodHandlers["$/initialize"] = createMethodHandler<Initialize>(this);
     mMethodHandlers["$/activate"] = createMethodHandler<Activate>(this);
-    // mMethodHandlers["$/deactivate"] = createMethodHandler<Deactivate>(this);
+    mMethodHandlers["$/deactivate"] = createMethodHandler<Deactivate>(this);
     mMethodHandlers["$/shutdown"] = createMethodHandler<Shutdown>(this);
+
+    mMethodHandlers["$/object/call"] = createMethodHandler<ObjectCall>(this);
+    mNotifyHandlers["$/object/notify"] =
+        createNotifyHandler<ObjectNotify>(this);
+    mMethodHandlers["$/object/destroy"] =
+        createMethodHandler<ObjectDestroy>(this);
+  }
+
+  Response<Initialize> handle(const Request<Initialize> &request) {
+    return getHandlers().handle(request);
+  }
+  Response<Activate> handle(const Request<Activate> &request) {
+    return getHandlers().handle(request);
+  }
+  Response<Deactivate> handle(const Request<Deactivate> &request) {
+    return getHandlers().handle(request);
+  }
+  Response<Shutdown> handle(const Request<Shutdown> &request) {
+    return getHandlers().handle(request);
+  }
+
+  std::expected<json, ErrorInstance> handle(const Request<ObjectCall> &request) {
+    auto it = objects.find(request.object);
+    if (it != objects.end()) {
+      auto &[object, interface] = it->second;
+      return interface->call(object, request.method, request.params);
+    }
+
+    return {};
+  }
+
+  void handle(const Request<ObjectNotify> &request) {
+    auto it = objects.find(request.object);
+    if (it != objects.end()) {
+      auto &[object, interface] = it->second;
+      interface->notify(object, request.notification, request.params);
+    }
+  }
+
+  Response<ObjectDestroy> handle(const Request<ObjectDestroy> &request) {
+    objects.erase(request.object);
+    return {};
+  }
+
+  void addObject(std::string_view interfaceName,
+                 void (*builder)(InterfaceBuilder &builder), unsigned id,
+                 ProtocolObject object) override {
+    auto [it, inserted] = interfaces.emplace(interfaceName, JsonRpcInterface{});
+
+    if (inserted) {
+      JsonRpcInterfaceBuilder interfaceBuilder(it->second);
+      builder(interfaceBuilder);
+    }
+
+    objects.emplace(id, std::pair{std::move(object), &it->second});
   }
 
   void call(std::string_view method, json params,
-            std::function<void(json)> responseHandler) override {
+            std::move_only_function<void(json)> responseHandler) override {
     std::size_t id = mNextId++;
     send({
         {"jsonrpc", "2.0"},
@@ -134,19 +228,20 @@ struct JsonRpcProtocol : Protocol {
     });
   }
 
-  void addNotificationHandler(std::string_view notification,
-                              std::function<void(json)> handler) override {
+  void
+  addNotificationHandler(std::string_view notification,
+                         std::move_only_function<void(json)> handler) override {
     mNotifyHandlers[std::string(notification)] = std::move(handler);
   }
 
-  void
-  addMethodHandler(std::string_view method,
-                   std::function<void(std::size_t, json)> handler) override {
+  void addMethodHandler(
+      std::string_view method,
+      std::move_only_function<void(std::size_t, json)> handler) override {
     mMethodHandlers[std::string(method)] = std::move(handler);
   }
 
   void onEvent(std::string_view method,
-               std::function<void(json)> eventHandler) override {
+               std::move_only_function<void(json)> eventHandler) override {
     mEventHandlers[std::string(method)].push_back(std::move(eventHandler));
   }
 
@@ -252,7 +347,7 @@ struct JsonRpcProtocol : Protocol {
           return;
         }
 
-        sendErrorResponse(id, {ErrorCode::MethodNotFound});
+        sendErrorResponse(id, {ErrorCode::MethodNotFound, method});
         return;
       }
 
@@ -261,7 +356,7 @@ struct JsonRpcProtocol : Protocol {
         return;
       }
 
-      sendErrorResponse({ErrorCode::MethodNotFound});
+      sendErrorResponse({ErrorCode::MethodNotFound, method});
       return;
     }
 
@@ -300,17 +395,19 @@ private:
     getTransport()->flush();
   }
 
-  std::map<std::string, std::function<void(std::size_t, json)>> mMethodHandlers;
-  std::map<std::string, std::function<void(json)>> mNotifyHandlers;
-  std::map<std::string, std::vector<std::function<void(json)>>> mEventHandlers;
-  std::map<std::size_t, std::function<void(json)>> mExpectedResponses;
+  std::map<std::string, std::move_only_function<void(std::size_t, json)>>
+      mMethodHandlers;
+  std::map<std::string, std::move_only_function<void(json)>> mNotifyHandlers;
+  std::map<std::string, std::vector<std::move_only_function<void(json)>>>
+      mEventHandlers;
+  std::map<std::size_t, std::move_only_function<void(json)>> mExpectedResponses;
   std::size_t mNextId = 1;
 };
 
-ExtensionBuilder extension_main();
+ExtensionBuilder extension_main(int argc, const char *argv[]);
 
 int main(int argc, const char *argv[]) {
-  auto extensionBuilder = extension_main();
+  auto extensionBuilder = extension_main(argc, argv);
 
   std::string_view transportId;
   std::string_view protocolId;

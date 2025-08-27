@@ -13,6 +13,19 @@
         }
     ],
     "contributions": {
+        "settings": {
+            "locations": {
+                "type": "array",
+                "required": true,
+                "description": "Search locations",
+                "minItems": 1,
+                "items": {
+                    "type": "path",
+                    "mustExist": true,
+                    "entity": "directory"
+                }
+            }
+        },
         "types": {
             "item": {
                 "type": "object",
@@ -150,6 +163,17 @@
                         "optional": true
                     }
                 }
+            },
+            "describer-result": {
+                "type": "object",
+                "params": {
+                    "item": {
+                        "type": "item"
+                    },
+                    "uri-index": {
+                        "type": "number"
+                    }
+                }
             }
         },
         "methods": {
@@ -204,6 +228,26 @@
                 "items": {
                     "type": "array",
                     "item-type": "item"
+                }
+            }
+        },
+        "interfaces": {
+            "describer": {
+                "methods": {
+                    "describe": {
+                        "params": {
+                            "uris": {
+                                "type": "array",
+                                "item-type": "string"
+                            }
+                        },
+                        "returns": {
+                            "results": {
+                                "type": "array",
+                                "item-type": "describer-result"
+                            }
+                        }
+                    }
                 }
             }
         }

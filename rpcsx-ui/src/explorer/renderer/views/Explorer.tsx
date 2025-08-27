@@ -461,7 +461,7 @@ const ExplorerView = function ({ items, setBackground }: { items: ExplorerItem[]
                     <FlatList data={items} style={styles.scrollContainer} horizontal={true} showsHorizontalScrollIndicator={false} renderItem={
                         ({ item, index }) => {
                             const name = getName(item);
-                            return <ExplorerItemHeader key={index + name + item.type + item.version} item={item} style={{ margin: 20 }} onPress={() => selectItem(index)} active={index == selectedItem}></ExplorerItemHeader>
+                            return <ExplorerItemHeader key={items.length + index + name + item.type + item.version} item={item} style={{ margin: 20 }} onPress={() => selectItem(index)} active={index == selectedItem}></ExplorerItemHeader>
                         }
                     }>
                     </FlatList>
@@ -555,10 +555,7 @@ export function Explorer(props?: Props) {
         self.onExplorerItems(event => {
             games.push(...event.items.filter(item => item.type == 'game'));
             setGames(games);
-            if (updateId == 0) {
-                setUpdateId(updateId + 1);
-            }
-            console.log("received items", event.items.length, games.length);
+            setUpdateId(updateId + 1);
         });
 
         if (games.length == 0) {
