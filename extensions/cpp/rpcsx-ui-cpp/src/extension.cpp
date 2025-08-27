@@ -64,6 +64,7 @@ static auto createMethodHandler(Protocol *protocol) {
 };
 
 template <typename T, typename Protocol>
+  requires(!requires { typename T::Response; })
 static auto createNotifyHandler(Protocol *protocol) {
   return [=](json params) {
     typename T::Request request;
@@ -87,7 +88,7 @@ struct JsonRpcProtocol : Protocol {
     mMethodHandlers["$/initialize"] = createMethodHandler<Initialize>(this);
     mMethodHandlers["$/activate"] = createMethodHandler<Activate>(this);
     // mMethodHandlers["$/deactivate"] = createMethodHandler<Deactivate>(this);
-    mNotifyHandlers["$/shutdown"] = createNotifyHandler<Shutdown>(this);
+    mMethodHandlers["$/shutdown"] = createMethodHandler<Shutdown>(this);
   }
 
   void call(std::string_view method, json params,
