@@ -186,7 +186,7 @@ struct JsonRpcProtocol : Protocol {
   }
 
   void call(std::string_view method, json params,
-            std::move_only_function<void(json)> responseHandler) override {
+            std::function<void(json)> responseHandler) override {
     std::size_t id = mNextId++;
     send({
         {"jsonrpc", "2.0"},
@@ -230,18 +230,18 @@ struct JsonRpcProtocol : Protocol {
 
   void
   addNotificationHandler(std::string_view notification,
-                         std::move_only_function<void(json)> handler) override {
+                         std::function<void(json)> handler) override {
     mNotifyHandlers[std::string(notification)] = std::move(handler);
   }
 
   void addMethodHandler(
       std::string_view method,
-      std::move_only_function<void(std::size_t, json)> handler) override {
+      std::function<void(std::size_t, json)> handler) override {
     mMethodHandlers[std::string(method)] = std::move(handler);
   }
 
   void onEvent(std::string_view method,
-               std::move_only_function<void(json)> eventHandler) override {
+               std::function<void(json)> eventHandler) override {
     mEventHandlers[std::string(method)].push_back(std::move(eventHandler));
   }
 
@@ -395,12 +395,12 @@ private:
     getTransport()->flush();
   }
 
-  std::map<std::string, std::move_only_function<void(std::size_t, json)>>
+  std::map<std::string, std::function<void(std::size_t, json)>>
       mMethodHandlers;
-  std::map<std::string, std::move_only_function<void(json)>> mNotifyHandlers;
-  std::map<std::string, std::vector<std::move_only_function<void(json)>>>
+  std::map<std::string, std::function<void(json)>> mNotifyHandlers;
+  std::map<std::string, std::vector<std::function<void(json)>>>
       mEventHandlers;
-  std::map<std::size_t, std::move_only_function<void(json)>> mExpectedResponses;
+  std::map<std::size_t, std::function<void(json)>> mExpectedResponses;
   std::size_t mNextId = 1;
 };
 

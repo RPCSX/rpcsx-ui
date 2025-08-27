@@ -39,10 +39,10 @@ public:
   virtual ~Protocol() = default;
 
   virtual void call(std::string_view method, json params,
-                    std::move_only_function<void(json)> responseHandler) = 0;
+                    std::function<void(json)> responseHandler) = 0;
   virtual void notify(std::string_view method, json params) = 0;
   virtual void onEvent(std::string_view method,
-                       std::move_only_function<void(json)> eventHandler) = 0;
+                       std::function<void(json)> eventHandler) = 0;
   virtual int processMessages() = 0;
   virtual void sendLogMessage(LogLevel level, std::string_view message) = 0;
 
@@ -52,11 +52,11 @@ public:
 
   virtual void addMethodHandler(
       std::string_view method,
-      std::move_only_function<void(std::size_t id, json body)> handler) = 0;
+      std::function<void(std::size_t id, json body)> handler) = 0;
 
   virtual void
   addNotificationHandler(std::string_view notification,
-                         std::move_only_function<void(json body)> handler) = 0;
+                         std::function<void(json body)> handler) = 0;
 
   virtual void addObject(std::string_view interfaceName,
                          void (*builder)(InterfaceBuilder &builder),

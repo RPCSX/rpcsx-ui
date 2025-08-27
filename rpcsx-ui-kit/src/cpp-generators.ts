@@ -489,7 +489,7 @@ struct ${label} {
         const params = "params" in method ? `const ${uLabel}Request &params, ` : '';
 
         this.content += `
-    auto ${label}(${params}std::move_only_function<void(${returnType})> result) {
+    auto ${label}(${params}std::function<void(${returnType})> result) {
         return protocol().call("${component}/${name}", ${params ? "params" : "{}"}, std::move(result));
     }`
     }
@@ -518,7 +518,7 @@ struct ${label} {
         }
 
         this.content += `
-    auto on${uLabel}(std::move_only_function<void(${typeName})> callback) {
+    auto on${uLabel}(std::function<void(${typeName})> callback) {
         return protocol().onEvent("${component}/${name}", std::move(callback));
     }`
     }

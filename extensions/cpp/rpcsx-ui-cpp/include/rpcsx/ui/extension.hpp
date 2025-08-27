@@ -46,21 +46,24 @@ public:
     requires requires { ObjectType(std::forward<Args>(args)...); }
   {
     using InterfaceType = typename ObjectType::InterfaceType;
-    auto object = std::unique_ptr<InterfaceType, void (*)(void *)>(
-        static_cast<InterfaceType *>(
-            new ObjectType(std::forward<Args>(args)...)),
-        [](void *object) {
-          delete static_cast<ObjectType *>(
-              static_cast<InterfaceType *>(object));
-        });
-
     this->objectCreate(
         {
             .name = std::string(name),
             .interface = std::string(ObjectType::kInterfaceId),
         },
-        [this, object = std::move(object)](
-            const ObjectCreateResponse &response) mutable {
+        [this, args = std::forward_as_tuple<Args...>(std::forward<Args>(
+                   args)...)](const ObjectCreateResponse &response) {
+          auto object = std::unique_ptr<InterfaceType, void (*)(void *)>(
+              static_cast<InterfaceType *>(std::apply(
+                  [](auto &&...args) {
+                    return new ObjectType(std::forward<Args>(args)...);
+                  },
+                  args)),
+              [](void *object) {
+                delete static_cast<ObjectType *>(
+                    static_cast<InterfaceType *>(object));
+              });
+
           m_protocol->addObject(
               ObjectType::kInterfaceId,
               &ObjectType::Builder::template build<InterfaceBuilder>,
@@ -72,7 +75,7 @@ public:
 };
 
 using ExtensionBuilder =
-    std::move_only_function<std::unique_ptr<ExtensionBase>(Protocol *)>;
+    std::function<std::unique_ptr<ExtensionBase>(Protocol *)>;
 
 template <typename T> ExtensionBuilder createExtension() {
   auto builder = [](Protocol *protocol) {
