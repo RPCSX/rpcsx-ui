@@ -9,7 +9,7 @@
   },
   "scripts": {
     "build:kit": "npm run -w rpcsx-ui-kit build",
-    "build:extensions": "npm run build:api:cpp && cmake -B build-extensions -S extensions/cpp -DCMAKE_EXPORT_COMPILE_COMMANDS=on -DCMAKE_BUILD_TYPE=Release && cmake --build build-extensions --parallel",
+    "build:extensions": "npm run build:api:cpp && cmake -B build-extensions -S extensions/cpp -DCMAKE_EXPORT_COMPILE_COMMANDS=on -DCMAKE_BUILD_TYPE=Release && cmake --build build-extensions --config Release --parallel",
     "install:extensions": "cp -rf build-extensions/bin electron/build/extensions",
     "build:api:cpp": "node rpcsx-ui-kit/build/cli.js generate --lang c++ --input rpcsx-ui --output extensions/cpp/rpcsx-ui --name rpcsx-ui",
     "build:web:server": "node ./build.mjs",
