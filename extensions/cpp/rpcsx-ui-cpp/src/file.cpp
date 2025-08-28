@@ -138,6 +138,7 @@ std::expected<FileData, std::error_code> File::map() {
   }
 
   auto dataImpl = new FileData::Impl();
+  dataImpl->data = std::move(buffer);
   return FileData(dataImpl, dataImpl->data);
 }
 #endif
