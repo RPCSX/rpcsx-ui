@@ -15,6 +15,8 @@ vite.config.ts.timestamp-*
 
 expo-env.d.ts
 .expo/
-android/
+
+/android/
 /electron/out/
-extensions/cpp/rpcsx-ui
+/extensions/cpp/rpcsx-ui/
+/electron/extensions/

@@ -3,6 +3,9 @@ import { FuseV1Options, FuseVersion } from '@electron/fuses';
 
 export const packagerConfig = {
   asar: true,
+  extraResource: [
+    "extensions"
+  ]
 };
 export const rebuildConfig = {};
 export const makers = [
