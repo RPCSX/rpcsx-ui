@@ -192,7 +192,7 @@ export class Extension implements IComponentImpl {
         this.send({ jsonrpc: "2.0", method, params, id });
 
         const timestamp = Date.now();
-        const deadline = timestamp + 10 * 1000;
+        const deadline = timestamp + 60 * 1000;
         if (this.responseWatchdog == null) {
             this.responseWatchdog = setTimeout(() => {
                 this.responseWatchdogEntry();

@@ -70,8 +70,8 @@ export class ExplorerComponent implements IDisposable {
                 const notDescribedLocations: string[] = [];
 
                 while (workList.length > 0) {
-                    notDescribedLocations.push(...await this.tryDescribe(workList.slice(0, 5), describers));
-                    workList = workList.slice(5);
+                    notDescribedLocations.push(...await this.tryDescribe(workList.slice(0, 1), describers));
+                    workList = workList.slice(1);
                 }
 
                 if (abortSignal.aborted) {
