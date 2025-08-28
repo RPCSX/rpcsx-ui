@@ -17,77 +17,6 @@ function toWindow(browserWindow: BrowserWindow): Window {
     };
 }
 
-function setupElectron() {
-    const uiDirectory = path.join(locations.builtinResourcesPath, "ui");
-
-    const fixPath = async (loc: PathLike) => {
-        loc = loc.toString();
-        if (loc.length === 0) {
-            return "index.html";
-        }
-
-        try {
-            const stat = await fs.stat(loc);
-            if (stat.isFile()) {
-                return loc;
-            }
-
-            if (stat.isDirectory()) {
-                return fixPath(path.join(loc, "index.html"));
-            }
-        } catch {
-            const ext = path.extname(loc);
-            if (ext === ".html") {
-                return undefined;
-            }
-
-            try {
-                if ((await fs.stat(loc + ".html")).isFile()) {
-                    return loc + ".html";
-                }
-            } catch { }
-        }
-
-        return undefined;
-    };
-
-    app.on('ready', () => {
-        session.defaultSession.protocol.handle('app', async (request) => {
-            const requestUrl = new URL(request.url);
-            let pathname = requestUrl.pathname;
-            if (pathname == "/Explorer") {
-                pathname = "/";
-            }
-
-            const filePath = path.join(uiDirectory, decodeURIComponent(pathname));
-            console.log(`open ${filePath}, request ${pathname}`);
-
-            const relativePath = path.relative(uiDirectory, filePath);
-            const isSafe = !relativePath.startsWith('..') && !path.isAbsolute(relativePath);
-
-            if (!isSafe) {
-                return new Response('bad request', {
-                    status: 400,
-                    headers: { 'content-type': 'text/html' }
-                });
-            }
-
-            try {
-                const absolutePath = await fixPath(path.join(uiDirectory, relativePath));
-
-                if (absolutePath) {
-                    return net.fetch(url.pathToFileURL(absolutePath).toString());
-                }
-            } catch { }
-
-            return new Response('Not Found', {
-                status: 404,
-                headers: { 'content-type': 'text/html' }
-            });
-        });
-    });
-}
-
 let MainWindow: BrowserWindow;
 
 async function activateMainWindow() {
@@ -114,8 +43,6 @@ async function activateMainWindow() {
     }
 
 }
-
-setupElectron();
 
 export async function initialize() {
     ipcMain.on('window/create', (_event, options) => {
@@ -172,5 +99,73 @@ export async function initialize() {
     });
 
     await app.whenReady();
+
+    const uiDirectory = path.join(locations.builtinResourcesPath, "ui");
+
+    const fixPath = async (loc: PathLike) => {
+        loc = loc.toString();
+        if (loc.length === 0) {
+            return "index.html";
+        }
+
+        try {
+            const stat = await fs.stat(loc);
+            if (stat.isFile()) {
+                return loc;
+            }
+
+            if (stat.isDirectory()) {
+                return fixPath(path.join(loc, "index.html"));
+            }
+        } catch {
+            const ext = path.extname(loc);
+            if (ext === ".html") {
+                return undefined;
+            }
+
+            try {
+                if ((await fs.stat(loc + ".html")).isFile()) {
+                    return loc + ".html";
+                }
+            } catch { }
+        }
+
+        return undefined;
+    };
+
+    session.defaultSession.protocol.handle('app', async (request) => {
+        const requestUrl = new URL(request.url);
+        let pathname = requestUrl.pathname;
+        if (pathname == "/Explorer") {
+            pathname = "/";
+        }
+
+        const filePath = path.join(uiDirectory, decodeURIComponent(pathname));
+        console.log(`open ${filePath}, request ${pathname}`);
+
+        const relativePath = path.relative(uiDirectory, filePath);
+        const isSafe = !relativePath.startsWith('..') && !path.isAbsolute(relativePath);
+
+        if (!isSafe) {
+            return new Response('bad request', {
+                status: 400,
+                headers: { 'content-type': 'text/html' }
+            });
+        }
+
+        try {
+            const absolutePath = await fixPath(path.join(uiDirectory, relativePath));
+
+            if (absolutePath) {
+                return net.fetch(url.pathToFileURL(absolutePath).toString());
+            }
+        } catch { }
+
+        return new Response('Not Found', {
+            status: 404,
+            headers: { 'content-type': 'text/html' }
+        });
+    });
+
     return createWindow();
 }
