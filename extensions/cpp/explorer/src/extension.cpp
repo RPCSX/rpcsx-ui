@@ -5,6 +5,22 @@
 
 using namespace rpcsx::ui;
 
+static void replaceAll(std::string &str, const std::string &from,
+                       const std::string &to) {
+  size_t start_pos = 0;
+  while ((start_pos = str.find(from, start_pos)) != std::string::npos) {
+    str.replace(start_pos, from.length(), to);
+    start_pos += to.length();
+  }
+}
+
+static std::string toUri(const std::filesystem::path &path) {
+  auto pathString = path.string();
+  replaceAll(pathString, "\\", "/");
+  return pathString[0] == '/' ? "file://" + pathString
+                              : "file:///" + pathString;
+}
+
 enum class LanguageCode {
   ja,
   en,
@@ -142,7 +158,7 @@ fetchLocalizedResourceFile(const std::filesystem::path &path,
 
   if (std::filesystem::is_regular_file(path / (name + ext))) {
     result.push_back(LocalizedResource{
-        .uri = "file://" + (path / (name + ext)).string(),
+        .uri = toUri(path / (name + ext)),
     });
   } else {
     return {};
@@ -155,7 +171,7 @@ fetchLocalizedResourceFile(const std::filesystem::path &path,
     if (auto testPath = path / (name + suffix + ext);
         std::filesystem::is_regular_file(testPath)) {
       result.push_back(LocalizedResource{
-          .uri = "file://" + testPath.string(),
+          .uri = toUri(testPath),
           .lang = languageCodeToString(static_cast<LanguageCode>(i)),
       });
     }
@@ -171,14 +187,14 @@ fetchLocalizedImageFile(const std::filesystem::path &path,
 
   if (std::filesystem::is_regular_file(path / (name + ext))) {
     result.push_back(LocalizedImage{
-        .uri = "file://" + (path / (name + ext)).string(),
+        .uri = toUri(path / (name + ext)),
         .resolution = ImageResolution::Normal,
     });
   }
 
   if (std::filesystem::is_regular_file(path / (name + "_4k" + ext))) {
     result.push_back(LocalizedImage{
-        .uri = "file://" + (path / (name + "_4k" + ext)).string(),
+        .uri = toUri(path / (name + "_4k" + ext)),
         .resolution = ImageResolution::High,
     });
   }
@@ -190,7 +206,7 @@ fetchLocalizedImageFile(const std::filesystem::path &path,
     if (auto testPath = path / (name + suffix + ext);
         std::filesystem::is_regular_file(testPath)) {
       result.push_back(LocalizedImage{
-          .uri = "file://" + testPath.string(),
+          .uri = toUri(testPath),
           .lang = languageCodeToString(static_cast<LanguageCode>(i)),
           .resolution = ImageResolution::Normal,
       });
@@ -199,7 +215,7 @@ fetchLocalizedImageFile(const std::filesystem::path &path,
     if (auto testPath = path / (name + "_4k" + suffix + ext);
         std::filesystem::is_regular_file(testPath)) {
       result.push_back(LocalizedImage{
-          .uri = "file://" + testPath.string(),
+          .uri = toUri(testPath),
           .lang = languageCodeToString(static_cast<LanguageCode>(i)),
           .resolution = ImageResolution::High,
       });
@@ -247,7 +263,7 @@ tryFetchFw(const std::filesystem::directory_entry &entry) {
         .name = {LocalizedString{
             .text = "PS4 Firmware",
         }},
-        .location = "file://" + entry.path().string(),
+        .location = toUri(entry.path()),
         .size = calcDirectorySize(entry.path()),
         .launcher =
             LauncherInfo{
@@ -263,7 +279,7 @@ tryFetchFw(const std::filesystem::directory_entry &entry) {
         .name = {LocalizedString{
             .text = "PS5 Firmware",
         }},
-        .location = "file://" + entry.path().string(),
+        .location = toUri(entry.path()),
         .size = calcDirectorySize(entry.path()),
         .launcher =
             LauncherInfo{
@@ -331,7 +347,7 @@ tryFetchGame(const std::filesystem::directory_entry &entry) {
       .type = "fself-ps4-orbis" // FIXME: self/elf? ps5?
                                 // "fself-ps5-prospero"
   };
-  info.location = "file://" + entry.path().string();
+  info.location = toUri(entry.path());
   return std::move(info);
 }
 
@@ -389,7 +405,7 @@ tryFetchPs3Game(const std::filesystem::directory_entry &entry) {
   info.launcher = LauncherInfo{
       .type = "self-ps3-cellos" // FIXME: fself/elf?
   };
-  info.location = "file://" + entry.path().string();
+  info.location = toUri(entry.path());
 
   return info;
 }
