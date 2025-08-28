@@ -15,6 +15,7 @@ string(TOLOWER "${CMAKE_SYSTEM_NAME}" EXTENSION_TRIPLE_OS)
 
 if("${EXTENSION_TRIPLE_OS}" STREQUAL "windows")
     set(EXTENSION_TRIPLE_FORMAT "pe")
+    set(EXTENSION_TRIPLE_OS "win32")
 else()
     set(EXTENSION_TRIPLE_FORMAT "elf")
 endif()

@@ -15,10 +15,23 @@
 #include <unordered_map>
 #include <utility>
 
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#endif
+
 using namespace rpcsx::ui;
 using namespace nlohmann;
 
 struct StdioTransport : Transport {
+#ifdef _WIN32
+  StdioTransport() {
+    _setmode(_fileno(stdin), _O_BINARY);
+    _setmode(_fileno(stdout), _O_BINARY);
+    _setmode(_fileno(stderr), _O_BINARY);
+  }
+#endif
+
   void write(std::span<const std::byte> bytes) override {
     while (true) {
       auto count = std::fwrite(bytes.data(), 1, bytes.size(), stdout);
