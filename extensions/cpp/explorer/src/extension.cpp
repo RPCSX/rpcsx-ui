@@ -224,17 +224,6 @@ fetchLocalizedImageFile(const std::filesystem::path &path,
 
   return result;
 }
-static std::size_t calcDirectorySize(const std::filesystem::path &path) {
-  std::uint64_t result = 0;
-
-  for (auto dir : std::filesystem::recursive_directory_iterator(path)) {
-    if (dir.is_regular_file()) {
-      result += std::filesystem::file_size(dir);
-    }
-  }
-
-  return result;
-}
 
 static std::optional<ExplorerItem>
 tryFetchFw(const std::filesystem::directory_entry &entry) {
@@ -264,7 +253,6 @@ tryFetchFw(const std::filesystem::directory_entry &entry) {
             .text = "PS4 Firmware",
         }},
         .location = toUri(entry.path()),
-        .size = calcDirectorySize(entry.path()),
         .launcher =
             LauncherInfo{
                 .type = "dir-ps4-fw",
@@ -280,7 +268,6 @@ tryFetchFw(const std::filesystem::directory_entry &entry) {
             .text = "PS5 Firmware",
         }},
         .location = toUri(entry.path()),
-        .size = calcDirectorySize(entry.path()),
         .launcher =
             LauncherInfo{
                 .type = "dir-ps5-fw",
@@ -341,7 +328,6 @@ tryFetchGame(const std::filesystem::directory_entry &entry) {
   info.background = fetchLocalizedImageFile(sysPath, "pic1", ".png");
   info.overlayImage = fetchLocalizedImageFile(sysPath, "pic2", ".png");
 
-  info.size = calcDirectorySize(entry.path());
   info.type = "game";
   info.launcher = LauncherInfo{
       .type = "fself-ps4-orbis" // FIXME: self/elf? ps5?
@@ -400,7 +386,6 @@ tryFetchPs3Game(const std::filesystem::directory_entry &entry) {
   info.background = fetchLocalizedImageFile(entry.path(), "PIC1", ".PNG");
   info.overlayImage = fetchLocalizedImageFile(entry.path(), "PIC2", ".PNG");
 
-  info.size = calcDirectorySize(entry.path());
   info.type = "game";
   info.launcher = LauncherInfo{
       .type = "self-ps3-cellos" // FIXME: fself/elf?
