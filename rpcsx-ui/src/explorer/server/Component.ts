@@ -67,8 +67,12 @@ export class ExplorerComponent implements IDisposable {
             let workList = [...this.locations.filter(x => !this.describedLocations.has(x))];
 
             while (workList.length > 0) {
-                const notDescribedLocations = await this.tryDescribe(workList, describers);
-                workList = [];
+                const notDescribedLocations: string[] = [];
+
+                while (workList.length > 0) {
+                    notDescribedLocations.push(...await this.tryDescribe(workList.slice(0, 5), describers));
+                    workList = workList.slice(5);
+                }
 
                 if (abortSignal.aborted) {
                     return;
