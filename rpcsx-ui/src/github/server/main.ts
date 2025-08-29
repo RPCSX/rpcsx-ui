@@ -1,4 +1,3 @@
-import { Component } from '$core/Component';
 import * as github from './github';
 
 export async function handleReleasesLatest(_caller: Component, params: GithubReleasesLatestRequest): Promise<GithubReleasesLatestResponse> {

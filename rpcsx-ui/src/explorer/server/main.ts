@@ -1,4 +1,3 @@
-import { Component, ComponentContext } from "$core/Component";
 import { createError } from "$core/Error";
 import { ExplorerComponent } from "./Component";
 

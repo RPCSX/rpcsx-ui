@@ -1,4 +1,3 @@
-import { Component, ComponentContext } from "$core/Component";
 import * as self from "$";
 import * as progress from "$progress";
 import { IDisposable } from "$core/Disposable";

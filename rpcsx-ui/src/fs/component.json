@@ -1,0 +1,198 @@
+{
+    "name": "fs",
+    "version": "0.1.0",
+    "contributions": {
+        "types": {
+            "dir-entry-type": {
+                "type": "enum",
+                "enumerators": {
+                    "file": 0,
+                    "directory": 1,
+                    "block-device": 2,
+                    "character-device": 2,
+                    "symbolic-link": 3,
+                    "fifo": 4,
+                    "socket": 5,
+                    "other": 6
+                }
+            },
+            "dir-entry": {
+                "type": "object",
+                "params": {
+                    "type": {
+                        "type": "dir-entry-type"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                }
+            },
+            "file-stat": {
+                "type": "object",
+                "params": {
+                    "type": {
+                        "type": "dir-entry-type"
+                    },
+                    "size": {
+                        "type": "number"
+                    }
+                }
+            }
+        },
+        "interfaces": {
+            "file": {
+                "methods": {
+                    "read": {
+                        "params": {
+                            "offset": {
+                                "type": "number"
+                            },
+                            "size": {
+                                "type": "number"
+                            }
+                        },
+                        "returns": {
+                            "data": {
+                                "type": "array",
+                                "item-type": "number"
+                            }
+                        }
+                    },
+                    "write": {
+                        "params": {
+                            "offset": {
+                                "type": "number"
+                            },
+                            "data": {
+                                "type": "array",
+                                "item-type": "number"
+                            }
+                        },
+                        "returns": {
+                            "written": {
+                                "type": "number"
+                            }
+                        }
+                    },
+                    "close": {}
+                }
+            },
+            "file-system": {
+                "methods": {
+                    "open": {
+                        "params": {
+                            "uri": {
+                                "type": "string"
+                            }
+                        },
+                        "returns": {
+                            "file": {
+                                "type": "number"
+                            }
+                        }
+                    },
+                    "read-to-string": {
+                        "params": {
+                            "uri": {
+                                "type": "string"
+                            }
+                        },
+                        "returns": {
+                            "data": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "read-dir": {
+                        "params": {
+                            "uri": {
+                                "type": "string"
+                            }
+                        },
+                        "returns": {
+                            "items": {
+                                "type": "array",
+                                "item-type": "dir-entry"
+                            }
+                        }
+                    },
+                    "stat": {
+                        "params": {
+                            "uri": {
+                                "type": "string"
+                            }
+                        },
+                        "returns": {
+                            "item": {
+                                "type": "file-stat"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "methods": {
+            "open": {
+                "handler": "handleOpen",
+                "params": {
+                    "uri": {
+                        "type": "string"
+                    },
+                    "flags": {
+                        "type": "string",
+                        "optional": true
+                    },
+                    "mode": {
+                        "type": "number",
+                        "optional": true
+                    }
+                },
+                "returns": {
+                    "file": {
+                        "type": "number"
+                    }
+                }
+            },
+            "read-to-string": {
+                "handler": "handleReadToString",
+                "params": {
+                    "uri": {
+                        "type": "string"
+                    }
+                },
+                "returns": {
+                    "data": {
+                        "type": "string"
+                    }
+                }
+            },
+            "read-dir": {
+                "handler": "handleReadDir",
+                "params": {
+                    "uri": {
+                        "type": "string"
+                    }
+                },
+                "returns": {
+                    "items": {
+                        "type": "array",
+                        "item-type": "dir-entry"
+                    }
+                }
+            },
+            "stat": {
+                "handler": "handleStat",
+                "params": {
+                    "uri": {
+                        "type": "string"
+                    }
+                },
+                "returns": {
+                    "item": {
+                        "type": "file-stat"
+                    }
+                }
+            }
+        }
+    }
+}

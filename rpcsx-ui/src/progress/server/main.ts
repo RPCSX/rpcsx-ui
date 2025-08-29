@@ -1,5 +1,3 @@
-// import { ipcMain } from 'electron';
-import { Component } from '$core/Component';
 import { createError } from '$core/Error';
 import * as api from '$';
 

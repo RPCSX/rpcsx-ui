@@ -396,9 +396,9 @@ tryFetchPs3Game(const std::filesystem::directory_entry &entry) {
 }
 
 struct ExplorerDescriber : ExplorerDescriberInterface {
-  ExplorerDescribeResponse
-  describe(const ExplorerDescribeRequest &request) override {
-    ExplorerDescribeResponse result;
+  ExplorerDescriberDescribeResponse
+  describe(const ExplorerDescriberDescribeRequest &request) override {
+    ExplorerDescriberDescribeResponse result;
 
     unsigned index = -1;
     for (auto &uri : request.uris) {

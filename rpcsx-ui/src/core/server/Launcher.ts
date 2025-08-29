@@ -11,6 +11,7 @@ export type Process = {
     on: (event: 'close' | 'exit', listener: (...args: any[]) => void) => void;
     once: (event: 'close' | 'exit', listener: (...args: any[]) => void) => void;
     off: (event: 'close' | 'exit', listener: (...args: any[]) => void) => void;
+    getPid(): number;
 }
 
 export type LaunchParams = {

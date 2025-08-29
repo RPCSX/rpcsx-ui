@@ -60,7 +60,7 @@ export type ContributionGenerator = {
     generateView?(component: string, path: string, name: string): void | Promise<void>;
     generateSetting?(component: string, schema: object, name: string): void | Promise<void>;
     generateInterface?(component: string, iface: object, name: string): void | Promise<void>;
-    toString(): string;
+    toString(component: string): string;
 };
 
 const componentManifestName = "component.json";
@@ -640,10 +640,16 @@ class TypesGenerator implements ContributionGenerator {
         if (!(requestTypeName in this.generatedTypes)) {
             let paramsType = `type ${requestTypeName} = `;
 
-            if ("params" in method && method.params && typeof method.params == "object") {
-                paramsType += "{\n";
-                paramsType += this.generateObjectBody(component, method.params);
-                paramsType += "};\n";
+            if ("params" in method && method.params) {
+                if (typeof method.params == "object") {
+                    paramsType += "{\n";
+                    paramsType += this.generateObjectBody(component, method.params);
+                    paramsType += "};\n";
+                } else if (typeof method.params == "string") {
+                    paramsType += `${this.getTypeName(component, method.params)};\n`;
+                } else {
+                    throw new Error(`${name}: params must be object or string`);
+                }
             } else {
                 paramsType += "undefined;\n";
             }
@@ -654,10 +660,16 @@ class TypesGenerator implements ContributionGenerator {
 
         if (!(responseTypeName in this.generatedTypes)) {
             let responseType = `type ${responseTypeName} = `;
-            if ("returns" in method && method.returns && typeof method.returns == "object") {
-                responseType += "{\n";
-                responseType += this.generateObjectBody(component, method.returns);
-                responseType += "}\n";
+            if ("returns" in method && method.returns) {
+                if (typeof method.returns == "object") {
+                    responseType += "{\n";
+                    responseType += this.generateObjectBody(component, method.returns);
+                    responseType += "};\n";
+                } else if (typeof method.returns == "string") {
+                    responseType += `${this.getTypeName(component, method.returns)};\n`;
+                } else {
+                    throw new Error(`${name}: returns must be object or string`);
+                }
             } else {
                 responseType += "void;\n";
             }
@@ -673,10 +685,16 @@ class TypesGenerator implements ContributionGenerator {
 
         if (!(requestTypeName in this.generatedTypes)) {
             let paramsType = `type ${requestTypeName} = `;
-            if ("params" in notification && notification.params && typeof notification.params == "object") {
-                paramsType += "{\n";
-                paramsType += this.generateObjectBody(component, notification.params);
-                paramsType += "};\n";
+            if ("params" in notification && notification.params) {
+                if (typeof notification.params == "object") {
+                    paramsType += "{\n";
+                    paramsType += this.generateObjectBody(component, notification.params);
+                    paramsType += "};\n";
+                } else if (typeof notification.params == "string") {
+                    paramsType += `${this.getTypeName(component, notification.params)};\n`;
+                } else {
+                    throw new Error(`${name}: params must be object or string`);
+                }
             } else {
                 paramsType += "undefined;\n";
             }
@@ -684,6 +702,29 @@ class TypesGenerator implements ContributionGenerator {
         } else {
             throw new Error(`${name}: type ${requestTypeName} already declared`);
         }
+    }
+
+    generateInterface(component: string, iface: object, name: string) {
+        const uLabel = generateLabelName(name, true);
+        this.generatedTypes[`${uLabel}Interface`] = `
+type ${uLabel}Interface = {
+${"methods" in iface ? iface.methods && Object.keys(iface.methods).map(method => {
+            const methodTypeLabel = generateComponentLabelName(component, `${name}-${method}`, true);
+            if ("params" in (iface.methods as any)[method]) {
+                return `    ${generateLabelName(method, false)}(caller: Component, request: ${methodTypeLabel}Request): ${methodTypeLabel}Response | Promise<${methodTypeLabel}Response>`;
+            } else {
+                return `    ${generateLabelName(method, false)}(caller: Component): ${methodTypeLabel}Response | Promise<${methodTypeLabel}Response>`;
+            }
+        }).join("\n") : ""}
+${"notifications" in iface ? iface.notifications && Object.keys(iface.notifications).map(notification => {
+            const methodTypeLabel = generateComponentLabelName(component, `${name}-${notification}`, true);
+            if ("params" in (iface.notifications as any)[notification]) {
+                return `    ${generateLabelName(notification, false)}(caller: Component, request: ${methodTypeLabel}Request): void | Promise<void>;`
+            } else {
+                return `    ${generateLabelName(notification, false)}(caller: Component): void | Promise<void>;`;
+            }
+        }).join("\n") : ""}
+};`
     }
 
     generateEvent(component: string, event: object, name: string) {
@@ -702,7 +743,7 @@ class TypesGenerator implements ContributionGenerator {
                 }
                 this.generatedTypes[typeName] = paramsType;
             } else if (typeof event == 'string') {
-                this.generatedTypes[typeName] = `export type ${typeName} = ${this.getTypeName(component, event)};\n`;
+                this.generatedTypes[typeName] = `type ${typeName} = ${this.getTypeName(component, event)};\n`;
             } else {
                 throw new Error(`${name}: must be object or string`);
             }
@@ -780,7 +821,6 @@ class TypesGenerator implements ContributionGenerator {
 }
 
 class ServerPublicApiGenerator implements ContributionGenerator {
-
     toString(): string {
         return `${generatedHeader}
 import { thisComponent } from "$/component-info";
@@ -801,17 +841,121 @@ export function onEvent(caller: ComponentInstance, event: string, listener: (par
     }
 };
 
+function generateInterfaceContribution(component: string, iface: object, name: string) {
+    const uLabel = generateLabelName(name, true);
+    return `
+export class ${uLabel}ComponentObject implements ComponentObject {
+    typeId = "${component}/${name}";
+
+    constructor(public impl: ${uLabel}Interface, public name: string) {}
+
+    call(caller: Component, method: string, params: JsonObject | undefined): Promise<JsonObject | void> | JsonObject | void {
+        void caller, params;
+
+        switch (method) {
+${"methods" in iface ? iface.methods && Object.keys(iface.methods).map(method => {
+    if ("params" in (iface.methods as any)[method]) {
+        return `            case "${method}": return this.impl.${generateLabelName(method, false)}(caller, params as any);\n`
+    } else {
+        return `            case "${method}": return this.impl.${generateLabelName(method, false)}(caller);\n`
+    }
+}).join("\n") : ""}
+
+            default:
+                throw createError(ErrorCode.MethodNotFound);
+        }
+    }
+
+    notify(caller: Component, method: string, params: JsonObject | undefined): void | Promise<void> {
+        void caller, params;
+
+        switch (method) {
+${"notifications" in iface ? iface.notifications && Object.keys(iface.notifications).map(notification => {
+    if ("params" in (iface.notifications as any)[notification]) {
+        return `            case "${notification}": return this.impl.${generateLabelName(notification, false)}(caller, params as any);\n`
+    } else {
+        return `            case "${notification}": return this.impl.${generateLabelName(notification, false)}(caller);\n`
+    }
+}).join("\n") : ""}
+
+            default:
+                throw createError(ErrorCode.MethodNotFound);
+        }
+    }
+
+    dispose(): void | Promise<void> {
+        if ("dispose" in this.impl && typeof this.impl.dispose == "function") {
+            return this.impl.dispose();
+        }
+    }
+}
+
+export class ${uLabel} {
+    constructor(private id: number) {}
+
+${"methods" in iface ? iface.methods && Object.keys(iface.methods).map(method => {
+        const methodTypeLabel = generateComponentLabelName(component, `${name}-${method}`, true);
+        if ("params" in (iface.methods as any)[method]) {
+            return `    async ${generateLabelName(method, false)}(request: ${methodTypeLabel}Request): Promise<${methodTypeLabel}Response> {
+        return (await ${component == "core" ? "" : "core."}objectCall({ object: this.id, method: "${method}", params: request})).result as any;
+    }
+`
+        } else {
+            return `    async ${generateLabelName(method, false)}(): Promise<${methodTypeLabel}Response> {
+        return (await ${component == "core" ? "" : "core."}objectCall({ object: this.id, method: "${method}", params: {}})).result as any;
+    }
+`
+        }
+    }).join("\n") : ""}
+${"notifications" in iface ? iface.notifications && Object.keys(iface.notifications).map(notification => {
+        const methodTypeLabel = generateComponentLabelName(component, `${name}-${notification}`, true);
+        if ("params" in (iface.notifications as any)[notification]) {
+            return `    async ${generateLabelName(notification, false)}(request: ${methodTypeLabel}Request) {
+        return ${component == "core" ? "" : "core."}objectNotify({ object: this.id, notification: "${notification}", params: request});
+    }
+`
+        } else {
+            return `    async ${generateLabelName(notification, false)}() {
+        return ${component == "core" ? "" : "core."}objectNotify({ object: this.id, notification: "${notification}", params: {}});
+    }
+`
+        }
+    }).join("\n") : ""}
+    destroy() {
+        return ${component == "core" ? "" : "core."}objectDestroy({ object: this.id });
+    }
+
+    async getName() {
+        return (await ${component == "core" ? "" : "core."}objectGetName({ object: this.id })).name;
+    }
+
+    getId() {
+        return this.id;
+    }
+};
+
+export async function get${uLabel}Objects() {
+  return (await ${component == "core" ? "" : "core."}objectGetList({ interface: "${component}/${name}" })).objects.map(id => new ${uLabel}(id));
+}
+export async function find${uLabel}Object(name: string) {
+  return new ${uLabel}((await ${component == "core" ? "" : "core."}objectFind({ interfaceName: "${component}/${name}", objectName: name })).object);
+}
+export function to${uLabel}(handle: number): ${uLabel} {
+    return new ${uLabel}(handle);
+}
+`;
+}
+
 class ServerComponentApiGenerator implements ContributionGenerator {
     private body = '';
     private viewBody = '';
-    private externalComponent?: string;
+    private interfaceBody = '';
 
     generateMethod(component: string, method: object, name: string) {
         if ("virtual" in method && method.virtual === true) {
             return;
         }
 
-        this.externalComponent ??= component;
         const label = generateComponentLabelName(component, name, false);
         const uLabel = generateComponentLabelName(component, name, true);
         this.body += `export async function ${label}(params: ${uLabel}Request): Promise<${uLabel}Response> {
@@ -825,7 +969,6 @@ class ServerComponentApiGenerator implements ContributionGenerator {
             return;
         }
 
-        this.externalComponent ??= component;
         const label = generateComponentLabelName(component, name, false);
         const uLabel = generateComponentLabelName(component, name, true);
         this.body += `export async function ${label}(params: ${uLabel}Request) {
@@ -834,8 +977,34 @@ class ServerComponentApiGenerator implements ContributionGenerator {
 `;
     }
 
+    generateInterface(component: string, iface: object, name: string) {
+        const uLabel = generateLabelName(name, true);
+        this.interfaceBody += generateInterfaceContribution(component, iface, name);
+        this.interfaceBody += `
+export async function create${uLabel}Object<Impl extends ${uLabel}Interface, Params extends any[]>(name: string, Constructor: new (id: number, ...args: Params) => Impl, ...args: Params) {
+    const id = (await ${component == "core" ? "" : "core."}objectCreate({ interface: "${component}/${name}", name })).object;
+    const impl = new Constructor(id, ...args);
+    self.registerObject(id, new ${uLabel}ComponentObject(impl, name));
+    return impl;
+}
+export function on${uLabel}Created(handler: (object: ${uLabel}) => Promise<void> | void) {
+    return ${component == "core" ? "" : "core."}onObjectCreated((params) => {
+        if (params.interface == "${component}/${name}") {
+            handler(new ${uLabel}(params.object));
+        }
+    });
+}
+export function onAny${uLabel}Created(handler: () => Promise<void> | void) {
+    return ${component == "core" ? "" : "core."}onObjectCreated((params) => {
+        if (params.interface == "${component}/${name}") {
+            handler();
+        }
+    });
+}
+`;
+    }
+
     generateEvent(component: string, event: object, name: string) {
-        this.externalComponent ??= component;
         const label = generateComponentLabelName(component, name, true);
         if (Object.keys(event).length == 0) {
             this.body += `export function on${label}(handler: () => Promise<void> | void) {
@@ -850,7 +1019,7 @@ class ServerComponentApiGenerator implements ContributionGenerator {
 `;
     }
 
-    generateView(_component: string, _path: string, name: string) {
+    generateView(component: string, _path: string, name: string) {
         this.viewBody += `
 export function push${name}View(target: Window, params: ${name}Props) {
     return target.pushView("${name}", params);
@@ -862,18 +1031,30 @@ export function set${name}View(target: Window, params: ${name}Props) {
 `;
     }
 
-    toString(): string {
-        if (this.body.length === 0 || !this.externalComponent) {
-            return `${generatedHeader}export { };\n`;
-        }
-
+    toString(component: string): string {
         return `${generatedHeader}
-import { thisComponent } from "$/component-info";
-import * as ${generateLabelName(this.externalComponent, false)} from '$${this.externalComponent}/api';
-${this.viewBody && "import { Window } from '$core/Window';"}
+${this.body && `import { thisComponent } from "$/component-info";` || ""}
+import * as ${generateLabelName(component, false)} from '$${component}/api';
+${this.viewBody && "import { Window } from '$core/Window';" || ""}
+${(this.interfaceBody && component != "core") && "import * as core from '$core'" || ""}
+${this.interfaceBody && "import * as self from './api';" || ""}
+
+import { createError } from '$core/Error';
+
+type ComponentObject = {
+    typeId: string;
+    name: string;
+    impl: object;
+    call(caller: Component, method: string, params: JsonObject | undefined): Promise<JsonObject | void> | JsonObject | void;
+    notify(caller: Component, method: string, params: JsonObject | undefined): void | Promise<void>;
+    dispose(): void | Promise<void>;
+};
 
 ${this.body}
 ${this.viewBody}
+${this.interfaceBody}
+
+export { };
 `;
     }
 };
@@ -969,7 +1150,7 @@ export async function ${label}(params: ${uLabel}Request) {
         this.notifyBody += `        case "${name}": return notify${uLabel}(caller, params as ${uLabel}Request);\n`;
     }
 
-    generateView(component: string, _path: string, name: string) {
+    generateView(_component: string, _path: string, name: string) {
         this.viewBody += `
 export function push${name}View(target: Window, params: ${name}Props) {
     return target.pushView("${name}", params);
@@ -994,64 +1175,22 @@ export function set${name}View(target: Window, params: ${name}Props) {
 
     generateInterface(component: string, iface: object, name: string) {
         const uLabel = generateLabelName(name, true);
+
+        this.interfaceBody += generateInterfaceContribution(component, iface, name);
         this.interfaceBody += `
-export class ${uLabel}Interface {
-    constructor(private id: number) {}
-
-${"methods" in iface ? iface.methods && Object.keys(iface.methods).map(method => {
-    const methodTypeLabel = generateComponentLabelName(component, method, true);
-    if ("params" in (iface.methods as any)[method]) {
-        return `    async ${generateLabelName(method, false)}(request: ${methodTypeLabel}Request): Promise<${methodTypeLabel}Response> {
-        return (await core.objectCall({ object: this.id, method: "${method}", params: request})).result as ${methodTypeLabel}Response;
-    }
-`
-    } else {
-        return `    async ${generateLabelName(method, false)}(): Promise<${methodTypeLabel}Response> {
-        return (await core.objectCall({ object: this.id, method: "${method}", params: {}})).result as ${methodTypeLabel}Response;
-    }
-`
-    }
-}).join("\n") : ""}
-${"notifications" in iface ? iface.notifications && Object.keys(iface.notifications).map(notification => {
-    const methodTypeLabel = generateComponentLabelName(component, notification, true);
-    if ("params" in (iface.notifications as any)[notification]) {
-        return `    async ${generateLabelName(notification, false)}(request: ${methodTypeLabel}Request) {
-        return core.objectNotify({ object: this.id, notification: "${notification}", params: request});
-    }
-`
-    } else {
-        return `    async ${generateLabelName(notification, false)}() {
-        return core.objectNotify({ object: this.id, notification: "${notification}", params: {}});
-    }
-`
-    }
-}).join("\n") : ""}
-    destroy() {
-        return core.objectDestroy({ object: this.id });
-    }
-
-    async getName() {
-        return (await core.objectGetName({ object: this.id })).name;
-    }
-
-    getId() {
-        return this.id;
-    }
-};
-
-export async function get${uLabel}Objects() {
-  return (await core.objectGetList({ interface: "${component}/${name}" })).objects.map(id => new ${uLabel}Interface(id));
+export async function create${uLabel}Object<Impl extends ${uLabel}Interface, Params extends any[]>(name: string, Constructor: new (id: number, ...args: Params) => Impl, ...args: Params) {
+    const id = (await ${component == "core" ? "" : "core."}objectCreate({ interface: "${component}/${name}", name })).object;
+    const impl = new Constructor(id, ...args);
+    objects[id] = new ${uLabel}ComponentObject(impl, name);
+    return impl;
 }
-export async function find${uLabel}Object(name: string) {
-  return new ${uLabel}Interface((await core.objectFind({ interfaceName: "${component}/${name}", objectName: name })).object);
-}
-export async function create${uLabel}Object(name: string) {
-  return new ${uLabel}Interface((await core.objectCreate({ interface: "${component}/${name}", name })).object);
-}
-export function on${uLabel}Created(handler: (object: ${uLabel}Interface) => Promise<void> | void) {
+`;
+        if (component != 'core') {
+            this.interfaceBody += `
+export function on${uLabel}Created(handler: (object: ${uLabel}) => Promise<void> | void) {
     return core.onObjectCreated((params) => {
         if (params.interface == "${component}/${name}") {
-            handler(new ${uLabel}Interface(params.object));
+            handler(new ${uLabel}(params.object));
         }
     });
 }
@@ -1063,34 +1202,14 @@ export function onAny${uLabel}Created(handler: () => Promise<void> | void) {
     });
 }
 `;
+        }
     }
 
 
     toString(): string {
-        if (this.body.length === 0) {
-            return `${generatedHeader}
-import { createError } from "$core/Error";
-import { Component } from "$core/Component";
-import * as core from "$core";
-${this.viewBody && "import { Window } from '$core/Window';"}
-
-export async function call(_caller: Component, _method: string, _params: JsonObject | undefined): Promise<JsonObject | void> {
-    throw createError(ErrorCode.MethodNotFound);
-}
-
-export async function notify(_caller: Component, _method: string, _params: JsonObject | undefined) {
-    throw createError(ErrorCode.MethodNotFound);
-}
-
-export const settings = {${this.settingBody}};
-${this.viewBody}
-`;
-        }
-
         return `${generatedHeader}
 ${this.callBody.length > 0 || this.notifyBody.length > 0 ? 'import * as impl from "$/main";' : ""}
 import { createError } from "$core/Error";
-import { Component } from "$core/Component";
 import { thisComponent } from "$/component-info";
 import * as core from "$core";
 ${this.viewBody && "import { Window } from '$core/Window';"}
@@ -1098,13 +1217,53 @@ export { thisComponent } from "$/component-info";
 
 ${this.body}
 
+type ComponentObject = {
+    typeId: string;
+    name: string;
+    impl: object;
+    call(caller: Component, method: string, params: JsonObject | undefined): Promise<JsonObject | void> | JsonObject | void;
+    notify(caller: Component, method: string, params: JsonObject | undefined): void | Promise<void>;
+    dispose(): void | Promise<void>;
+};
+
+const objects: Record<number, ComponentObject> = {};
+
+export async function destroyObject(object: number) {
+    await core.objectDestroy({ object });
+    const instance = objects[object];
+    if (instance) {
+        instance.dispose();
+        delete objects[object];
+    } 
+}
+export function registerObject(id: number, object: ComponentObject) {
+    objects[id] = object;
+}
+
+export function ownObjects() {
+    return Object.values(objects);
+}
+
 export async function call(caller: Component, method: string, params: JsonObject | undefined): Promise<JsonObject | void> {
     void caller, params;
 
     switch (method) {
 ${this.callBody}
-    default:
-        throw createError(ErrorCode.MethodNotFound);
+        case "$/object/call":
+            if (params && typeof params.method == "string" && typeof params.object == 'number') {
+                if (params.object in objects) {
+                    return objects[params.object].call(caller, params.method,
+                        "params" in params ? params.params as any : undefined
+                    );
+                }
+
+                throw createError(ErrorCode.InvalidParams);
+            }
+
+            throw createError(ErrorCode.InvalidRequest);
+
+        default:
+            throw createError(ErrorCode.MethodNotFound);
     }
 }
 
@@ -1113,8 +1272,21 @@ export async function notify(caller: Component, method: string, params: JsonObje
 
     switch (method) {
 ${this.notifyBody}
-    default:
-        throw createError(ErrorCode.MethodNotFound);
+        case "$/object/notify":
+            if (params && typeof params.notification == "string" && typeof params.object == 'number') {
+                if (params.object in objects) {
+                    return objects[params.object].notify(caller, params.notification,
+                        "params" in params ? params.params as any : undefined
+                    );
+                }
+
+                throw createError(ErrorCode.InvalidParams);
+            }
+
+            throw createError(ErrorCode.InvalidRequest);
+
+        default:
+            throw createError(ErrorCode.MethodNotFound);
     }
 }
 
@@ -1331,7 +1503,7 @@ export async function generateContributions<Params extends any[], RT extends Con
 
                                         object.virtual = true;
 
-                                        await gen(component.manifest.name, object, method);
+                                        await gen(component.manifest.name, object, `${name}-${method}`);
                                     }));
                                 }
 
@@ -1354,7 +1526,7 @@ export async function generateContributions<Params extends any[], RT extends Con
 
                                         object.virtual = true;
 
-                                        await gen(component.manifest.name, object, notification);
+                                        await gen(component.manifest.name, object, `${name}-${notification}`);
                                     }));
                                 }
 
@@ -1496,7 +1668,7 @@ export class TsServerGenerator implements ProjectGenerator {
 
         if (generatedFile) {
             try {
-                generatedFile.content = (await generateContributions(sourceComponent, Generator, ...params)).toString();
+                generatedFile.content = (await generateContributions(sourceComponent, Generator, ...params)).toString(sourceComponent.manifest.name);
             } catch (e) {
                 throw Error(`${sourceComponent.manifest.name}: ${e}`);
             }
@@ -1511,7 +1683,7 @@ export class TsServerGenerator implements ProjectGenerator {
 
         if (generatedFile) {
             try {
-                generatedFile.content = (await generateContributions(project.component, Generator, ...params)).toString();
+                generatedFile.content = (await generateContributions(project.component, Generator, ...params)).toString(project.component.manifest.name);
             } catch (e) {
                 throw Error(`${project.component.manifest.name}: ${e}`);
             }
@@ -1603,7 +1775,6 @@ export function thisComponent() {
             componentFile.content = `${generatedHeader}
 import * as api from '$';
 import { IComponentImpl, registerComponent } from '$core/ComponentInstance';
-import { ComponentContext, Component } from '$core/Component';
 import { manifest } from '$/component-info';
 export { thisComponent } from '$/component-info';
 

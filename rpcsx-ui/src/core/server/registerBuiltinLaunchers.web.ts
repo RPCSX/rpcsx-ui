@@ -4,18 +4,20 @@ import { Target } from "./Target";
 import { fork, spawn } from "child_process";
 import { Duplex } from "stream";
 import { EventEmitter } from "events";
+import * as locations from '$/locations';
 
 const nativeLauncher: Launcher = {
     launch: async (path: string, args: string[], params: LaunchParams) => {
         const newProcess = spawn(path, args, {
             argv0: path,
-            cwd: dirname(path),
+            cwd: locations.rootPath,
             signal: params.signal,
             stdio: 'pipe'
         });
 
         newProcess.stdout.setEncoding('utf8');
         newProcess.stderr.setEncoding('utf8');
+        const pid = newProcess.pid ?? 0;
 
         const result: Process = {
             stdin: newProcess.stdin,
@@ -33,7 +35,8 @@ const nativeLauncher: Launcher = {
             },
             off: (event: string, handler: (...args: any[]) => void) => {
                 newProcess.off(event, handler);
-            }
+            },
+            getPid: () => pid
         };
 
         return result;
@@ -50,6 +53,7 @@ const nodeLauncher: Launcher = {
 
         newProcess.stdout!.setEncoding('utf8');
         newProcess.stderr!.setEncoding('utf8');
+        const pid = newProcess.pid ?? 0;
 
         const result: Process = {
             stdin: newProcess.stdin!,
@@ -67,7 +71,8 @@ const nodeLauncher: Launcher = {
             },
             off: (event: string, handler: (...args: any[]) => void) => {
                 newProcess.off(event, handler);
-            }
+            },
+            getPid: () => pid
         };
 
         return result;
@@ -106,7 +111,10 @@ const inlineLauncher: Launcher = {
             },
             off: (event: string, handler: (...args: any[]) => void) => {
                 eventEmitter.off(event, handler);
-            }
+            },
+            getPid() {
+                return 0;
+            },
         };
 
         return result;

@@ -1,5 +1,4 @@
 import * as Event from "$/Event";
-import { ComponentContext, ComponentId, Component } from "$/Component";
 import { Disposable, IDisposable } from "$/Disposable";
 import { isJsonObject } from '$/Json';
 import { createError } from "$/Error";
@@ -23,6 +22,7 @@ export type IComponentImpl = IDisposable & {
     deactivate(context: ComponentContext): void | Promise<void>;
     call?(caller: Component, method: string, params: JsonObject | undefined): Promise<JsonObject | void>;
     notify?(caller: Component, notification: string, params: JsonObject | undefined): Promise<void>;
+    getPid?(): number;
 }
 
 const activateEvent = "activate";
@@ -152,6 +152,10 @@ export class ComponentInstance implements ComponentContext {
         if (this.isInitialized()) {
             await this.shutdown();
         }
+    }
+
+    getPid() {
+        return this.impl.getPid ? this.impl.getPid() : 0;
     }
 
     subscribe<K, T extends Record<keyof T, any[]> | [never] = [never]>(emitter: NodeJS.EventEmitter<T>, channel: Key<K, T>, listener: Listener<K, T, (...args: any[]) => void>) {

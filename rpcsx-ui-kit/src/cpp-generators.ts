@@ -120,7 +120,7 @@ ${components.map(x => `#include <${this.getPrefix("/")}/${x.manifest.name}.hpp>`
 };
 
 class CppTypesGenerator implements ContributionGenerator {
-    generatedTypes: Record<string, string> = {};
+    body = "";
     includes = new Set<string>();
     constructor(private namespace: string, private libPath: string) {
     }
@@ -129,13 +129,12 @@ class CppTypesGenerator implements ContributionGenerator {
         let result = '#pragma once\n\n';
         result += [...this.includes].map(x => `#include <${x}>`).join("\n");
         result += `\n\nnamespace ${this.namespace} {\n`;
-        result += Object.values(this.generatedTypes).join("\n");
+        result += this.body;
         return result + `\n} // namespace ${this.namespace}\n`;
     }
 
     generateType(component: string, type: object, name: string) {
         const labelName = generateComponentLabelName(component, name, true);
-        const typeName = labelName;
 
         if (typeof type != 'object') {
             throw `${type}: must be object`;
@@ -148,36 +147,32 @@ class CppTypesGenerator implements ContributionGenerator {
             throw `${name}: type must be string value`;
         }
 
-        if (!(typeName in this.generatedTypes)) {
-            let paramsType = "";
-            if (type.type === "object") {
-                if (!("params" in type)) {
-                    throw `${type}: params must be present`;
-                }
-
-                if ((typeof type.params != 'object') || !type.params) {
-                    throw `${type.params}: must be object`;
-                }
-
-                paramsType += `struct ${labelName} {\n${this.generateObjectBody(component, type.params)}};\n\n`;
-                paramsType += this.generateObjectSerializer(labelName, type.params);
-                paramsType += this.generateObjectDeserializer(labelName, type.params);
-            } else if (type.type === "enum") {
-                if (!("enumerators" in type)) {
-                    throw `${type}: enumerators must be present`;
-                }
-
-                if ((typeof type.enumerators != 'object') || !type.enumerators) {
-                    throw `${type.enumerators}: must be object`;
-                }
-
-                paramsType += `enum class ${labelName} {\n${this.generateEnumBody(type.enumerators)}};\n`;
+        let paramsType = "";
+        if (type.type === "object") {
+            if (!("params" in type)) {
+                throw `${type}: params must be present`;
             }
 
-            this.generatedTypes[typeName] = paramsType;
-        } else {
-            throw new Error(`${name}: type ${typeName} already declared`);
+            if ((typeof type.params != 'object') || !type.params) {
+                throw `${type.params}: must be object`;
+            }
+
+            paramsType += `struct ${labelName} {\n${this.generateObjectBody(component, type.params)}};\n\n`;
+            paramsType += this.generateObjectSerializer(labelName, type.params);
+            paramsType += this.generateObjectDeserializer(labelName, type.params);
+        } else if (type.type === "enum") {
+            if (!("enumerators" in type)) {
+                throw `${type}: enumerators must be present`;
+            }
+
+            if ((typeof type.enumerators != 'object') || !type.enumerators) {
+                throw `${type.enumerators}: must be object`;
+            }
+
+            paramsType += `enum class ${labelName} {\n${this.generateEnumBody(type.enumerators)}};\n`;
         }
+
+        this.body += paramsType;
     }
 
     generateEnumBody(enumerators: object) {
@@ -228,35 +223,50 @@ class CppTypesGenerator implements ContributionGenerator {
         const requestTypeName = `${labelName}Request`;
         const responseTypeName = `${labelName}Response`;
 
-        if (!(requestTypeName in this.generatedTypes)) {
+        {
             let paramsType = '';
-            paramsType += `struct ${requestTypeName} {\n`;
-            if ("params" in method && method.params && typeof method.params == "object") {
-                paramsType += this.generateObjectBody(component, method.params);
+
+            if ("params" in method && method.params) {
+                if (typeof method.params == "object") {
+                    paramsType += `struct ${requestTypeName} {\n`;
+                    paramsType += this.generateObjectBody(component, method.params);
+                    paramsType += "};\n";
+                    paramsType += this.generateObjectSerializer(requestTypeName, method.params);
+                    paramsType += this.generateObjectDeserializer(requestTypeName, method.params);
+                } else if (typeof method.params == "string") {
+                    paramsType += `using ${requestTypeName} = ${this.getTypeName(component, method.params)}\n`;
+                }
+            } else {
+                paramsType += `struct ${requestTypeName} {};\n`;
+                paramsType += this.generateObjectSerializer(requestTypeName, {});
+                paramsType += this.generateObjectDeserializer(requestTypeName, {});
             }
-            paramsType += "};\n";
-            paramsType += this.generateObjectSerializer(requestTypeName, "params" in method ? method.params ?? {} : {});
-            paramsType += this.generateObjectDeserializer(requestTypeName, "params" in method ? method.params ?? {} : {});
-            this.generatedTypes[requestTypeName] = paramsType;
-        } else {
-            throw new Error(`${name}: type ${requestTypeName} already declared`);
+            this.body += paramsType;
         }
 
-        if (!(responseTypeName in this.generatedTypes)) {
-            let responseType = `struct ${responseTypeName} {\n`;
-            if ("returns" in method && method.returns && typeof method.returns == "object") {
-                responseType += this.generateObjectBody(component, method.returns);
-            }
-            responseType += "};\n";
-            responseType += this.generateObjectSerializer(responseTypeName, "returns" in method ? method.returns ?? {} : {});
-            responseType += this.generateObjectDeserializer(responseTypeName, "returns" in method ? method.returns ?? {} : {});
+        {
+            let responseType = '';
 
-            this.generatedTypes[responseTypeName] = responseType;
-        } else {
-            throw new Error(`${name}: type ${responseTypeName} already declared`);
+            if ("returns" in method && method.returns) {
+                if (typeof method.returns == "object") {
+                    responseType += `struct ${responseTypeName} {\n`;
+                    responseType += this.generateObjectBody(component, method.returns);
+                    responseType += "};\n";
+                    responseType += this.generateObjectSerializer(responseTypeName, method.returns);
+                    responseType += this.generateObjectDeserializer(responseTypeName, method.returns);
+                } else if (typeof method.returns == "string") {
+                    responseType += `using ${responseTypeName} = ${this.getTypeName(component, method.returns)}\n`;
+                }
+            } else {
+                responseType += `struct ${responseTypeName} {};\n`;
+                responseType += this.generateObjectSerializer(responseTypeName, {});
+                responseType += this.generateObjectDeserializer(responseTypeName, {});
+            }
+
+            this.body += responseType;
         }
 
-        this.generatedTypes[labelName] = `struct ${labelName} {
+        this.body += `struct ${labelName} {
     using Request = ${requestTypeName};
     using Response = ${responseTypeName};
 };
@@ -267,20 +277,28 @@ class CppTypesGenerator implements ContributionGenerator {
         const labelName = generateComponentLabelName(component, name, true);
         const requestTypeName = `${labelName}Request`;
 
-        if (!(requestTypeName in this.generatedTypes)) {
-            let paramsType = `struct ${requestTypeName} {\n`;
-            if ("params" in notification && notification.params && typeof notification.params == "object") {
-                paramsType += this.generateObjectBody(component, notification.params);
+        {
+            let paramsType = '';
+
+            if ("params" in notification && notification.params) {
+                if (typeof notification.params == "object") {
+                    paramsType += `struct ${requestTypeName} {\n`;
+                    paramsType += this.generateObjectBody(component, notification.params);
+                    paramsType += "};\n";
+                    paramsType += this.generateObjectSerializer(requestTypeName, notification.params);
+                    paramsType += this.generateObjectDeserializer(requestTypeName, notification.params);
+                } else if (typeof notification.params == "string") {
+                    paramsType += `using ${requestTypeName} = ${this.getTypeName(component, notification.params)}\n`;
+                }
+            } else {
+                paramsType += `struct ${requestTypeName} {};\n`;
+                paramsType += this.generateObjectSerializer(requestTypeName, {});
+                paramsType += this.generateObjectDeserializer(requestTypeName, {});
             }
-            paramsType += "};\n";
-            paramsType += this.generateObjectSerializer(requestTypeName, "params" in notification ? notification.params ?? {} : {});
-            paramsType += this.generateObjectDeserializer(requestTypeName, "params" in notification ? notification.params ?? {} : {});
-            this.generatedTypes[requestTypeName] = paramsType;
-        } else {
-            throw new Error(`${name}: type ${requestTypeName} already declared`);
+            this.body += paramsType;
         }
 
-        this.generatedTypes[labelName] = `struct ${labelName} {
+        this.body += `struct ${labelName} {
     using Request = ${requestTypeName};
 };
 `
@@ -288,14 +306,14 @@ class CppTypesGenerator implements ContributionGenerator {
 
     generateInterface(component: string, iface: object, name: string) {
         const labelName = generateComponentLabelName(component, name + "-interface", true);
-        this.generatedTypes[labelName] = `struct ${labelName} {
+        this.body += `struct ${labelName} {
     static constexpr auto kInterfaceId = "${component}/${name}";
     using InterfaceType = ${labelName};
 
     virtual ~${labelName}() = default;
 
 ${"methods" in iface ? iface.methods && Object.keys(iface.methods).map(method => {
-            const methodTypeLabel = generateComponentLabelName(component, method, true);
+            const methodTypeLabel = generateComponentLabelName(component, `${name}-${method}`, true);
             if ("params" in (iface.methods as any)[method]) {
                 return `    virtual ${methodTypeLabel}Response ${generateLabelName(method, false)}(const ${methodTypeLabel}Request &request) = 0;`
             } else {
@@ -303,7 +321,7 @@ ${"methods" in iface ? iface.methods && Object.keys(iface.methods).map(method =>
             }
         }).join("\n") : ""}
 ${"notifications" in iface ? iface.notifications && Object.keys(iface.notifications).map(notification => {
-            const methodTypeLabel = generateComponentLabelName(component, notification, true);
+            const methodTypeLabel = generateComponentLabelName(component, `${name}-${notification}`, true);
             if ("params" in (iface.notifications as any)[notification]) {
                 return `    virtual void ${generateLabelName(notification, false)}(const ${methodTypeLabel}Request &request) = 0;`
             } else {
@@ -353,22 +371,19 @@ ${"notifications" in iface ? iface.notifications && Object.keys(iface.notificati
         const labelName = generateComponentLabelName(component, name, true);
         const typeName = `${labelName}Event`;
 
-        if (!(typeName in this.generatedTypes)) {
-            if (typeof event == 'object') {
-                let paramsType = `struct ${typeName} {\n`;
-                paramsType += this.generateObjectBody(component, event);
-                paramsType += "\n};\n"
-                paramsType += this.generateObjectSerializer(typeName, event);
-                paramsType += this.generateObjectDeserializer(typeName, event);
-                this.generatedTypes[typeName] = paramsType;
-            } else if (typeof event == 'string') {
-                this.generatedTypes[typeName] = `using ${typeName} = ${this.getTypeName(component, event)};\n`;
-            } else {
-                throw new Error(`${name}: must be object or string`);
-            }
+        if (typeof event == 'object') {
+            let paramsType = `struct ${typeName} {\n`;
+            paramsType += this.generateObjectBody(component, event);
+            paramsType += "};\n"
+            paramsType += this.generateObjectSerializer(typeName, event);
+            paramsType += this.generateObjectDeserializer(typeName, event);
+            this.body += paramsType;
+        } else if (typeof event == 'string') {
+            this.body += `using ${typeName} = ${this.getTypeName(component, event)};\n`;
         } else {
-            throw new Error(`${name}: type ${typeName} already declared`);
+            throw new Error(`${name}: must be object or string`);
         }
+
     }
 
     addInclude(include: string) {
@@ -381,7 +396,8 @@ ${"notifications" in iface ? iface.notifications && Object.keys(iface.notificati
                 this.addInclude("string")
                 return "std::string";
             case "number":
-                return "int";
+                this.addInclude("cstdint")
+                return "std::int64_t";
             case "void":
                 return "void";
             case "boolean":

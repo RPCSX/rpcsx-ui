@@ -1,7 +1,6 @@
 import { Process } from './Launcher';
 
 import packageJson from '../../../../package.json' with { type: "json" };
-import { Component, ComponentContext } from '$core/Component.js';
 import { findComponent, getComponentId, registerComponent, uninitializeComponent, IComponentImpl } from './ComponentInstance';
 import { createError } from 'lib/Error';
 
@@ -70,6 +69,10 @@ export class Extension implements IComponentImpl {
         });
 
         registerComponent(this.componentManifest, this);
+    }
+
+    getPid() {
+        return this.extensionProcess.getPid();
     }
 
     private debugLog(message: string) {

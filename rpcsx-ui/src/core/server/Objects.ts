@@ -1,4 +1,3 @@
-import { Component, ComponentId } from "lib/Component";
 import { createError } from "lib/Error";
 import { ComponentInstance, findComponentById } from "./ComponentInstance";
 import * as self from '$';

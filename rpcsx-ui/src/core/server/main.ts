@@ -1,5 +1,4 @@
 import * as self from '$';
-import { Component } from '$core/Component';
 import { createError } from '$core/Error';
 import { ComponentInstance, findComponentById, getActivatedComponentList, getComponentList, initializeComponent } from './ComponentInstance';
 import * as instance from './ComponentInstance';

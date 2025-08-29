@@ -21,7 +21,6 @@
     "yargs": "^18.0.0"
   },
   "devDependencies": {
-    "@sveltejs/kit": "^2.31.0",
     "@types/yargs": "^17.0.33",
     "@typescript-eslint/eslint-plugin": "^8.39.1",
     "@typescript-eslint/parser": "^8.39.1",

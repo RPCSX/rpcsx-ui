@@ -6,7 +6,10 @@
             "name": "settings"
         },
         {
-            "name": "app"
+            "name": "explorer"
+        },
+        {
+            "name": "fs"
         }
     ]
 }

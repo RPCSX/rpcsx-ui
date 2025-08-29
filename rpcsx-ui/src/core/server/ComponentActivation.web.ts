@@ -1,6 +1,5 @@
 import { ComponentInstance } from "./ComponentInstance";
 import { Disposable } from "$/Disposable";
-import { Component } from "lib/Component";
 import { ipcMain } from "electron";
 import { createError } from "lib/Error";
 
