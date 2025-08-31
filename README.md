@@ -1,20 +1,35 @@
-# rpcsx-ui
+<div align="center">
 
-This repo houses an experimental cross-platform UI for RPCSX built using Electron and Svelte.
+# RPCSX-UI
 
-## Dependencies
-- [Rust](https://www.rust-lang.org/tools/install)
-- [Bun](https://bun.sh/)
+*Experimental cross-platform UI for RPCSX built using Electron and Expo*
 
-## Build Guide
+[![](https://img.shields.io/discord/252023769500090368?color=5865F2&logo=discord&logoColor=white)](https://discord.gg/t6dzA4wUdG)
+
+</div>
+
+> **Warning**: Do not ask for link to games or system files. Piracy is not permitted on the GitHub nor in the Discord.
+
+## Build Guide for Desktop
 
 - `npm install`
-- `npm run build`
-- `npm run start`
+- `npm run build:web`
+- `npm run dev:ui`
+- `npm run dev:wev:server`
 
-## Recommended IDE Setup
 
-[VS Code](https://code.visualstudio.com/) with the following extensions:
-- [Svelte](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode)
-- [Tailwind CSS](https://marketplace.visualstudio.com/items?itemName=bradlc.vscode-tailwindcss)
+## Build Guide for Android
 
+- `npm install`
+- `npm run build:web:ui`
+- `npm run build:android`
+- `npm run install:android`
+- `npm run dev:ui`
+
+## License
+
+RPCSX-UI is licensed under GPLv3 license except directories containing their own LICENSE file, or files containing their own license.
+
+## Contributing
+
+If you want to contribute as a developer, please contact us in the [Discord](https://discord.gg/t6dzA4wUdG)
