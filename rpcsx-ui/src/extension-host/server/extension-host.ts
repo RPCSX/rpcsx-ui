@@ -1,18 +1,17 @@
 import * as core from "$core";
-import * as locations from "$core/locations";
 import * as fs from '$fs';
 import * as path from '$core/path';
 
 export async function activateLocalExtensions(list: Set<string>) {
     try {
-        const rootPath = locations.localExtensionsPath;
-        for (const entry of (await fs.fsReadDir(path.toURI(rootPath))).items) {
+        const rootPath = path.join(await fs.fsGetBuiltinResourcesLocation(undefined), "extensions");
+        for (const entry of (await fs.fsReadDir(rootPath)).items) {
             if (entry.type != FsDirEntryType.Directory) {
                 continue;
             }
 
             try {
-                await fs.fsStat(path.toURI(path.join(rootPath, entry.name, "extension.json")));
+                await fs.fsStat(path.join(rootPath, entry.name, "extension.json"));
             } catch {
                 continue;
             }

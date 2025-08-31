@@ -3,6 +3,8 @@ export function join(...a: string[]) {
 }
 
 export function toURI(path: string) {
+    path = path.replaceAll("\\", "/")
+
     if (path.startsWith("/")) {
         return "file://" + path;
     } else {

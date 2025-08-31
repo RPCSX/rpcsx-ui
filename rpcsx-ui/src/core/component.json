@@ -1,6 +1,12 @@
 {
     "name": "core",
     "version": "0.1.0",
+    "dependencies": [
+        {
+            "name": "fs",
+            "weak": true
+        }
+    ],
     "contributions": {
         "types": {
             "error-code": {

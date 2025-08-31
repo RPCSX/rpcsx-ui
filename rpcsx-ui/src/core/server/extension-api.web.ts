@@ -1,7 +1,6 @@
-import path from 'path';
-import fs from 'fs/promises';
-import * as locations from '$core/locations';
-import { findComponent, findComponentById, unregisterComponent } from './ComponentInstance';
+import * as path from '$/path';
+import * as fs from '$fs';
+import { findComponent, findComponentById, getComponentId, unregisterComponent } from './ComponentInstance';
 import { createError } from 'lib/Error';
 import { getLauncher } from './Launcher';
 import { Extension } from './Extension';
@@ -11,13 +10,14 @@ export async function loadExtension(request: ExtensionLoadRequest): Promise<Exte
         return;
     }
 
-    const extensionManifestLocation = path.join(locations.localExtensionsPath, request.id, "extension.json");
+    const localExtensionsPath = path.join(await fs.fsGetBuiltinResourcesLocation(undefined), "extensions");
+    const extensionManifestLocation = path.join(localExtensionsPath, request.id, "extension.json");
 
     const manifestText = await (async () => {
         try {
-            return await fs.readFile(extensionManifestLocation, "utf8");
-        } catch {
-            throw createError(ErrorCode.InvalidParams, `extension ${request.id} not found`);
+            return await fs.fsReadToString({ uri: extensionManifestLocation });
+        } catch (e) {
+            throw createError(ErrorCode.InvalidParams, `extension ${request.id} not found, uri ${extensionManifestLocation}, error ${e}`);
         }
     })();
 
@@ -36,7 +36,7 @@ export async function loadExtension(request: ExtensionLoadRequest): Promise<Exte
 
     const process = await (async () => {
         try {
-            return launcher.launch(path.join(locations.localExtensionsPath, request.id, manifest.executable), manifest.args ?? [], {
+            return launcher.launch(path.join(localExtensionsPath, request.id, manifest.executable), manifest.args ?? [], {
                 launcherRequirements: manifest.launcher.requirements ?? {},
             });
         } catch {
@@ -57,7 +57,7 @@ export async function installExtension(request: ExtensionInstallRequest): Promis
 
     const manifestText = await (async () => {
         try {
-            return await fs.readFile(extensionManifestLocation, "utf8");
+            return await fs.fsReadToString({ uri: extensionManifestLocation });
         } catch {
             throw createError(ErrorCode.InvalidParams, `extension ${request.path} not found`);
         }
@@ -75,28 +75,7 @@ export async function installExtension(request: ExtensionInstallRequest): Promis
         throw createError(ErrorCode.InvalidRequest, `extension ${request.path} already installed`);
     }
 
-    const launcher = getLauncher(manifest.launcher.type);
-    if (launcher == null) {
-        throw createError(ErrorCode.InternalError, `launcher ${manifest.launcher.type} not found`);
-    }
-
-    const process = await (async () => {
-        try {
-            return launcher.launch(path.join(request.path, manifest.executable), manifest.args ?? [], {
-                launcherRequirements: manifest.launcher.requirements ?? {},
-            });
-        } catch {
-            throw createError(ErrorCode.InternalError, `${request.path}: failed to spawn extension process`);
-        }
-    })();
-
-    try {
-        const extension = new Extension(manifest, process);
-        return { id: extension.getId() };
-    } catch (e) {
-        process.kill("SIGKILL");
-        throw e;
-    }
+    throw createError(ErrorCode.InternalError, "not implemented");
 }
 
 export async function removeExtension(request: ExtensionRemoveRequest): Promise<ExtensionRemoveResponse> {
@@ -104,17 +83,19 @@ export async function removeExtension(request: ExtensionRemoveRequest): Promise<
         throw createError(ErrorCode.InvalidRequest, `extension ${request.id} in use`);
     }
 
-    const extensionLocation = path.join(locations.extensionsPath, request.id);
+    const localExtensionsPath = path.join(await fs.fsGetBuiltinResourcesLocation(undefined), "extensions");
+    const extensionLocation = path.join(localExtensionsPath, request.id);
 
     try {
-        await fs.stat(extensionLocation);
+        await fs.fsStat(extensionLocation);
     } catch {
-        throw createError(ErrorCode.InvalidRequest, `Extension ${request.id} not found`);
+        throw createError(ErrorCode.InvalidRequest, `extension ${request.id} not found`);
     }
 
-    try {
-        await fs.rm(extensionLocation, { force: true, recursive: true });
-    } catch (e) {
-        throw createError(ErrorCode.InternalError, `Failed to remove extension ${request.id}: ${e}`);
-    }
+    // FIXME: implement
+    // try {
+    //     await fs.rm(extensionLocation, { force: true, recursive: true });
+    // } catch (e) {
+    //     throw createError(ErrorCode.InternalError, `Failed to remove extension ${request.id}: ${e}`);
+    // }
 }

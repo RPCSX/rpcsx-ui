@@ -452,9 +452,11 @@ export async function activateComponent(info: ComponentManifest) {
 
     activatedComponents[id] = component;
 
-    if (info.dependencies) {
+    const dependencies = info.dependencies?.filter(x => !("weak" in x) || x.weak != true);
+
+    if (dependencies) {
         let ok = true;
-        for (const dependency of info.dependencies) {
+        for (const dependency of dependencies) {
             const depId = createComponentId(dependency.name, dependency.version);
             if (depId == id) {
                 continue;

@@ -1,10 +1,13 @@
 import * as self from '$';
 import * as core from '$core';
 import { createError } from "$core/Error";
-import fs from 'fs/promises';
+import nodeFs from 'fs/promises';
+import { app } from 'electron';
+import nodePath from 'path';
+import * as path from '$core/path';
 
 class NativeFile implements FileInterface {
-    constructor(private id: number, private handle: fs.FileHandle) { }
+    constructor(private id: number, private handle: nodeFs.FileHandle) { }
 
     async close(_caller: Component) {
         core.objectDestroy({
@@ -77,8 +80,9 @@ class NativeFileSystem implements FileSystemInterface {
         const filePath = new URL(request.uri).pathname;
 
         try {
-            const descriptor = await fs.open(filePath, "rb");
-            await self.createFileObject(request.uri, NativeFile, descriptor);
+            const descriptor = await nodeFs.open(filePath, "rb");
+            const object = await self.createFileObject(request.uri, NativeFile, descriptor);
+            return object.getId();
         } catch (e) {
             throw createError(ErrorCode.InvalidParams, `${e}`);
         }
@@ -88,7 +92,17 @@ class NativeFileSystem implements FileSystemInterface {
         const filePath = new URL(request.uri).pathname;
 
         try {
-            return await fs.readFile(filePath, { encoding: "utf8" });
+            return await nodeFs.readFile(filePath, { encoding: "utf8" });
+        } catch (e) {
+            throw createError(ErrorCode.InvalidParams, `${e}`);
+        }
+    }
+
+    async writeString(_caller: Component, request: FsFileSystemWriteStringRequest) {
+        const filePath = new URL(request.uri).pathname;
+
+        try {
+            return await nodeFs.writeFile(filePath, request.string, { encoding: "utf8" });
         } catch (e) {
             throw createError(ErrorCode.InvalidParams, `${e}`);
         }
@@ -96,9 +110,8 @@ class NativeFileSystem implements FileSystemInterface {
 
     async readDir(_caller: Component, request: FsFileSystemReadDirRequest): Promise<FsFileSystemReadDirResponse> {
         const path = new URL(request).pathname;
-        console.log("readDir", path);
         try {
-            const result = await fs.readdir(path, { withFileTypes: true });
+            const result = await nodeFs.readdir(path, { withFileTypes: true });
 
             return {
                 items: result.map(item => {
@@ -119,7 +132,7 @@ class NativeFileSystem implements FileSystemInterface {
         const path = new URL(request).pathname;
 
         try {
-            const result = await fs.stat(path);
+            const result = await nodeFs.stat(path);
 
             return {
                 size: result.size,
@@ -153,6 +166,13 @@ export async function readToString(_caller: Component, request: FsReadToStringRe
     return await object.readToString(request);
 }
 
+export async function writeString(_caller: Component, request: FsWriteStringRequest): Promise<FsWriteStringResponse> {
+    const protocol = new URL(request.uri).protocol || "file:";
+
+    const object = await self.findFileSystemObject(protocol);
+    return await object.writeString(request);
+}
+
 export async function readDir(_caller: Component, request: FsReadDirRequest): Promise<FsReadDirResponse> {
     const protocol = new URL(request).protocol || "file:";
 
@@ -167,3 +187,14 @@ export async function stat(_caller: Component, request: FsStatRequest): Promise<
     return await object.stat(request);
 }
 
+export function getBuiltinResourcesLocation(_caller: Component, _request: FsGetBuiltinResourcesLocationRequest): FsGetBuiltinResourcesLocationResponse {
+    if (app.isPackaged && "resourcesPath" in process && typeof process.resourcesPath == "string") {
+        return process.resourcesPath;
+    }
+
+    return path.toURI(nodePath.resolve(import.meta.dirname, ".."));
+}
+
+export function getConfigLocation(_caller: Component, _request: FsGetConfigLocationRequest): FsGetConfigLocationResponse {
+    return path.toURI(nodePath.dirname(process.execPath));
+}

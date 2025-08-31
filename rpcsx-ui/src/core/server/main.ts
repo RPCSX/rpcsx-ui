@@ -13,22 +13,43 @@ initialize();
 registerBuiltinLaunchers();
 
 export async function activate() {
-    await settings.load();
+    try {
+        const components = getComponentList();
 
-    const components = getComponentList();
+        await Promise.all(Object.values(components).map(component => initializeComponent(component.getManifest())));
 
-    await Promise.all(Object.values(components).map(component => initializeComponent(component.getManifest())));
+        const preloadComponents = ["fs"];
 
-    for (const component of Object.values(components)) {
-        if (component.getName() == "core") {
-            continue;
+        for (const name of preloadComponents) {
+            const componentInstance = instance.findComponent(name);
+
+            if (componentInstance) {
+                try {
+                    await instance.activateComponent(componentInstance.getManifest());
+                } catch (e) {
+                    console.error(`preload: failed to activate ${name}`, e);
+                }
+            } else {
+                console.error(`preload: not found ${name} component`);
+            }
         }
 
-        try {
-            await instance.activateComponent(component.getManifest());
-        } catch (e) {
-            console.error(`failed to activate ${component.getId()}`, e);
+        await settings.load();
+
+        for (const component of Object.values(components)) {
+            if (component.getName() == "core") {
+                continue;
+            }
+
+            try {
+                await instance.activateComponent(component.getManifest());
+            } catch (e) {
+                console.error(`failed to activate ${component.getId()}`, e);
+            }
         }
+    } catch (e) {
+        console.error(`core activation failed`, e);
+        await instance.uninitializeComponent(self.thisComponent().getManifest());
     }
 }
 

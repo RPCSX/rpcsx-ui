@@ -5,9 +5,11 @@ import { fork, spawn } from "child_process";
 import { Duplex } from "stream";
 import { EventEmitter } from "events";
 import * as locations from '$/locations';
+import { fileURLToPath } from "url";
 
 const nativeLauncher: Launcher = {
     launch: async (path: string, args: string[], params: LaunchParams) => {
+        path = fileURLToPath(path);
         const newProcess = spawn(path, args, {
             argv0: path,
             cwd: locations.rootPath,
@@ -45,6 +47,7 @@ const nativeLauncher: Launcher = {
 
 const nodeLauncher: Launcher = {
     launch: async (path: string, args: string[], params: LaunchParams) => {
+        path = fileURLToPath(path);
         const newProcess = fork(path, args, {
             signal: params.signal,
             stdio: 'pipe',
@@ -81,6 +84,7 @@ const nodeLauncher: Launcher = {
 
 const inlineLauncher: Launcher = {
     launch: async (path: string, args: string[], params: LaunchParams) => {
+        path = fileURLToPath(path);
         const imported = await import(path);
 
         if (!("activate" in imported) || typeof imported.activate != 'function') {

@@ -99,6 +99,17 @@
                         },
                         "returns": "string"
                     },
+                    "write-string": {
+                        "handler": "handleReadToString",
+                        "params": {
+                            "uri": {
+                                "type": "string"
+                            },
+                            "string": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "read-dir": {
                         "params": "string",
                         "returns": {
@@ -142,6 +153,17 @@
                 },
                 "returns": "string"
             },
+            "write-string": {
+                "handler": "handleWriteString",
+                "params": {
+                    "uri": {
+                        "type": "string"
+                    },
+                    "string": {
+                        "type": "string"
+                    }
+                }
+            },
             "read-dir": {
                 "handler": "handleReadDir",
                 "params": "string",
@@ -156,6 +178,14 @@
                 "handler": "handleStat",
                 "params": "string",
                 "returns": "file-stat"
+            },
+            "get-builtin-resources-location": {
+                "handler": "handleGetBuiltinResourcesLocation",
+                "returns": "string"
+            },
+            "get-config-location": {
+                "handler": "handleGetConfigLocation",
+                "returns": "string"
             }
         }
     }
