@@ -95,7 +95,7 @@ export function getName(objectId: number) {
     return objectInstance.objectName;
 }
 
-export function call(caller: Component, objectId: number, method: string, params: JsonObject) {
+export function call(caller: Component, objectId: number, method: string, params: Json) {
     const instance = objects[objectId];
 
     const callerComponent = findComponentById(caller.getId());
@@ -111,7 +111,7 @@ export function call(caller: Component, objectId: number, method: string, params
     return component.objectCall(callerComponent, objectId, method, params);
 }
 
-export function notify(caller: Component, objectId: number, notification: string, params: JsonObject) {
+export function notify(caller: Component, objectId: number, notification: string, params: Json) {
     const instance = objects[objectId];
 
     const callerComponent = findComponentById(caller.getId());

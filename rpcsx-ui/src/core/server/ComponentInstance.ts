@@ -17,11 +17,11 @@ type Listener<K, T, F> = T extends [never] ? F : (
 );
 
 export type IComponentImpl = IDisposable & {
-    initialize(eventEmitter: (event: string, params: JsonObject) => void): void | Promise<void>;
-    activate(context: ComponentContext, settings: JsonObject, signal?: AbortSignal): void | Promise<void>;
+    initialize(eventEmitter: (event: string, params: Json) => void): void | Promise<void>;
+    activate(context: ComponentContext, settings: Json, signal?: AbortSignal): void | Promise<void>;
     deactivate(context: ComponentContext): void | Promise<void>;
-    call?(caller: Component, method: string, params: JsonObject | undefined): Promise<JsonObject | void>;
-    notify?(caller: Component, notification: string, params: JsonObject | undefined): Promise<void>;
+    call?(caller: Component, method: string, params: Json | undefined): Promise<Json | void>;
+    notify?(caller: Component, notification: string, params: Json | undefined): Promise<void>;
     getPid?(): number;
 }
 
@@ -54,7 +54,8 @@ export class ComponentInstance implements ComponentContext {
         return {
             getId: () => caller.getId(),
             onClose: (listener) => caller.onEvent(this, deactivateEvent, listener),
-            sendEvent: (event, params) => caller.handleExternalEvent(this, event, params)
+            sendEvent: (event, params) => caller.handleExternalEvent(this, event, params),
+            getPid: () => caller.getPid()
         };
     }
 
@@ -209,7 +210,7 @@ export class ComponentInstance implements ComponentContext {
     }
 
 
-    async objectCall(caller: ComponentInstance, objectId: number, method: string, params: JsonObject | undefined): Promise<JsonObject | void> {
+    async objectCall(caller: ComponentInstance, objectId: number, method: string, params: Json | undefined): Promise<Json | void> {
         if (!this.isActivated()) {
             throw createError(ErrorCode.InvalidRequest, `${caller.getId()}: component ${this.getName()} is not active`);
         }
@@ -225,7 +226,7 @@ export class ComponentInstance implements ComponentContext {
         });
     }
 
-    async objectNotify(caller: ComponentInstance, objectId: number, notification: string, params: JsonObject | undefined): Promise<void> {
+    async objectNotify(caller: ComponentInstance, objectId: number, notification: string, params: Json | undefined): Promise<void> {
         if (!this.isActivated()) {
             throw createError(ErrorCode.InvalidRequest, `${caller.getId()}: component ${this.getName()} is not active`);
         }
@@ -256,7 +257,7 @@ export class ComponentInstance implements ComponentContext {
         });
     }
 
-    async call(caller: ComponentInstance, method: string, params: JsonObject | undefined): Promise<JsonObject | void> {
+    async call(caller: ComponentInstance, method: string, params: Json | undefined): Promise<Json | void> {
         if (!this.isActivated()) {
             throw createError(ErrorCode.InvalidRequest, `${caller.getId()}: component ${this.getName()} is not active`);
         }
@@ -268,7 +269,7 @@ export class ComponentInstance implements ComponentContext {
         return await this.impl.call(this.createCallerView(caller), method, params);
     }
 
-    async notify(caller: ComponentInstance, notification: string, params: JsonObject | undefined) {
+    async notify(caller: ComponentInstance, notification: string, params: Json | undefined) {
         if (!this.isActivated()) {
             throw createError(ErrorCode.InvalidRequest, `${caller.getId()}: component ${this.getName()} is not active`);
         }
@@ -280,7 +281,7 @@ export class ComponentInstance implements ComponentContext {
         return await this.impl.notify(this.createCallerView(caller), notification, params);
     }
 
-    onEvent(caller: ComponentInstance, event: string, listener: (params?: JsonObject) => Promise<void> | void) {
+    onEvent(caller: ComponentInstance, event: string, listener: (params?: Json) => Promise<void> | void) {
         if (!builtinEvents.includes(event) && !this.hasContribution(`events/${event}`)) {
             throw createError(ErrorCode.InvalidParams, `${caller.getId()}: component ${this.getName()} not emits event '${event}'`);
         }
@@ -323,7 +324,7 @@ export class ComponentInstance implements ComponentContext {
         return disposable;
     }
 
-    emitEvent(event: string, params?: JsonObject) {
+    emitEvent(event: string, params?: Json) {
         this.eventEmitter[event]?.emit(params);
     }
 

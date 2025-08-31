@@ -1,8 +1,8 @@
 import * as self from "$";
 import * as progress from "$progress";
 import { IDisposable } from "$core/Disposable";
-import fs from 'fs/promises';
-import path from 'path';
+import * as fs from '$fs';
+import * as path from '$core/path';
 
 export class ExplorerComponent implements IDisposable {
     items: ExplorerItem[] = [];
@@ -24,7 +24,7 @@ export class ExplorerComponent implements IDisposable {
         this.items = [];
     }
 
-    private async tryDescribe(paths: string[], describers: self.DescriberInterface[]) {
+    private async tryDescribe(paths: string[], describers: self.Describer[]) {
         const described = await Promise.all(describers.map(d => d.describe({ uris: paths })));
 
         const items = described.map(item => {
@@ -57,11 +57,11 @@ export class ExplorerComponent implements IDisposable {
         const abortSignal = this.refreshAbortController.signal;
 
         this.refreshImmediate = setImmediate(async () => {
+            const describers = await self.getDescriberObjects();
+
             if (abortSignal.aborted) {
                 return;
             }
-
-            const describers = await self.getDescriberObjects();
 
             let workList = [...this.locations.filter(x => !this.describedLocations.has(x))];
 
@@ -69,8 +69,8 @@ export class ExplorerComponent implements IDisposable {
                 const notDescribedLocations: string[] = [];
 
                 while (workList.length > 0) {
-                    notDescribedLocations.push(...await this.tryDescribe(workList.slice(0, 1), describers));
-                    workList = workList.slice(1);
+                    notDescribedLocations.push(...await this.tryDescribe(workList.slice(0, 10), describers));
+                    workList = workList.slice(10);
                 }
 
                 if (abortSignal.aborted) {
@@ -79,8 +79,8 @@ export class ExplorerComponent implements IDisposable {
 
                 await Promise.all(notDescribedLocations.map(async loc => {
                     try {
-                        for (const item of await fs.readdir(loc, { withFileTypes: true })) {
-                            workList.push(path.join(item.parentPath, item.name));
+                        for (const item of (await (fs.fsReadDir(loc))).items) {
+                            workList.push(path.join(loc, item.name));
                         }
                     } catch {}
                 }));

@@ -51,23 +51,26 @@ public:
             .name = std::string(name),
             .interface = std::string(ObjectType::kInterfaceId),
         },
-        [this, args = std::forward_as_tuple<Args...>(std::forward<Args>(
-                   args)...)](const ObjectCreateResponse &response) {
-          auto object = std::unique_ptr<InterfaceType, void (*)(void *)>(
-              static_cast<InterfaceType *>(std::apply(
-                  [](auto &&...args) {
-                    return new ObjectType(std::forward<Args>(args)...);
-                  },
-                  args)),
-              [](void *object) {
-                delete static_cast<ObjectType *>(
-                    static_cast<InterfaceType *>(object));
-              });
+        [this,
+         args = std::forward_as_tuple<Args...>(std::forward<Args>(args)...)](
+            std::expected<ObjectCreateResponse, ErrorInstance> response) {
+          if (response.has_value()) {
+            auto object = std::unique_ptr<InterfaceType, void (*)(void *)>(
+                static_cast<InterfaceType *>(std::apply(
+                    [](auto &&...args) {
+                      return new ObjectType(std::forward<Args>(args)...);
+                    },
+                    args)),
+                [](void *object) {
+                  delete static_cast<ObjectType *>(
+                      static_cast<InterfaceType *>(object));
+                });
 
-          m_protocol->addObject(
-              ObjectType::kInterfaceId,
-              &ObjectType::Builder::template build<InterfaceBuilder>,
-              response.object, std::move(object));
+            m_protocol->addObject(
+                ObjectType::kInterfaceId,
+                &ObjectType::Builder::template build<InterfaceBuilder>,
+                response->object, std::move(object));
+          }
         });
   }
 

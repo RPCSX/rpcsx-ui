@@ -234,7 +234,7 @@ class CppTypesGenerator implements ContributionGenerator {
                     paramsType += this.generateObjectSerializer(requestTypeName, method.params);
                     paramsType += this.generateObjectDeserializer(requestTypeName, method.params);
                 } else if (typeof method.params == "string") {
-                    paramsType += `using ${requestTypeName} = ${this.getTypeName(component, method.params)}\n`;
+                    paramsType += `using ${requestTypeName} = ${this.getTypeName(component, method.params)};\n`;
                 }
             } else {
                 paramsType += `struct ${requestTypeName} {};\n`;
@@ -255,7 +255,7 @@ class CppTypesGenerator implements ContributionGenerator {
                     responseType += this.generateObjectSerializer(responseTypeName, method.returns);
                     responseType += this.generateObjectDeserializer(responseTypeName, method.returns);
                 } else if (typeof method.returns == "string") {
-                    responseType += `using ${responseTypeName} = ${this.getTypeName(component, method.returns)}\n`;
+                    responseType += `using ${responseTypeName} = ${this.getTypeName(component, method.returns)};\n`;
                 }
             } else {
                 responseType += `struct ${responseTypeName} {};\n`;
@@ -288,7 +288,7 @@ class CppTypesGenerator implements ContributionGenerator {
                     paramsType += this.generateObjectSerializer(requestTypeName, notification.params);
                     paramsType += this.generateObjectDeserializer(requestTypeName, notification.params);
                 } else if (typeof notification.params == "string") {
-                    paramsType += `using ${requestTypeName} = ${this.getTypeName(component, notification.params)}\n`;
+                    paramsType += `using ${requestTypeName} = ${this.getTypeName(component, notification.params)};\n`;
                 }
             } else {
                 paramsType += `struct ${requestTypeName} {};\n`;
@@ -476,9 +476,13 @@ class CppApiGenerator implements ContributionGenerator {
         return `#pragma once
 
 #include "./types.hpp"
+#include "rpcsx/ui/core/types.hpp"
+#include <expected>
 #include <functional>
-#include <utility>
+#include <future>
 #include <type_traits>
+#include <memory>
+#include <utility>
 
 namespace ${this.namespace} {
 template <typename InstanceT> class ${label}Instance {
@@ -501,12 +505,33 @@ struct ${label} {
     generateMethod(component: string, method: object, name: string) {
         const uLabel = generateComponentLabelName(component, name, true);
         const label = generateComponentLabelName(component, name, false);
-        const returnType = "returns" in method ? `${uLabel}Response` : '';
-        const params = "params" in method ? `const ${uLabel}Request &params, ` : '';
+        const returnType = "returns" in method ? `${uLabel}Response` : 'void';
+        const params = "params" in method ? `const ${uLabel}Request &params` : '';
 
         this.content += `
-    auto ${label}(${params}std::function<void(${returnType})> result) {
-        return protocol().call("${component}/${name}", ${params ? "params" : "{}"}, std::move(result));
+    auto ${label}(${params == "" ? "" : `${params}, `}std::function<void(std::expected<${returnType}, ErrorInstance>)> cb) {
+        return protocol().call("${component}/${name}", ${params ? "params" : "{}"}, [cb = std::move(cb)](const nlohmann::json &response, bool isError) {
+            if (isError) {
+                cb(std::unexpected(response.get<ErrorInstance>()));
+            } else {
+                cb(${returnType == "void" ? `{}` : `response.get<${returnType}>()`});
+            }
+        });
+    }`
+        
+        this.content += `
+    std::future<std::expected<${returnType}, ErrorInstance>> ${label}(${params}) {
+        auto promise = std::make_shared<std::promise<std::expected<${returnType}, ErrorInstance>>>();
+        auto result = promise->get_future();
+        protocol().call("${component}/${name}", ${params ? "params" : "{}"}, [promise = std::move(promise)](const nlohmann::json &response, bool isError) mutable {
+            if (isError) {
+                promise->set_value(std::unexpected(response.get<ErrorInstance>()));
+            } else {
+                promise->set_value(${returnType == "void" ? `{}` : `response.get<${returnType}>()`});
+            }
+        });
+
+        return result;
     }`
     }
 

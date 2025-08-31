@@ -826,15 +826,15 @@ class ServerPublicApiGenerator implements ContributionGenerator {
 import { thisComponent } from "$/component-info";
 import { ComponentInstance } from '$core/ComponentInstance';
 
-export async function call(caller: ComponentInstance, method: string, params?: JsonObject): Promise<Json | void> {
+export async function call(caller: ComponentInstance, method: string, params?: Json): Promise<Json | void> {
     return thisComponent().call(caller, method, params);
 }
 
-export async function notify(caller: ComponentInstance, notification: string, params?: JsonObject) {
+export async function notify(caller: ComponentInstance, notification: string, params?: Json) {
     return thisComponent().notify(caller, notification, params);
 }
 
-export function onEvent(caller: ComponentInstance, event: string, listener: (params?: JsonObject) => Promise<void> | void) {
+export function onEvent(caller: ComponentInstance, event: string, listener: (params?: Json) => Promise<void> | void) {
     return thisComponent().onEvent(caller, event, listener);
 }
 `;
@@ -849,7 +849,7 @@ export class ${uLabel}ComponentObject implements ComponentObject {
 
     constructor(public impl: ${uLabel}Interface, public name: string) {}
 
-    call(caller: Component, method: string, params: JsonObject | undefined): Promise<JsonObject | void> | JsonObject | void {
+    call(caller: Component, method: string, params: Json | undefined): Promise<Json | void> | Json | void {
         void caller, params;
 
         switch (method) {
@@ -866,7 +866,7 @@ ${"methods" in iface ? iface.methods && Object.keys(iface.methods).map(method =>
         }
     }
 
-    notify(caller: Component, method: string, params: JsonObject | undefined): void | Promise<void> {
+    notify(caller: Component, method: string, params: Json | undefined): void | Promise<void> {
         void caller, params;
 
         switch (method) {
@@ -1045,8 +1045,8 @@ type ComponentObject = {
     typeId: string;
     name: string;
     impl: object;
-    call(caller: Component, method: string, params: JsonObject | undefined): Promise<JsonObject | void> | JsonObject | void;
-    notify(caller: Component, method: string, params: JsonObject | undefined): void | Promise<void>;
+    call(caller: Component, method: string, params: Json | undefined): Promise<Json | void> | Json | void;
+    notify(caller: Component, method: string, params: Json | undefined): void | Promise<void>;
     dispose(): void | Promise<void>;
 };
 
@@ -1221,8 +1221,8 @@ type ComponentObject = {
     typeId: string;
     name: string;
     impl: object;
-    call(caller: Component, method: string, params: JsonObject | undefined): Promise<JsonObject | void> | JsonObject | void;
-    notify(caller: Component, method: string, params: JsonObject | undefined): void | Promise<void>;
+    call(caller: Component, method: string, params: Json | undefined): Promise<Json | void> | Json | void;
+    notify(caller: Component, method: string, params: Json | undefined): void | Promise<void>;
     dispose(): void | Promise<void>;
 };
 
@@ -1244,7 +1244,7 @@ export function ownObjects() {
     return Object.values(objects);
 }
 
-export async function call(caller: Component, method: string, params: JsonObject | undefined): Promise<JsonObject | void> {
+export async function call(caller: Component, method: string, params: Json | undefined): Promise<Json | void> {
     void caller, params;
 
     switch (method) {
@@ -1267,7 +1267,7 @@ ${this.callBody}
     }
 }
 
-export async function notify(caller: Component, method: string, params: JsonObject | undefined) {
+export async function notify(caller: Component, method: string, params: Json | undefined) {
     void caller, params;
 
     switch (method) {
@@ -1789,7 +1789,7 @@ class ${componentLabel}ComponentImpl implements IComponentImpl {
         this.impl = undefined;
     }
 
-    activate(context: ComponentContext, settings: JsonObject) {
+    activate(context: ComponentContext, settings: Json) {
         if (this.impl && "activate" in this.impl && typeof this.impl.activate === "function") {
             return (this.impl.activate as any)(context, settings);
         }
@@ -1801,11 +1801,11 @@ class ${componentLabel}ComponentImpl implements IComponentImpl {
         }
     }
 
-    async call(caller: Component, method: string, params?: JsonObject) {
+    async call(caller: Component, method: string, params?: Json) {
         return await api.call(caller, method, params);
     }
 
-    async notify(caller: Component, notification: string, params?: JsonObject) {
+    async notify(caller: Component, notification: string, params?: Json) {
         await api.notify(caller, notification, params);
     }
 };

@@ -68,11 +68,7 @@
                                 "item-type": "number"
                             }
                         },
-                        "returns": {
-                            "written": {
-                                "type": "number"
-                            }
-                        }
+                        "returns": "number"
                     },
                     "close": {}
                 }
@@ -83,13 +79,17 @@
                         "params": {
                             "uri": {
                                 "type": "string"
+                            },
+                            "flags": {
+                                "type": "string",
+                                "optional": true
+                            },
+                            "mode": {
+                                "type": "number",
+                                "optional": true
                             }
                         },
-                        "returns": {
-                            "file": {
-                                "type": "number"
-                            }
-                        }
+                        "returns": "number"
                     },
                     "read-to-string": {
                         "params": {
@@ -97,18 +97,10 @@
                                 "type": "string"
                             }
                         },
-                        "returns": {
-                            "data": {
-                                "type": "string"
-                            }
-                        }
+                        "returns": "string"
                     },
                     "read-dir": {
-                        "params": {
-                            "uri": {
-                                "type": "string"
-                            }
-                        },
+                        "params": "string",
                         "returns": {
                             "items": {
                                 "type": "array",
@@ -117,16 +109,8 @@
                         }
                     },
                     "stat": {
-                        "params": {
-                            "uri": {
-                                "type": "string"
-                            }
-                        },
-                        "returns": {
-                            "item": {
-                                "type": "file-stat"
-                            }
-                        }
+                        "params": "string",
+                        "returns": "file-stat"
                     }
                 }
             }
@@ -147,11 +131,7 @@
                         "optional": true
                     }
                 },
-                "returns": {
-                    "file": {
-                        "type": "number"
-                    }
-                }
+                "returns": "number"
             },
             "read-to-string": {
                 "handler": "handleReadToString",
@@ -160,19 +140,11 @@
                         "type": "string"
                     }
                 },
-                "returns": {
-                    "data": {
-                        "type": "string"
-                    }
-                }
+                "returns": "string"
             },
             "read-dir": {
                 "handler": "handleReadDir",
-                "params": {
-                    "uri": {
-                        "type": "string"
-                    }
-                },
+                "params": "string",
                 "returns": {
                     "items": {
                         "type": "array",
@@ -182,16 +154,8 @@
             },
             "stat": {
                 "handler": "handleStat",
-                "params": {
-                    "uri": {
-                        "type": "string"
-                    }
-                },
-                "returns": {
-                    "item": {
-                        "type": "file-stat"
-                    }
-                }
+                "params": "string",
+                "returns": "file-stat"
             }
         }
     }

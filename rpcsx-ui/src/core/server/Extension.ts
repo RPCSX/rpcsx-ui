@@ -195,7 +195,7 @@ export class Extension implements IComponentImpl {
         this.send({ jsonrpc: "2.0", method, params, id });
 
         const timestamp = Date.now();
-        const deadline = timestamp + 60 * 1000;
+        const deadline = timestamp + 10 * 1000;
         if (this.responseWatchdog == null) {
             this.responseWatchdog = setTimeout(() => {
                 this.responseWatchdogEntry();
@@ -217,15 +217,15 @@ export class Extension implements IComponentImpl {
         });
     }
 
-    async sendNotify(notification: string, params?: JsonObject) {
+    async sendNotify(notification: string, params?: Json) {
         this.send({ jsonrpc: "2.0", notification, params });
     }
 
-    async call(_caller: Component, method: string, params?: JsonObject): Promise<JsonObject | void> {
+    async call(_caller: Component, method: string, params?: Json): Promise<Json | void> {
         return this.callMethod(method, params);
     }
 
-    async notify(_caller: Component, notification: string, params: JsonObject | undefined) {
+    async notify(_caller: Component, notification: string, params: Json | undefined) {
         this.sendNotify(notification, params);
     }
 

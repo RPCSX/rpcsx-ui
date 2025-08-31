@@ -2,12 +2,15 @@
 #include "rpcsx/ui/Protocol.hpp"
 #include "rpcsx/ui/Transport.hpp"
 #include <charconv>
+#include <condition_variable>
 #include <cstddef>
 #include <cstdio>
+#include <deque>
 #include <exception>
 #include <functional>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <nlohmann/json.hpp>
 #include <rpcsx-ui.hpp>
 #include <string>
@@ -135,6 +138,32 @@ struct JsonRpcProtocol : Protocol {
   std::map<std::string_view, JsonRpcInterface> interfaces;
   std::unordered_map<unsigned, std::pair<ProtocolObject, JsonRpcInterface *>>
       objects;
+  std::deque<std::function<void()>> processQueue;
+  std::condition_variable processQueueCv;
+  std::mutex processQueueMtx;
+  std::atomic<bool> exit{false};
+  std::thread processorThread = std::thread{[this] {
+    while (exit.load(std::memory_order::relaxed) == false) {
+      std::function<void()> cb;
+
+      {
+        std::unique_lock lock(processQueueMtx);
+
+        while (processQueue.empty()) {
+          processQueueCv.wait(lock);
+
+          if (exit.load(std::memory_order::relaxed)) {
+            return;
+          }
+        }
+
+        cb = std::move(processQueue.front());
+        processQueue.pop_front();
+      }
+
+      cb();
+    }
+  }};
 
   JsonRpcProtocol(Transport *transport) : Protocol(transport) {
     mMethodHandlers["$/initialize"] = createMethodHandler<Initialize>(this);
@@ -147,6 +176,18 @@ struct JsonRpcProtocol : Protocol {
         createNotifyHandler<ObjectNotify>(this);
     mMethodHandlers["$/object/destroy"] =
         createMethodHandler<ObjectDestroy>(this);
+  }
+
+  ~JsonRpcProtocol() {
+    exit = true;
+    processQueueCv.notify_one();
+    processorThread.join();
+  }
+
+  void pushProcessQueue(std::function<void()> cb) {
+    std::lock_guard lock(processQueueMtx);
+    processQueue.push_back(std::move(cb));
+    processQueueCv.notify_one();
   }
 
   Response<Initialize> handle(const Request<Initialize> &request) {
@@ -162,7 +203,8 @@ struct JsonRpcProtocol : Protocol {
     return getHandlers().handle(request);
   }
 
-  std::expected<json, ErrorInstance> handle(const Request<ObjectCall> &request) {
+  std::expected<json, ErrorInstance>
+  handle(const Request<ObjectCall> &request) {
     auto it = objects.find(request.object);
     if (it != objects.end()) {
       auto &[object, interface] = it->second;
@@ -199,7 +241,7 @@ struct JsonRpcProtocol : Protocol {
   }
 
   void call(std::string_view method, json params,
-            std::function<void(json)> responseHandler) override {
+            std::function<void(json, bool isError)> responseHandler) override {
     std::size_t id = mNextId++;
     send({
         {"jsonrpc", "2.0"},
@@ -241,15 +283,14 @@ struct JsonRpcProtocol : Protocol {
     });
   }
 
-  void
-  addNotificationHandler(std::string_view notification,
-                         std::function<void(json)> handler) override {
+  void addNotificationHandler(std::string_view notification,
+                              std::function<void(json)> handler) override {
     mNotifyHandlers[std::string(notification)] = std::move(handler);
   }
 
-  void addMethodHandler(
-      std::string_view method,
-      std::function<void(std::size_t, json)> handler) override {
+  void
+  addMethodHandler(std::string_view method,
+                   std::function<void(std::size_t, json)> handler) override {
     mMethodHandlers[std::string(method)] = std::move(handler);
   }
 
@@ -339,10 +380,11 @@ struct JsonRpcProtocol : Protocol {
 
     if (auto it = message.find("method"); it != message.end()) {
       std::string method = it.value();
+
       std::size_t id = 0;
       bool hasId = false;
 
-      if (auto it = message.find("id"); it != message.end()) {
+      if (auto it = message.find("id"); it != message.end() && !it->is_null()) {
         hasId = true;
         id = it.value();
       }
@@ -356,7 +398,9 @@ struct JsonRpcProtocol : Protocol {
       if (hasId) {
         if (auto it = mMethodHandlers.find(method);
             it != mMethodHandlers.end()) {
-          it->second(id, params);
+          pushProcessQueue([cb = it->second, id, params = std::move(params)] {
+            cb(id, params);
+          });
           return;
         }
 
@@ -365,7 +409,8 @@ struct JsonRpcProtocol : Protocol {
       }
 
       if (auto it = mNotifyHandlers.find(method); it != mNotifyHandlers.end()) {
-        it->second(params);
+        pushProcessQueue(
+            [cb = it->second, params = std::move(params)] { cb(params); });
         return;
       }
 
@@ -373,12 +418,11 @@ struct JsonRpcProtocol : Protocol {
       return;
     }
 
-    if (auto it = message.find("result"); it != message.end()) {
-      json result = it.value();
+    {
       bool hasId = false;
       std::size_t id = 0;
 
-      if (auto it = message.find("id"); it != message.end()) {
+      if (auto it = message.find("id"); it != message.end() && !it->is_null()) {
         hasId = true;
         id = it.value();
       }
@@ -391,7 +435,13 @@ struct JsonRpcProtocol : Protocol {
           it != mExpectedResponses.end()) {
         auto impl = std::move(it->second);
         mExpectedResponses.erase(it);
-        impl(result);
+        if (auto it = message.find("result"); it != message.end()) {
+          json result = it.value();
+          impl(result, false);
+        } else if (auto it = message.find("error"); it != message.end()) {
+          json error = it.value();
+          impl(error, true);
+        }
       }
     }
   }
@@ -408,12 +458,11 @@ private:
     getTransport()->flush();
   }
 
-  std::map<std::string, std::function<void(std::size_t, json)>>
-      mMethodHandlers;
+  std::map<std::string, std::function<void(std::size_t, json)>> mMethodHandlers;
   std::map<std::string, std::function<void(json)>> mNotifyHandlers;
-  std::map<std::string, std::vector<std::function<void(json)>>>
-      mEventHandlers;
-  std::map<std::size_t, std::function<void(json)>> mExpectedResponses;
+  std::map<std::string, std::vector<std::function<void(json)>>> mEventHandlers;
+  std::map<std::size_t, std::function<void(json, bool isError)>>
+      mExpectedResponses;
   std::size_t mNextId = 1;
 };
 

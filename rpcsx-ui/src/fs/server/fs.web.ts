@@ -27,9 +27,7 @@ class NativeFile implements FileInterface {
             position: request.offset
         });
 
-        return {
-            written: result.bytesWritten
-        };
+        return result.bytesWritten;
     }
 
     getId() {
@@ -81,52 +79,56 @@ class NativeFileSystem implements FileSystemInterface {
         try {
             const descriptor = await fs.open(filePath, "rb");
             await self.createFileObject(request.uri, NativeFile, descriptor);
-        } catch (e) { }
-
-        throw createError(ErrorCode.InvalidParams);
+        } catch (e) {
+            throw createError(ErrorCode.InvalidParams, `${e}`);
+        }
     }
 
     async readToString(_caller: Component, request: FsFileSystemReadToStringRequest): Promise<FsFileSystemReadToStringResponse> {
         const filePath = new URL(request.uri).pathname;
 
         try {
-            return {
-                data: await fs.readFile(filePath, { encoding: "utf8" })
-            };
-        } catch (e) { }
-
-        throw createError(ErrorCode.InvalidParams);
+            return await fs.readFile(filePath, { encoding: "utf8" });
+        } catch (e) {
+            throw createError(ErrorCode.InvalidParams, `${e}`);
+        }
     }
 
     async readDir(_caller: Component, request: FsFileSystemReadDirRequest): Promise<FsFileSystemReadDirResponse> {
-        const path = new URL(request.uri).pathname;
-        const result = await fs.readdir(path, { withFileTypes: true });
+        const path = new URL(request).pathname;
+        console.log("readDir", path);
+        try {
+            const result = await fs.readdir(path, { withFileTypes: true });
 
+            return {
+                items: result.map(item => {
+                    const result: FsDirEntry = {
+                        name: item.name,
+                        type: toFileType(item)
+                    };
 
-        return {
-            items: result.map(item => {
-                const result: FsDirEntry = {
-                    name: item.name,
-                    type: toFileType(item)
-                };
-
-                return result;
-            })
-        };
+                    return result;
+                })
+            };
+        } catch (e) {
+            throw createError(ErrorCode.InvalidParams, `${e}`);
+        }
     }
 
     async stat(_caller: Component, request: FsFileSystemStatRequest): Promise<FsFileSystemStatResponse> {
-        const path = new URL(request.uri).pathname;
-        const result = await fs.stat(path);
+        const path = new URL(request).pathname;
 
-        return {
-            item: {
+        try {
+            const result = await fs.stat(path);
+
+            return {
                 size: result.size,
                 type: toFileType(result)
-            }
-        };
+            };
+        } catch (e) {
+            throw createError(ErrorCode.InvalidParams, `${e}`);
+        }
     }
-
 }
 
 export async function initialize() {
@@ -138,29 +140,28 @@ export async function uninitialize() {
 }
 
 export async function open(_caller: Component, request: FsOpenRequest): Promise<FsOpenResponse> {
-    const protocol = new URL(request.uri).protocol;
+    const protocol = new URL(request.uri).protocol || "file:";
 
     const object = await self.findFileSystemObject(protocol);
     return await object.open(request);
 }
 
 export async function readToString(_caller: Component, request: FsReadToStringRequest): Promise<FsReadToStringResponse> {
-    const protocol = new URL(request.uri).protocol;
+    const protocol = new URL(request.uri).protocol || "file:";
 
     const object = await self.findFileSystemObject(protocol);
     return await object.readToString(request);
 }
 
 export async function readDir(_caller: Component, request: FsReadDirRequest): Promise<FsReadDirResponse> {
-    const protocol = new URL(request.uri).protocol;
+    const protocol = new URL(request).protocol || "file:";
 
     const object = await self.findFileSystemObject(protocol);
     return await object.readDir(request);
 }
 
-
 export async function stat(_caller: Component, request: FsStatRequest): Promise<FsStatResponse> {
-    const protocol = new URL(request.uri).protocol;
+    const protocol = new URL(request).protocol || "file:";
 
     const object = await self.findFileSystemObject(protocol);
     return await object.stat(request);

@@ -25,6 +25,7 @@ export function onComponentActivation(component: ComponentInstance) {
             sendEvent: (event, params) => {
                 webContents.send(`${component.getName()}/${event}`, params);
             },
+            getPid: () => -1
         };
 
         return rendererComponent;
@@ -34,7 +35,7 @@ export function onComponentActivation(component: ComponentInstance) {
         Object.keys(methods).forEach(method => {
             const channel = `${component.getName()}/${method}`;
 
-            ipcMain.handle(channel, (event, params: JsonObject) => {
+            ipcMain.handle(channel, (event, params: Json) => {
                 if (!impl.call) {
                     return createError(ErrorCode.InternalError, `component ${component.getName()} not defines call`);
                 }

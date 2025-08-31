@@ -39,7 +39,7 @@ public:
   virtual ~Protocol() = default;
 
   virtual void call(std::string_view method, json params,
-                    std::function<void(json)> responseHandler) = 0;
+                    std::function<void(json, bool isError)> responseHandler) = 0;
   virtual void notify(std::string_view method, json params) = 0;
   virtual void onEvent(std::string_view method,
                        std::function<void(json)> eventHandler) = 0;

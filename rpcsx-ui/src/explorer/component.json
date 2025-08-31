@@ -10,6 +10,9 @@
         },
         {
             "name": "progress"
+        },
+        {
+            "name": "fs"
         }
     ],
     "contributions": {

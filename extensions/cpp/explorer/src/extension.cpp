@@ -14,11 +14,19 @@ static void replaceAll(std::string &str, const std::string &from,
   }
 }
 
-static std::string toUri(const std::filesystem::path &path) {
-  auto pathString = path.string();
-  replaceAll(pathString, "\\", "/");
-  return pathString[0] == '/' ? "file://" + pathString
-                              : "file:///" + pathString;
+// FIXME: improve fs/file api and remove this function
+static std::string toFilePath(const std::string &uri) {
+#ifdef _WIN32
+  auto prefix = std::string_view("file:///");
+#else
+  auto prefix = std::string_view("file://");
+#endif
+
+  if (uri.starts_with(prefix)) {
+    return uri.substr(prefix.size());
+  } else {
+    return {};
+  }
 }
 
 enum class LanguageCode {
@@ -126,6 +134,84 @@ static std::string languageCodeToString(LanguageCode code) {
   }
 }
 
+struct ExplorerExtension;
+
+static std::optional<ExplorerItem> tryFetchFw(ExplorerExtension &ext,
+                                              const std::string &uri);
+static std::optional<ExplorerItem> tryFetchGame(ExplorerExtension &ext,
+                                                const std::string &uri);
+static std::optional<ExplorerItem> tryFetchPs3Game(ExplorerExtension &ext,
+                                                   const std::string &uri);
+
+struct ExplorerDescriber : ExplorerDescriberInterface {
+  ExplorerExtension &ext;
+  ExplorerDescriber(ExplorerExtension &ext) : ext(ext) {}
+
+  ExplorerDescriberDescribeResponse
+  describe(const ExplorerDescriberDescribeRequest &request) override {
+    ExplorerDescriberDescribeResponse result;
+
+    unsigned index = -1;
+    for (auto &uri : request.uris) {
+      index++;
+
+      if (auto game = tryFetchGame(ext, uri)) {
+        result.results.push_back({
+            .item = std::move(*game),
+            .uriIndex = int(index),
+        });
+        continue;
+      }
+
+      if (auto fw = tryFetchFw(ext, uri)) {
+        result.results.push_back({
+            .item = std::move(*fw),
+            .uriIndex = int(index),
+        });
+        continue;
+      }
+
+      if (auto game = tryFetchPs3Game(ext, uri)) {
+        result.results.push_back({
+            .item = std::move(*game),
+            .uriIndex = int(index),
+        });
+        continue;
+      }
+    }
+
+    return result;
+  }
+};
+
+struct ExplorerExtension
+    : rpcsx::ui::Extension<rpcsx::ui::Explorer, rpcsx::ui::Fs> {
+  std::thread explorerThread;
+  std::vector<std::string> locations;
+  std::atomic<bool> cancelled{false};
+
+  using Base::Base;
+
+  Response<Initialize> handle(const Request<Initialize> &) override {
+    return Initialize::Response{.extension = {
+                                    .name = {{EXTENSION_NAME}},
+                                    .version = EXTENSION_VERSION,
+                                }};
+  }
+
+  Response<Activate> handle(const Request<Activate> &request) override {
+    createObject<ExplorerDescriber>("ps3/ps4/ps5 explorer", *this);
+    return {};
+  }
+
+  Response<Shutdown> handle(const Request<Shutdown> &) override {
+    cancelled = true;
+    explorerThread.join();
+    std::exit(0);
+    return {};
+  }
+};
+
 static std::vector<LocalizedString>
 fetchLocalizedString(const sfo::registry &registry, const std::string &key) {
   if (!registry.contains(key)) {
@@ -151,14 +237,23 @@ fetchLocalizedString(const sfo::registry &registry, const std::string &key) {
   return result;
 }
 
+static bool isFile(ExplorerExtension &extension, const std::string &uri) {
+  if (auto statResult = extension.fsStat(uri).get();
+      statResult.has_value() && statResult->type == FsDirEntryType::File) {
+    return true;
+  }
+
+  return false;
+}
+
 static std::vector<LocalizedResource>
-fetchLocalizedResourceFile(const std::filesystem::path &path,
+fetchLocalizedResourceFile(ExplorerExtension &extension, const std::string &uri,
                            const std::string &name, const std::string &ext) {
   std::vector<LocalizedResource> result;
 
-  if (std::filesystem::is_regular_file(path / (name + ext))) {
+  if (auto testPath = uri + "/" + name + ext; isFile(extension, testPath)) {
     result.push_back(LocalizedResource{
-        .uri = toUri(path / (name + ext)),
+        .uri = std::move(testPath),
     });
   } else {
     return {};
@@ -168,10 +263,10 @@ fetchLocalizedResourceFile(const std::filesystem::path &path,
     std::string suffix = (i < 10 ? "_0" : "_");
     suffix += std::to_string(i);
 
-    if (auto testPath = path / (name + suffix + ext);
-        std::filesystem::is_regular_file(testPath)) {
+    if (auto testPath = uri + "/" + name + suffix + ext;
+        isFile(extension, testPath)) {
       result.push_back(LocalizedResource{
-          .uri = toUri(testPath),
+          .uri = std::move(testPath),
           .lang = languageCodeToString(static_cast<LanguageCode>(i)),
       });
     }
@@ -181,20 +276,21 @@ fetchLocalizedResourceFile(const std::filesystem::path &path,
 }
 
 static std::vector<LocalizedImage>
-fetchLocalizedImageFile(const std::filesystem::path &path,
+fetchLocalizedImageFile(ExplorerExtension &extension, const std::string &uri,
                         const std::string &name, const std::string &ext) {
   std::vector<LocalizedImage> result;
 
-  if (std::filesystem::is_regular_file(path / (name + ext))) {
+  if (auto testPath = uri + "/" + name + ext; isFile(extension, testPath)) {
     result.push_back(LocalizedImage{
-        .uri = toUri(path / (name + ext)),
+        .uri = std::move(testPath),
         .resolution = ImageResolution::Normal,
     });
   }
 
-  if (std::filesystem::is_regular_file(path / (name + "_4k" + ext))) {
+  if (auto testPath = uri + "/" + name + "_4k" + ext;
+      isFile(extension, testPath)) {
     result.push_back(LocalizedImage{
-        .uri = toUri(path / (name + "_4k" + ext)),
+        .uri = std::move(testPath),
         .resolution = ImageResolution::High,
     });
   }
@@ -203,19 +299,19 @@ fetchLocalizedImageFile(const std::filesystem::path &path,
     std::string suffix = (i < 10 ? "_0" : "_");
     suffix += std::to_string(i);
 
-    if (auto testPath = path / (name + suffix + ext);
-        std::filesystem::is_regular_file(testPath)) {
+    if (auto testPath = uri + "/" + name + suffix + ext;
+        isFile(extension, testPath)) {
       result.push_back(LocalizedImage{
-          .uri = toUri(testPath),
+          .uri = std::move(testPath),
           .lang = languageCodeToString(static_cast<LanguageCode>(i)),
           .resolution = ImageResolution::Normal,
       });
     }
 
-    if (auto testPath = path / (name + "_4k" + suffix + ext);
-        std::filesystem::is_regular_file(testPath)) {
+    if (auto testPath = uri + "/" + name + "_4k" + suffix + ext;
+        isFile(extension, testPath)) {
       result.push_back(LocalizedImage{
-          .uri = toUri(testPath),
+          .uri = std::move(testPath),
           .lang = languageCodeToString(static_cast<LanguageCode>(i)),
           .resolution = ImageResolution::High,
       });
@@ -225,34 +321,31 @@ fetchLocalizedImageFile(const std::filesystem::path &path,
   return result;
 }
 
-static std::optional<ExplorerItem>
-tryFetchFw(const std::filesystem::directory_entry &entry) {
-  if (!std::filesystem::is_regular_file(entry.path() / "mini-syscore.elf")) {
+static std::optional<ExplorerItem> tryFetchFw(ExplorerExtension &ext,
+                                              const std::string &uri) {
+  if (!isFile(ext, uri + "/mini-syscore.elf")) {
     return {};
   }
 
-  if (!std::filesystem::is_regular_file(entry.path() / "safemode.elf")) {
+  if (!isFile(ext, uri + "/safemode.elf")) {
     return {};
   }
 
-  if (!std::filesystem::is_regular_file(entry.path() / "system" / "sys" /
-                                        "SceSysCore.elf")) {
+  if (!isFile(ext, uri + "/system/sys/SceSysCore.elf")) {
     return {};
   }
 
-  if (!std::filesystem::is_regular_file(entry.path() / "system" / "sys" /
-                                        "orbis_audiod.elf")) {
+  if (!isFile(ext, uri + "/system/sys/orbis_audiod.elf")) {
     return {};
   }
 
-  if (std::filesystem::is_regular_file(entry.path() / "system" / "sys" /
-                                       "GnmCompositor.elf")) {
+  if (isFile(ext, uri + "/system/sys/GnmCompositor.elf")) {
     return ExplorerItem{
         .type = "firmware",
         .name = {LocalizedString{
             .text = "PS4 Firmware",
         }},
-        .location = toUri(entry.path()),
+        .location = uri,
         .launcher =
             LauncherInfo{
                 .type = "dir-ps4-fw",
@@ -260,14 +353,13 @@ tryFetchFw(const std::filesystem::directory_entry &entry) {
     };
   }
 
-  if (std::filesystem::is_regular_file(entry.path() / "system" / "sys" /
-                                       "AgcCompositor.elf")) {
+  if (isFile(ext, uri + "/system/sys/AgcCompositor.elf")) {
     return ExplorerItem{
         .type = "firmware",
         .name = {LocalizedString{
             .text = "PS5 Firmware",
         }},
-        .location = toUri(entry.path()),
+        .location = uri,
         .launcher =
             LauncherInfo{
                 .type = "dir-ps5-fw",
@@ -278,26 +370,22 @@ tryFetchFw(const std::filesystem::directory_entry &entry) {
   return {};
 }
 
-static std::optional<ExplorerItem>
-tryFetchGame(const std::filesystem::directory_entry &entry) {
-  if (!entry.is_directory()) {
+static std::optional<ExplorerItem> tryFetchGame(ExplorerExtension &ext,
+                                                const std::string &uri) {
+  auto sysPath = uri + "/sce_sys";
+  auto paramSfoUri = sysPath + "/param.sfo";
+
+  if (!isFile(ext, uri + "/eboot.bin")) {
     return {};
   }
 
-  auto sysPath = entry.path() / "sce_sys";
-  auto paramSfoPath = sysPath / "param.sfo";
-
-  if (!std::filesystem::is_regular_file(entry.path() / "eboot.bin")) {
+  if (!isFile(ext, paramSfoUri)) {
     return {};
   }
 
-  if (!std::filesystem::is_regular_file(paramSfoPath)) {
-    return {};
-  }
-
-  auto data = sfo::load(paramSfoPath.string());
+  auto data = sfo::load(toFilePath(paramSfoUri));
   if (data.errc != sfo::error::ok) {
-    elog("%s: error %d", entry.path().c_str(), static_cast<int>(data.errc));
+    elog("%s: error %d", uri.c_str(), static_cast<int>(data.errc));
     return {};
   }
 
@@ -323,37 +411,37 @@ tryFetchGame(const std::filesystem::directory_entry &entry) {
     info.version = sfo::get_string(data.sfo, "VERSION", "1.0");
   }
 
-  info.icon = fetchLocalizedImageFile(sysPath, "icon0", ".png");
-  info.iconSound = fetchLocalizedResourceFile(sysPath, "snd0", ".at9");
-  info.background = fetchLocalizedImageFile(sysPath, "pic1", ".png");
-  info.overlayImage = fetchLocalizedImageFile(sysPath, "pic2", ".png");
+  info.icon = fetchLocalizedImageFile(ext, sysPath, "icon0", ".png");
+  info.iconSound = fetchLocalizedResourceFile(ext, sysPath, "snd0", ".at9");
+  info.background = fetchLocalizedImageFile(ext, sysPath, "pic1", ".png");
+  info.overlayImage = fetchLocalizedImageFile(ext, sysPath, "pic2", ".png");
 
   info.type = "game";
   info.launcher = LauncherInfo{
       .type = "fself-ps4-orbis" // FIXME: self/elf? ps5?
                                 // "fself-ps5-prospero"
   };
-  info.location = toUri(entry.path());
+  info.location = uri;
   return std::move(info);
 }
 
-static std::optional<ExplorerItem>
-tryFetchPs3Game(const std::filesystem::directory_entry &entry) {
-  auto usrdirPath = entry.path() / "USRDIR";
-  auto paramSfoPath = entry.path() / "PARAM.SFO";
-  auto ebootPath = usrdirPath / "EBOOT.BIN";
+static std::optional<ExplorerItem> tryFetchPs3Game(ExplorerExtension &ext,
+                                                   const std::string &uri) {
+  auto usrdirPath = uri + "/USRDIR";
+  auto paramSfoUri = uri + "/PARAM.SFO";
+  auto ebootPath = usrdirPath + "/EBOOT.BIN";
 
-  if (!std::filesystem::is_regular_file(ebootPath)) {
+  if (!isFile(ext, ebootPath)) {
     return {};
   }
 
-  if (!std::filesystem::is_regular_file(paramSfoPath)) {
+  if (!isFile(ext, paramSfoUri)) {
     return {};
   }
 
-  auto data = sfo::load(paramSfoPath.string());
+  auto data = sfo::load(toFilePath(paramSfoUri));
   if (data.errc != sfo::error::ok) {
-    elog("%s: error %d", entry.path().c_str(), static_cast<int>(data.errc));
+    elog("%s: error %d", uri.c_str(), static_cast<int>(data.errc));
     return {};
   }
 
@@ -379,91 +467,21 @@ tryFetchPs3Game(const std::filesystem::directory_entry &entry) {
     info.version = sfo::get_string(data.sfo, "VERSION", "1.0");
   }
 
-  info.icon = fetchLocalizedImageFile(entry.path(), "ICON0", ".PNG");
-  info.iconSound = fetchLocalizedResourceFile(entry.path(), "SND0", ".AT3");
-  info.iconVideo = fetchLocalizedResourceFile(entry.path(), "ICON1", ".PAM");
-  info.overlayImageWide = fetchLocalizedImageFile(entry.path(), "PIC0", ".PNG");
-  info.background = fetchLocalizedImageFile(entry.path(), "PIC1", ".PNG");
-  info.overlayImage = fetchLocalizedImageFile(entry.path(), "PIC2", ".PNG");
+  info.icon = fetchLocalizedImageFile(ext, uri, "ICON0", ".PNG");
+  info.iconSound = fetchLocalizedResourceFile(ext, uri, "SND0", ".AT3");
+  info.iconVideo = fetchLocalizedResourceFile(ext, uri, "ICON1", ".PAM");
+  info.overlayImageWide = fetchLocalizedImageFile(ext, uri, "PIC0", ".PNG");
+  info.background = fetchLocalizedImageFile(ext, uri, "PIC1", ".PNG");
+  info.overlayImage = fetchLocalizedImageFile(ext, uri, "PIC2", ".PNG");
 
   info.type = "game";
   info.launcher = LauncherInfo{
       .type = "self-ps3-cellos" // FIXME: fself/elf?
   };
-  info.location = toUri(entry.path());
+  info.location = uri;
 
   return info;
 }
-
-struct ExplorerDescriber : ExplorerDescriberInterface {
-  ExplorerDescriberDescribeResponse
-  describe(const ExplorerDescriberDescribeRequest &request) override {
-    ExplorerDescriberDescribeResponse result;
-
-    unsigned index = -1;
-    for (auto &uri : request.uris) {
-      index++;
-      std::error_code ec;
-      std::filesystem::directory_entry entry(uri, ec);
-      if (ec) {
-        continue;
-      }
-
-      if (auto game = tryFetchGame(entry)) {
-        result.results.push_back({
-            .item = std::move(*game),
-            .uriIndex = int(index),
-        });
-        continue;
-      }
-
-      if (auto fw = tryFetchFw(entry)) {
-        result.results.push_back({
-            .item = std::move(*fw),
-            .uriIndex = int(index),
-        });
-        continue;
-      }
-
-      if (auto game = tryFetchPs3Game(entry)) {
-        result.results.push_back({
-            .item = std::move(*game),
-            .uriIndex = int(index),
-        });
-        continue;
-      }
-    }
-
-    return result;
-  }
-};
-
-struct ExplorerExtension : rpcsx::ui::Extension<rpcsx::ui::Explorer> {
-  std::thread explorerThread;
-  std::vector<std::string> locations;
-  std::atomic<bool> cancelled{false};
-
-  using Base::Base;
-
-  Response<Initialize> handle(const Request<Initialize> &) override {
-    return Initialize::Response{.extension = {
-                                    .name = {{EXTENSION_NAME}},
-                                    .version = EXTENSION_VERSION,
-                                }};
-  }
-
-  Response<Activate> handle(const Request<Activate> &request) override {
-    createObject<ExplorerDescriber>("ps3/ps4/ps5 explorer");
-    return {};
-  }
-
-  Response<Shutdown> handle(const Request<Shutdown> &) override {
-    cancelled = true;
-    explorerThread.join();
-    std::exit(0);
-    return {};
-  }
-};
 
 ExtensionBuilder extension_main(int argc, const char *argv[]) {
   return rpcsx::ui::createExtension<ExplorerExtension>();

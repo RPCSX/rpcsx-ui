@@ -6,13 +6,13 @@ import * as path from '$core/path';
 export async function activateLocalExtensions(list: Set<string>) {
     try {
         const rootPath = locations.localExtensionsPath;
-        for (const entry of (await fs.fsReadDir({ uri: path.toURI(rootPath) })).items) {
+        for (const entry of (await fs.fsReadDir(path.toURI(rootPath))).items) {
             if (entry.type != FsDirEntryType.Directory) {
                 continue;
             }
 
             try {
-                await fs.fsStat({ uri: path.toURI(path.join(rootPath, entry.name, "extension.json")) });
+                await fs.fsStat(path.toURI(path.join(rootPath, entry.name, "extension.json")));
             } catch {
                 continue;
             }
