@@ -21,5 +21,6 @@ declare global {
         getId(): ComponentId;
         onClose(listener: () => void | Promise<void>): IDisposable;
         sendEvent(event: string, params?: any): void;
+        getPid(): number;
     };
 }

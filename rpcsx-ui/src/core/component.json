@@ -443,12 +443,12 @@
                         "type": "string"
                     },
                     "params": {
-                        "type": "json-object"
+                        "type": "json"
                     }
                 },
                 "returns": {
                     "result": {
-                        "type": "json-object"
+                        "type": "json"
                     }
                 }
             }
@@ -472,7 +472,7 @@
                         "type": "string"
                     },
                     "params": {
-                        "type": "json-object"
+                        "type": "json"
                     }
                 }
             }
@@ -492,6 +492,21 @@
                 },
                 "object": {
                     "type": "number"
+                }
+            }
+        },
+        "interfaces": {
+            "external-component": {
+                "methods": {
+                    "call": {
+                        "params": "json",
+                        "returns": "json"
+                    }
+                },
+                "notifications": {
+                    "notify": {
+                        "params": "json"
+                    }
                 }
             }
         }
