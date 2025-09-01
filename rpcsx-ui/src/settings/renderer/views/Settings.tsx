@@ -6,8 +6,11 @@ import { ThemedText } from '$core/ThemedText';
 import { LeftRightViewSelector, UpDownViewSelector } from '$core/ViewSelector';
 import { HapticPressable } from '$core/HapticPressable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { pickDirectory } from '$core/pickDirectory';
+import * as fs from '$fs';
 import * as core from '$core';
+import { Schema, SchemaObject } from '$core/Schema';
+import { createError } from '$core/Error';
+import { ErrorCode } from '$core/enums';
 
 import Animated, {
     Easing,
@@ -129,6 +132,7 @@ type SettingItemCategoryProps = SettingItemBaseProps & SettingItemWithChevron & 
 
 type SettingItemListProps = SettingItemBaseProps & {
     type: SettingItemType.List;
+    mode?: SettingTextMode;
     items: string[];
     onAddItem: (item: string) => void;
     onRemoveItem: (index: number) => void;
@@ -185,8 +189,8 @@ const TextInputModal = memo(function ({ visible, onClose, value, onSave, title, 
 
     const handlePickFile = async () => {
         try {
-            const result = await pickDirectory({ requestLongTermAccess: true });
-            setInputValue(result.uri);
+            const result = await fs.fsOpenDirectorySelector(undefined);
+            setInputValue(result);
         } catch { }
     };
 
@@ -382,19 +386,21 @@ const DateTimeModal = memo(function ({ visible, onClose, value, onSave, title, m
     );
 });
 
-const ListManagerModal = memo(function ({ visible, onClose, items, onSave, title, placeholder }: {
+const ListManagerModal = memo(function ({ visible, onClose, items, onSave, title, placeholder, mode = SettingTextMode.Plain }: {
     visible: boolean;
     onClose: () => void;
     items: string[];
     onSave: (items: string[]) => void;
     title: string;
     placeholder?: string;
+    mode?: SettingTextMode;
 }) {
     const [listItems, setListItems] = useState([...items]);
     const [newItem, setNewItem] = useState('');
     const surfaceColor = useThemeColor("surface");
     const outlineColor = useThemeColor("outline");
     const surfaceContainerColor = useThemeColor("surfaceContainer");
+    const primaryContainerColor = useThemeColor("primaryContainer");
     const primaryColor = useThemeColor("primary");
     const onPrimaryColor = useThemeColor("onPrimary");
     const onSurfaceColor = useThemeColor("onSurface");
@@ -413,6 +419,14 @@ const ListManagerModal = memo(function ({ visible, onClose, items, onSave, title
         }
     };
 
+    const handlePickFile = async () => {
+        try {
+            const result = await fs.fsOpenDirectorySelector(undefined);
+            setListItems([...listItems, result]);
+            setNewItem('');
+        } catch { }
+    };
+
     const removeItem = (index: number) => {
         setListItems(listItems.filter((_, i) => i !== index));
     };
@@ -429,19 +443,29 @@ const ListManagerModal = memo(function ({ visible, onClose, items, onSave, title
                     </View>
 
                     {/* Add new item input */}
-                    <View style={styles.addItemContainer}>
-                        <TextInput
-                            style={[styles.textInput, { backgroundColor: surfaceContainerColor, borderColor: outlineColor, color: onSurfaceColor, flex: 1 }]}
-                            value={newItem}
-                            onChangeText={setNewItem}
-                            placeholder={placeholder || "Add new item"}
-                            placeholderTextColor={onSurfaceVariantColor}
-                            onSubmitEditing={addItem}
-                        />
-                        <HapticPressable onPress={addItem} style={[styles.addButton, { backgroundColor: primaryColor }]}>
-                            <ThemedIcon iconSet="Ionicons" name="add" size={20} color={{ light: 'white', dark: 'white' }} />
-                        </HapticPressable>
-                    </View>
+                    {(mode == SettingTextMode.Plain || mode == SettingTextMode.Url) &&
+                         <View style={styles.addItemContainer}>
+                            <TextInput
+                                style={[styles.textInput, { backgroundColor: surfaceContainerColor, borderColor: outlineColor, color: onSurfaceColor, flex: 1 }]}
+                                value={newItem}
+                                onChangeText={setNewItem}
+                                placeholder={placeholder || "Add new item"}
+                                placeholderTextColor={onSurfaceVariantColor}
+                                onSubmitEditing={addItem}
+                            />
+                            <HapticPressable onPress={addItem} style={[styles.addButton, { backgroundColor: primaryColor }]}>
+                                <ThemedIcon iconSet="Ionicons" name="add" size={20} color={{ light: 'white', dark: 'white' }} />
+                            </HapticPressable>
+                        </View>
+                    }
+                    {mode == SettingTextMode.Path &&
+                        <View style={styles.addItemContainer}>
+                            <HapticPressable onPress={handlePickFile} style={[styles.filePickerButton, { backgroundColor: primaryContainerColor }]}>
+                                <ThemedIcon iconSet="Ionicons" name="folder-outline" size={20} />
+                                <ThemedText style={styles.filePickerText}>Browse Files</ThemedText>
+                            </HapticPressable>
+                        </View>
+                    }
 
                     {/* List items */}
                     <ScrollView style={styles.listContainer} showsVerticalScrollIndicator={false}>
@@ -733,6 +757,7 @@ const SettingsItem = memo(function (props: SettingsItemProps & { isLast: boolean
                     visible={modalVisible}
                     onClose={() => setModalVisible(false)}
                     items={props.items}
+                    mode={props.mode}
                     onSave={(newItems) => {
                         // Update items by calling onAddItem/onRemoveItem appropriately
                         // For simplicity, we'll replace the entire list
@@ -1218,7 +1243,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         paddingVertical: 12,
         fontSize: 16,
-        marginBottom: 16,
         minHeight: 44,
     },
     filePickerButton: {
@@ -1338,16 +1362,175 @@ const styles = StyleSheet.create({
     },
 });
 
+function makeSettingsItemProp(value: any, schema: Schema, name: string, path: string) {
+    switch (schema.type) {
+        case 'boolean': {
+            const result: SettingsItemProps = {
+                type: SettingItemType.Toggle,
+                title: schema.label || name,
+                value,
+                onToggle: (value) => {
+                    core.settingsSet({
+                        path,
+                        value
+                    })
+                }
+            };
+
+            return result;
+        }
+
+        case 'string': {
+            const result: SettingsItemProps = {
+                type: SettingItemType.Text,
+                title: schema.label || name,
+                value,
+                onTextChange: (value) => {
+                    core.settingsSet({
+                        path,
+                        value
+                    })
+                }
+            };
+
+            return result;
+        }
+
+        case 'number': {
+            const result: SettingsItemProps = {
+                type: SettingItemType.Number,
+                title: schema.label || name,
+                value,
+                onNumberChange: (value) => {
+                    core.settingsSet({
+                        path,
+                        value
+                    })
+                }
+            };
+
+            return result;
+        }
+
+        case 'path': {
+            const result: SettingsItemProps = {
+                type: SettingItemType.Text,
+                mode: SettingTextMode.Path,
+                title: schema.label || name,
+                value,
+                onTextChange: (value) => {
+                    core.settingsSet({
+                        path,
+                        value
+                    })
+                }
+            };
+
+            return result;
+        }
+
+        case 'variant': {
+            const result: SettingsItemProps = {
+                type: SettingItemType.SingleSelection,
+                title: schema.label || name,
+                options: schema.choices,
+                selectedIndex: schema.choices.findIndex(value),
+                onSelectionChange: (selection) => {
+                    core.settingsSet({
+                        path,
+                        value: schema.choices[selection]
+                    });
+                }
+            };
+
+            return result;
+        }
+
+        case 'array': {
+            const result: SettingsItemProps = {
+                type: SettingItemType.List,
+                title: schema.label || name,
+                items: value,
+                mode: schema.items.type == "path" ? SettingTextMode.Path : SettingTextMode.Plain,
+                onAddItem: (item) => {
+                    value.push(item);
+                    core.settingsSet({
+                        path,
+                        value
+                    });
+                },
+                onRemoveItem: (index) => {
+                    value.splice(index, 1);
+                    core.settingsSet({
+                        path,
+                        value
+                    });
+                },
+            };
+
+            return result;
+        }
+
+        case 'object': {
+            const result: SettingsItemProps = {
+                type: SettingItemType.Category,
+                title: schema.label || name,
+            };
+
+            return result;
+        }
+    }
+
+    throw createError(ErrorCode.InternalError, `Unimplemented settings type ${(schema as any).type}`);
+}
+
+function makeSettingsSections(value: any, schema: SchemaObject, name: string, path: string) {
+    const result: SettingsSection = {
+        title: name,
+        items: Object.keys(schema.properties).map(propertyName => {
+            return makeSettingsItemProp(value[propertyName], schema.properties[propertyName], propertyName, path + "/" + propertyName)
+        })
+    };
+
+    return [result];
+}
+function makeRootSettingsObject(value: object, schema: SchemaObject, path = "") {
+    const result: SettingsCategory[] = [];
+
+    Object.keys(schema.properties).forEach(propertyName => {
+        const property = schema.properties[propertyName];
+
+        const sections = makeSettingsSections(
+            (value as any)[propertyName], property as SchemaObject,
+            property.label ?? propertyName, path + "/" + propertyName);
+
+        const category: SettingsCategory = {
+            icon: "settings-outline",
+            iconSet: "Ionicons",
+            title: property.label ?? propertyName,
+            sections
+        };
+
+        result.push(category);
+    });
+
+
+    return result;
+}
+
+
 export function Settings(_props?: Props) {
     const dimension = useWindowDimensions();
     const currentShortView = dimension.width <= CATEGORIES_THRESHOLD;
     const [shortView, setShortView] = useState(currentShortView);
-    const [activeTab, setActiveTab] = useState(shortView ? -1 : 0);
+    const [activeTab, setActiveTab] = useState(shortView ? -1 : -1);
     const [lastActiveTab, setLastActiveTab] = useState(0);
     const backgroundColor = useThemeColor("background");
     const surfaceContainerColor = useThemeColor("surfaceContainer");
     const secondaryContainerColor = useThemeColor("surfaceContainerHigh");
     const [showContentView, setContentView] = useState(false);
+    const [categories, setCategories] = useState(settingsCategories);
+    const [updateIndex, setUpdateIndex] = useState(0);
     const insets = useSafeAreaInsets();
 
 
@@ -1367,10 +1550,29 @@ export function Settings(_props?: Props) {
         setContentView(false);
     };
 
-    const showContent = (!shortView || showContentView) && activeTab >= 0;
-    const showCategories = !showContentView || !shortView;
+    const showContent = (activeTab >= 0 || lastActiveTab >= 0) && (!shortView || showContentView) && activeTab >= 0;
+    const showCategories = (activeTab >= 0 || lastActiveTab >= 0) && (!showContentView || !shortView);
 
     useEffect(() => {
+        (async () => {
+            try {
+                const { value, schema } = await core.settingsGet({ path: "" });
+
+                const categories = makeRootSettingsObject(value as object, schema as SchemaObject);
+
+                setCategories(categories);
+                setUpdateIndex(updateIndex + 1);
+            } catch (e) {
+                console.error(`failed to fetch settings`, e);
+            }
+        })();
+    }, []);
+
+    useEffect(() => {
+        if (updateIndex == 0) {
+            return;
+        }
+
         if (currentShortView != shortView) {
             if (!shortView) {
                 setContentView(true);
@@ -1426,9 +1628,9 @@ export function Settings(_props?: Props) {
             <View style={styles.menuContainer}>
                 <View style={styles.settingsTabsContainer}>
                     <ScrollView showsVerticalScrollIndicator={false}>
-                        {settingsCategories.map((category, index) => (
+                        {categories.map((category, index) => (
                             <SettingsTab
-                                key={category.title}
+                                key={updateIndex + category.title}
                                 title={category.title}
                                 iconName={category.icon}
                                 iconSet={category.iconSet}
@@ -1443,9 +1645,9 @@ export function Settings(_props?: Props) {
     );
 
     const contentView = (
-        <View style={[styles.contentContainer, safeArea.content, { backgroundColor: shortView ? surfaceContainerColor : secondaryContainerColor }]}>
+        <View key={updateIndex} style={[styles.contentContainer, safeArea.content, { backgroundColor: shortView ? surfaceContainerColor : secondaryContainerColor }]}>
             <UpDownViewSelector
-                list={settingsCategories}
+                list={categories}
                 style={[styles.contentSelector, { backgroundColor: secondaryContainerColor }]}
                 renderItem={(category) => <SettingsContent category={category} />}
                 selectedItem={activeTab < 0 ? lastActiveTab : activeTab}
@@ -1454,16 +1656,16 @@ export function Settings(_props?: Props) {
     )
 
     const shortContentView = (
-        <View style={[styles.contentContainer, safeArea.content, { backgroundColor: shortView ? surfaceContainerColor : secondaryContainerColor }]}>
+        <View key={updateIndex} style={[styles.contentContainer, safeArea.content, { backgroundColor: shortView ? surfaceContainerColor : secondaryContainerColor }]}>
             <View style={[styles.contentHeaderContainer, { backgroundColor: surfaceContainerColor }]}>
                 <HapticPressable onPress={onContentBack} style={styles.backButton}>
                     <ThemedIcon iconSet="Ionicons" name="chevron-back" size={28} />
                 </HapticPressable>
-                <ThemedText type="title" style={styles.headerTitle}>{settingsCategories[activeTab < 0 ? lastActiveTab : activeTab].title}</ThemedText>
+                <ThemedText type="title" style={styles.headerTitle}>{categories[activeTab < 0 ? lastActiveTab : activeTab].title}</ThemedText>
                 <View style={styles.headerSpacer} />
             </View>
 
-            <SettingsContent category={settingsCategories[activeTab < 0 ? lastActiveTab : activeTab]} />
+            <SettingsContent key={updateIndex} category={categories[activeTab < 0 ? lastActiveTab : activeTab]} />
         </View>
     )
 
@@ -1475,8 +1677,8 @@ export function Settings(_props?: Props) {
             </View>
             }
             {shortView &&
-                <LeftRightViewSelector style={[styles.splitViewContainer]}
-                list={[categoriesView, shortContentView]} renderItem={x => x} selectedItem={showCategories ? 0 : 1}
+                <LeftRightViewSelector key={updateIndex} style={[styles.splitViewContainer]}
+                    list={[categoriesView, shortContentView]} renderItem={x => x} selectedItem={showCategories ? 0 : 1}
                 />
             }
         </View>

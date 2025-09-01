@@ -1,4 +1,6 @@
 import { createError } from "$core/Error";
+import { pickDirectory } from '@react-native-documents/picker';
+
 
 export async function initialize() {
     throw createError(ErrorCode.InternalError, "not implemented");
@@ -34,4 +36,14 @@ export function getBuiltinResourcesLocation(_caller: Component, _request: FsGetB
 
 export function getConfigLocation(_caller: Component, _request: FsGetConfigLocationRequest): Promise<FsGetConfigLocationResponse> {
     throw createError(ErrorCode.InternalError, "not implemented");
+}
+
+export async function openDirectorySelector(caller: Component, request: FsOpenDirectorySelectorRequest): Promise<FsOpenDirectorySelectorResponse> {
+    try {
+        return (await pickDirectory({
+            requestLongTermAccess: true
+        })).uri;
+    } catch {
+        throw createError(ErrorCode.RequestCancelled);
+    }
 }

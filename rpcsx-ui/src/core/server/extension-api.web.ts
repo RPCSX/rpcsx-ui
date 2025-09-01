@@ -1,6 +1,6 @@
 import * as path from '$/path';
 import * as fs from '$fs';
-import { findComponent, findComponentById, getComponentId, unregisterComponent } from './ComponentInstance';
+import { findComponent, findComponentById, unregisterComponent } from './ComponentInstance';
 import { createError } from 'lib/Error';
 import { getLauncher } from './Launcher';
 import { Extension } from './Extension';

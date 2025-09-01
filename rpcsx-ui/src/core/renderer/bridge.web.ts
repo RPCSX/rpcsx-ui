@@ -2,6 +2,7 @@
 import * as Disposable from '$core/Disposable';
 import { createError } from '$core/Error';
 import * as bridge from '../lib/bridge';
+import { ErrorCode } from '$/enums';
 export { viewPush, viewSet, viewPop } from '../lib/bridge';
 
 export function setOnCall(_cb: (...args: any[]) => any) {}

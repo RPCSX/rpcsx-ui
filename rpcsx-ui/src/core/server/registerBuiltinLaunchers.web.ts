@@ -4,7 +4,6 @@ import { Target } from "./Target";
 import { fork, spawn } from "child_process";
 import { Duplex } from "stream";
 import { EventEmitter } from "events";
-import * as locations from '$/locations';
 import { fileURLToPath } from "url";
 
 const nativeLauncher: Launcher = {
@@ -12,7 +11,7 @@ const nativeLauncher: Launcher = {
         path = fileURLToPath(path);
         const newProcess = spawn(path, args, {
             argv0: path,
-            cwd: locations.rootPath,
+            cwd: dirname(process.execPath),
             signal: params.signal,
             stdio: 'pipe'
         });

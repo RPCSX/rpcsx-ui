@@ -1,10 +1,10 @@
 import { app, net, session, BrowserWindow, ipcMain } from 'electron';
-import * as locations from '$core/locations.js';
+import * as fs from '$fs';
 import * as core from '$core';
 import { PathLike } from 'fs';
-import path from 'path';
-import fs from 'fs/promises';
-import url from 'url';
+import nodePath from 'path';
+import * as path from '$core/path';
+import { fileURLToPath } from 'url';
 import { Future } from '$core/Future.js';
 import * as explorer from '$explorer';
 import { Window } from '$core/Window';
@@ -29,7 +29,7 @@ async function activateMainWindow() {
         y: 0,
         fullscreen: false,
         webPreferences: {
-            preload: path.join(locations.builtinResourcesPath, "preload.js"),
+            preload: fileURLToPath(path.join(await fs.fsGetBuiltinResourcesLocation(undefined), "build", "preload.js")),
             webSecurity: false
         }
     });
@@ -45,10 +45,10 @@ async function activateMainWindow() {
 }
 
 export async function initialize() {
-    ipcMain.on('window/create', (_event, options) => {
+    ipcMain.on('window/create', async (_event, options) => {
         const win = new BrowserWindow({
             webPreferences: {
-                preload: path.join(locations.builtinResourcesPath, "preload.mjs"),
+                preload: fileURLToPath(path.join(await fs.fsGetBuiltinResourcesLocation(undefined), "build", "preload.js")),
             },
             ...options,
         });
@@ -100,7 +100,7 @@ export async function initialize() {
 
     await app.whenReady();
 
-    const uiDirectory = path.join(locations.builtinResourcesPath, "ui");
+    const uiUri = path.join(await fs.fsGetBuiltinResourcesLocation(undefined), "build", "ui");
 
     const fixPath = async (loc: PathLike) => {
         loc = loc.toString();
@@ -109,22 +109,22 @@ export async function initialize() {
         }
 
         try {
-            const stat = await fs.stat(loc);
-            if (stat.isFile()) {
+            const stat = await fs.fsStat(loc);
+            if (stat.type == FsDirEntryType.File) {
                 return loc;
             }
 
-            if (stat.isDirectory()) {
+            if (stat.type == FsDirEntryType.Directory) {
                 return fixPath(path.join(loc, "index.html"));
             }
         } catch {
-            const ext = path.extname(loc);
+            const ext = nodePath.extname(loc);
             if (ext === ".html") {
                 return undefined;
             }
 
             try {
-                if ((await fs.stat(loc + ".html")).isFile()) {
+                if ((await fs.fsStat(loc + ".html")).type == FsDirEntryType.File) {
                     return loc + ".html";
                 }
             } catch { }
@@ -140,11 +140,11 @@ export async function initialize() {
             pathname = "/";
         }
 
-        const filePath = path.join(uiDirectory, decodeURIComponent(pathname));
+        const filePath = path.join(uiUri, decodeURIComponent(pathname));
         console.log(`open ${filePath}, request ${pathname}`);
 
-        const relativePath = path.relative(uiDirectory, filePath);
-        const isSafe = !relativePath.startsWith('..') && !path.isAbsolute(relativePath);
+        const relativePath = nodePath.relative(fileURLToPath(uiUri), filePath);
+        const isSafe = !relativePath.startsWith('..') && !nodePath.isAbsolute(relativePath);
 
         if (!isSafe) {
             return new Response('bad request', {
@@ -154,10 +154,10 @@ export async function initialize() {
         }
 
         try {
-            const absolutePath = await fixPath(path.join(uiDirectory, relativePath));
+            const absolutePath = await fixPath(path.join(uiUri, relativePath));
 
             if (absolutePath) {
-                return net.fetch(url.pathToFileURL(absolutePath).toString());
+                return net.fetch(absolutePath);
             }
         } catch { }
 

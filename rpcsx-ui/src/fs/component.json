@@ -186,6 +186,10 @@
             "get-config-location": {
                 "handler": "handleGetConfigLocation",
                 "returns": "string"
+            },
+            "open-directory-selector": {
+                "handler": "handleOpenDirectorySelector",
+                "returns": "string"
             }
         }
     }

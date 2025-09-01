@@ -30,6 +30,10 @@ export function handleGetBuiltinResourcesLocation(caller: Component, request: Fs
     return fs.getBuiltinResourcesLocation(caller, request);
 }
 
-export function handleGetConfigLocation(caller: Component, request: FsGetConfigLocationRequest): Promise<FsGetConfigLocationResponse> {
+export function handleGetConfigLocation(caller: Component, request: FsGetConfigLocationRequest) {
     return fs.getConfigLocation(caller, request);
+}
+
+export function handleOpenDirectorySelector(caller: Component, request: FsOpenDirectorySelectorRequest) {
+    return fs.openDirectorySelector(caller, request);
 }

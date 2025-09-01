@@ -5,6 +5,8 @@ import nodeFs from 'fs/promises';
 import { app } from 'electron';
 import nodePath from 'path';
 import * as path from '$core/path';
+import { dialog } from 'electron';
+import { pathToFileURL } from 'url';
 
 class NativeFile implements FileInterface {
     constructor(private id: number, private handle: nodeFs.FileHandle) { }
@@ -197,4 +199,19 @@ export function getBuiltinResourcesLocation(_caller: Component, _request: FsGetB
 
 export function getConfigLocation(_caller: Component, _request: FsGetConfigLocationRequest): FsGetConfigLocationResponse {
     return path.toURI(nodePath.dirname(process.execPath));
+}
+
+export async function openDirectorySelector(caller: Component, request: FsOpenDirectorySelectorRequest): Promise<FsOpenDirectorySelectorResponse> {
+    const result = await dialog.showOpenDialog({
+        properties: [
+            'openDirectory',
+            'createDirectory',
+        ]
+    });
+
+    if (result.canceled || result.filePaths.length != 1) {
+        throw createError(ErrorCode.RequestCancelled);
+    }
+
+    return pathToFileURL(result.filePaths[0]).toString();
 }
