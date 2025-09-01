@@ -8,12 +8,15 @@ import * as extensionApi from './extension-api';
 import { registerBuiltinLaunchers } from './registerBuiltinLaunchers';
 import { initialize } from './initialize';
 import * as objects from './Objects';
+import { initializeRenderer } from './initialize-renderer';
 
 initialize();
 registerBuiltinLaunchers();
 
 export async function activate() {
     try {
+        initializeRenderer();
+
         const components = getComponentList();
 
         await Promise.all(Object.values(components).map(component => initializeComponent(component.getManifest())));
@@ -183,7 +186,7 @@ export async function handleSettingsSet(caller: Component, request: SettingsSetR
         return;
     }
 
-    const { settings, schema } = getComponentSettings(caller);
+    const { settings: componentSettings, schema } = getComponentSettings(caller);
 
     try {
         await validateObject(request.value, getObjectMember(schema, path));
@@ -192,7 +195,7 @@ export async function handleSettingsSet(caller: Component, request: SettingsSetR
         throw createError(ErrorCode.InvalidParams, `invalid value: ${JSON.stringify(error)}`);
     }
 
-    const member = getObjectMember(settings, path);
+    const member = getObjectMember(componentSettings, path);
 
     if (typeof member !== "object") {
         throw createError(ErrorCode.InvalidRequest, `Expected object ${name}`);
@@ -206,6 +209,8 @@ export async function handleSettingsSet(caller: Component, request: SettingsSetR
 
     member[name] = request.value;
     self.emitSettingsUpdateEvent(request);
+    settings.save().catch(e => console.error("failed to save settings", e));
+    
 }
 
 export async function handleSettingsGet(caller: Component, request: SettingsGetRequest): Promise<SettingsGetResponse> {

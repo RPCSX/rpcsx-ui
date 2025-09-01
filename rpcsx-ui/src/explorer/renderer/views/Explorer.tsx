@@ -552,18 +552,20 @@ export function Explorer(props?: Props) {
     });
 
     useEffect(() => {
-        const disposeEventListener = self.onExplorerItems(event => {
-            games.push(...event.items.filter(item => item.type == 'game'));
-            setGames(games);
-            setUpdateId(updateId + 1);
-        });
+        (async () => {
+            const disposeEventListener = await self.onExplorerItems(event => {
+                games.push(...event.items.filter(item => item.type == 'game'));
+                setGames(games);
+                setUpdateId(updateId + 1);
+            });
 
 
-        self.explorerGet({});
+            self.explorerGet({});
 
-        return () => {
-            disposeEventListener();
-        }
+            return () => {
+                disposeEventListener();
+            }
+        })();
     }, []);
 
     const updateActiveTab = (tab: number) => {

@@ -8,11 +8,10 @@ class Callback<T extends (...args: any[]) => any>  {
         this._queue = [];
     }
 
-    call(...args: Parameters<T>) {
+    call(...args: Parameters<T>): Promise<ReturnType<T>> {
         if (this._callback) {
             return this._callback(...args);
         }
-
 
         return new Promise<ReturnType<T>>((resolve, reject) => {
             this._queue.push(() => {
@@ -44,7 +43,7 @@ export function setOnCall(cb: (method: string, params: any) => any) {
 export function setOnInvoke(cb: (notification: string, params: any) => void | Promise<void>) {
     invokeCb.set(cb);
 }
-export function setOnEvent(cb: (event: string, params: any) => () => void) {
+export function setOnEvent(cb: (event: string, params: (...args: any[]) => Promise<void> | void) => () => void) {
     eventCb.set(cb);
 }
 

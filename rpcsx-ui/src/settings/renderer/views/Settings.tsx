@@ -1569,10 +1569,6 @@ export function Settings(_props?: Props) {
     }, []);
 
     useEffect(() => {
-        if (updateIndex == 0) {
-            return;
-        }
-
         if (currentShortView != shortView) {
             if (!shortView) {
                 setContentView(true);

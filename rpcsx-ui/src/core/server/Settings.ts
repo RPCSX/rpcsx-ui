@@ -19,7 +19,7 @@ export async function load(params?: { uri: string }) {
         const settingsText = await fs.fsReadToString({ uri });
         currentSettings = JSON.parse(settingsText);
     } catch (e) {
-        console.error('failed to load settings', e);
+        console.warn('failed to load settings', e);
         currentSettings = {};
     }
 }
