@@ -444,7 +444,7 @@ const ListManagerModal = memo(function ({ visible, onClose, items, onSave, title
 
                     {/* Add new item input */}
                     {(mode == SettingTextMode.Plain || mode == SettingTextMode.Url) &&
-                         <View style={styles.addItemContainer}>
+                        <View style={styles.addItemContainer}>
                             <TextInput
                                 style={[styles.textInput, { backgroundColor: surfaceContainerColor, borderColor: outlineColor, color: onSurfaceColor, flex: 1 }]}
                                 value={newItem}
@@ -1447,23 +1447,24 @@ function makeSettingsItemProp(value: any, schema: Schema, name: string, path: st
         }
 
         case 'array': {
+            const items = [...value];
             const result: SettingsItemProps = {
                 type: SettingItemType.List,
                 title: schema.label || name,
-                items: value,
+                items,
                 mode: schema.items.type == "path" ? SettingTextMode.Path : SettingTextMode.Plain,
                 onAddItem: (item) => {
-                    value.push(item);
+                    items.push(item);
                     core.settingsSet({
                         path,
-                        value
+                        value: items
                     });
                 },
                 onRemoveItem: (index) => {
-                    value.splice(index, 1);
+                    items.splice(index, 1);
                     core.settingsSet({
                         path,
-                        value
+                        value: items
                     });
                 },
             };

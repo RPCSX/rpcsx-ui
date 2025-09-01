@@ -203,14 +203,13 @@ export async function handleSettingsSet(caller: Component, request: SettingsSetR
 
     const prevValue = member[name];
 
-    if (prevValue == request.value) {
+    if (JSON.stringify(prevValue) === JSON.stringify(request.value)) {
         return;
     }
 
     member[name] = request.value;
     self.emitSettingsUpdateEvent(request);
     settings.save().catch(e => console.error("failed to save settings", e));
-    
 }
 
 export async function handleSettingsGet(caller: Component, request: SettingsGetRequest): Promise<SettingsGetResponse> {
