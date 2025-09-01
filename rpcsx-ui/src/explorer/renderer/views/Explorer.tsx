@@ -552,14 +552,17 @@ export function Explorer(props?: Props) {
     });
 
     useEffect(() => {
-        self.onExplorerItems(event => {
+        const disposeEventListener = self.onExplorerItems(event => {
             games.push(...event.items.filter(item => item.type == 'game'));
             setGames(games);
             setUpdateId(updateId + 1);
         });
 
-        if (games.length == 0) {
-            self.explorerGet({});
+
+        self.explorerGet({});
+
+        return () => {
+            disposeEventListener();
         }
     }, []);
 

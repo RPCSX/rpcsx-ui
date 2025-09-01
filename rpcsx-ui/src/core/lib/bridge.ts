@@ -33,7 +33,7 @@ class Callback<T extends (...args: any[]) => any>  {
 
 const callCb = new Callback<(method: string, params: any) => any>();
 const invokeCb = new Callback<(method: string, params: any) => void | Promise<void>>();
-const eventCb = new Callback<(event: string, handler: (...args: any[]) => Promise<void> | void) => void>();
+const eventCb = new Callback<(event: string, handler: (...args: any[]) => Promise<void> | void) => () => void>();
 const viewPushCb = new Callback<(name: string, props: any) => void>();
 const viewSetCb = new Callback<(name: string, props: any) => void>();
 const viewPopCb = new Callback<() => void>();
@@ -59,7 +59,7 @@ export function onViewPop(cb: () => void) {
 }
 
 export function onEvent(event: string, handler: (...args: any[]) => Promise<void> | void) {
-    eventCb.call(event, handler);
+    return eventCb.call(event, handler);
 }
 
 export async function invoke(method: string, params: any): Promise<void> {

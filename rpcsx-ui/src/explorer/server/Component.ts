@@ -3,6 +3,7 @@ import * as progress from "$progress";
 import { IDisposable } from "$core/Disposable";
 import * as fs from '$fs';
 import * as path from '$core/path';
+import * as core from "$core";
 
 export class ExplorerComponent implements IDisposable {
     items: ExplorerItem[] = [];
@@ -14,6 +15,14 @@ export class ExplorerComponent implements IDisposable {
 
     constructor(context: ComponentContext, private locations: string[]) {
         context.manage(self.onAnyDescriberCreated(() => this.refresh()));
+        core.onSettingsUpdate(event => {
+            if (event.path == "/explorer/locations") {
+                this.items = [];
+                this.describedLocations.clear();
+                this.locations = event.value as string[];
+                this.refresh();
+            }
+        });
     }
 
     dispose() {
