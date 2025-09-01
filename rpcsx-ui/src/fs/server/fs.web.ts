@@ -195,7 +195,7 @@ export async function stat(_caller: Component, request: FsStatRequest): Promise<
 
 export function getBuiltinResourcesLocation(_caller: Component, _request: FsGetBuiltinResourcesLocationRequest): FsGetBuiltinResourcesLocationResponse {
     if (app.isPackaged && "resourcesPath" in process && typeof process.resourcesPath == "string") {
-        return process.resourcesPath;
+        return pathToFileURL(process.resourcesPath).toString();
     }
 
     return encodeURI(path.toURI(nodePath.resolve(import.meta.dirname, "..")));
