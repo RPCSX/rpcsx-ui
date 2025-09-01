@@ -61,7 +61,7 @@ jobs:
         run: |
           export CMAKE_C_COMPILER_LAUNCHER=ccache
           export CMAKE_CXX_COMPILER_LAUNCHER=ccache
-          ./android/gradlew assembleRelease -p ./android --build-cache && mv android/app/build/outputs/apk/release/app-release.apk ./rpcsx.apk
+          ./android/gradlew assembleRelease -p ./android -PreactNativeArchitectures=arm64-v8a --build-cache && mv android/app/build/outputs/apk/release/app-release.apk ./rpcsx.apk
 
       - name: Upload artifacts
         uses: actions/upload-artifact@main
