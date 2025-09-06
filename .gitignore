@@ -16,7 +16,11 @@ vite.config.ts.timestamp-*
 expo-env.d.ts
 .expo/
 
-/android/
 /electron/out/
 /extensions/cpp/rpcsx-ui/
 /electron/extensions/
+.cxx/
+.gradle/
+.idea/
+modules/**/android/
+
