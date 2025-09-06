@@ -4,7 +4,7 @@ import * as core from '$core';
 import { PathLike } from 'fs';
 import nodePath from 'path';
 import * as path from '$core/path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import { Future } from '$core/Future.js';
 import * as explorer from '$explorer';
 import { Window } from '$core/Window';
@@ -29,7 +29,7 @@ async function activateMainWindow() {
         y: 0,
         fullscreen: false,
         webPreferences: {
-            preload: fileURLToPath(path.join(await fs.fsGetBuiltinResourcesLocation(undefined), "build", "preload.js")),
+            preload: path.join(import.meta.dirname, "preload.js"),
             webSecurity: false
         }
     });
@@ -48,7 +48,7 @@ export async function initialize() {
     ipcMain.on('window/create', async (_event, options) => {
         const win = new BrowserWindow({
             webPreferences: {
-                preload: fileURLToPath(path.join(await fs.fsGetBuiltinResourcesLocation(undefined), "build", "preload.js")),
+                preload: path.join(import.meta.dirname, "preload.js"),
             },
             ...options,
         });
@@ -100,7 +100,7 @@ export async function initialize() {
 
     await app.whenReady();
 
-    const uiUri = path.join(await fs.fsGetBuiltinResourcesLocation(undefined), "build", "ui");
+    const uiPath = path.join(import.meta.dirname, "ui");
 
     const fixPath = async (loc: PathLike) => {
         loc = loc.toString();
@@ -120,7 +120,7 @@ export async function initialize() {
         } catch {
             const ext = nodePath.extname(loc);
             if (ext === ".html") {
-                return undefined;
+                return loc;
             }
 
             try {
@@ -130,7 +130,7 @@ export async function initialize() {
             } catch { }
         }
 
-        return undefined;
+        return loc;
     };
 
     session.defaultSession.protocol.handle('app', async (request) => {
@@ -140,10 +140,10 @@ export async function initialize() {
             pathname = "/";
         }
 
-        const filePath = path.join(uiUri, decodeURIComponent(pathname));
+        const filePath = path.join(uiPath, decodeURIComponent(pathname));
         console.log(`open ${filePath}, request ${pathname}`);
 
-        const relativePath = nodePath.relative(fileURLToPath(uiUri), filePath);
+        const relativePath = nodePath.relative(uiPath, filePath);
         const isSafe = !relativePath.startsWith('..') && !nodePath.isAbsolute(relativePath);
 
         if (!isSafe) {
@@ -152,16 +152,16 @@ export async function initialize() {
                 headers: { 'content-type': 'text/html' }
             });
         }
+        const htmlPath = path.join(uiPath, await fixPath(relativePath));
 
         try {
-            const absolutePath = await fixPath(path.join(uiUri, relativePath));
-
+            const absolutePath = pathToFileURL(htmlPath).toString();
             if (absolutePath) {
                 return net.fetch(absolutePath);
             }
         } catch { }
 
-        return new Response('Not Found', {
+        return new Response(`Not Found: ${htmlPath}`, {
             status: 404,
             headers: { 'content-type': 'text/html' }
         });
