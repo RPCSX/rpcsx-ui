@@ -17,7 +17,7 @@ declare global {
 
     export type ComponentId = string;
 
-    export type Component = {
+    export type ComponentRef = {
         getId(): ComponentId;
         onClose(listener: () => void | Promise<void>): IDisposable;
         sendEvent(event: string, params?: any): void;

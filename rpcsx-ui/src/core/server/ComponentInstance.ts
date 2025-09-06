@@ -20,8 +20,11 @@ export type IComponentImpl = IDisposable & {
     initialize(eventEmitter: (event: string, params: Json) => void): void | Promise<void>;
     activate(context: ComponentContext, settings: Json, signal?: AbortSignal): void | Promise<void>;
     deactivate(context: ComponentContext): void | Promise<void>;
-    call?(caller: Component, method: string, params: Json | undefined): Promise<Json | void>;
-    notify?(caller: Component, notification: string, params: Json | undefined): Promise<void>;
+    call?(caller: ComponentRef, method: string, params: Json | undefined): Promise<Json | void>;
+    notify?(caller: ComponentRef, notification: string, params: Json | undefined): Promise<void>;
+    objectCall?(caller: ComponentRef, object: number, method: string, params: Json | undefined): Promise<Json | void>;
+    objectNotify?(caller: ComponentRef, object: number, notification: string, params: Json | undefined): Promise<void>;
+    objectDestroy?(caller: ComponentRef, object: number, interfaceName: string): Promise<void>;
     getPid?(): number;
 }
 
@@ -50,7 +53,7 @@ export class ComponentInstance implements ComponentContext {
         this.externalEventEmitter[`${sender.getId()}/${event}`]?.emit(params);
     }
 
-    private createCallerView(caller: ComponentInstance): Component {
+    private createCallerView(caller: ComponentInstance): ComponentRef {
         return {
             getId: () => caller.getId(),
             onClose: (listener) => caller.onEvent(this, deactivateEvent, listener),
@@ -219,6 +222,10 @@ export class ComponentInstance implements ComponentContext {
             throw createError(ErrorCode.InvalidParams, `${caller.getId()}: component ${this.getName()} has no interface method support`);
         }
 
+        if (this.impl.objectCall) {
+            return this.impl.objectCall(this.createCallerView(caller), objectId, method, params);
+        }
+
         return await this.impl.call(this.createCallerView(caller), `$/object/call`, {
             object: objectId,
             method,
@@ -235,6 +242,10 @@ export class ComponentInstance implements ComponentContext {
             throw createError(ErrorCode.InvalidParams, `${caller.getId()}: component ${this.getName()} has no interface support`);
         }
 
+        if (this.impl.objectNotify) {
+            return this.impl.objectNotify(this.createCallerView(caller), objectId, notification, params);
+        }
+
         return await this.impl.notify(this.createCallerView(caller), `$/object/notify`, {
             object: objectId,
             notification,
@@ -249,6 +260,10 @@ export class ComponentInstance implements ComponentContext {
 
         if (!this.impl.notify) {
             throw createError(ErrorCode.InvalidParams, `${caller.getId()}: component ${this.getName()} has no interface support`);
+        }
+
+        if (this.impl.objectDestroy) {
+            return this.impl.objectDestroy(this.createCallerView(caller), objectId, interfaceName);
         }
 
         return await this.impl.notify(this.createCallerView(caller), `$/object/destroy`, {

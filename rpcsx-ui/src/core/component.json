@@ -308,43 +308,6 @@
                     }
                 }
             },
-            "extension/load": {
-                "handler": "loadExtension",
-                "params": {
-                    "id": {
-                        "type": "string"
-                    }
-                }
-            },
-            "extension/unload": {
-                "handler": "unloadExtension",
-                "params": {
-                    "id": {
-                        "type": "string"
-                    }
-                }
-            },
-            "extension/install": {
-                "handler": "installExtension",
-                "params": {
-                    "path": {
-                        "type": "string"
-                    }
-                },
-                "returns": {
-                    "id": {
-                        "type": "string"
-                    }
-                }
-            },
-            "extension/remove": {
-                "handler": "removeExtension",
-                "params": {
-                    "id": {
-                        "type": "string"
-                    }
-                }
-            },
             "settings/set": {
                 "handler": "handleSettingsSet",
                 "params": {
@@ -452,11 +415,22 @@
                         "type": "json"
                     }
                 },
-                "returns": {
-                    "result": {
+                "returns": "json"
+            },
+            "component-call": {
+                "handler": "handleCall",
+                "params": {
+                    "caller": {
+                        "type": "string"
+                    },
+                    "method": {
+                        "type": "string"
+                    },
+                    "params": {
                         "type": "json"
                     }
-                }
+                },
+                "returns": "json"
             }
         },
         "notifications": {
@@ -473,6 +447,20 @@
                 "params": {
                     "object": {
                         "type": "number"
+                    },
+                    "notification": {
+                        "type": "string"
+                    },
+                    "params": {
+                        "type": "json"
+                    }
+                }
+            },
+            "component-notify": {
+                "handler": "handleNotify",
+                "params": {
+                    "caller": {
+                        "type": "string"
                     },
                     "notification": {
                         "type": "string"
@@ -504,14 +492,101 @@
         "interfaces": {
             "external-component": {
                 "methods": {
-                    "call": {
-                        "params": "json",
+                    "object-call": {
+                        "params": {
+                            "object": {
+                                "type": "number"
+                            },
+                            "method": {
+                                "type": "string"
+                            },
+                            "params": {
+                                "type": "json"
+                            }
+                        },
                         "returns": "json"
+                    },
+                    "call": {
+                        "params": {
+                            "method": {
+                                "type": "string"
+                            },
+                            "params": {
+                                "type": "json"
+                            }
+                        },
+                        "returns": "json"
+                    },
+                    "initialize": {
+                    },
+                    "activate": {
+                        "params": {
+                            "settings": {
+                                "type": "json"
+                            }
+                        }
+                    },
+                    "deactivate": {},
+                    "dispose": {},
+                    "get-pid": {
+                        "returns": "number"
                     }
                 },
                 "notifications": {
                     "notify": {
-                        "params": "json"
+                        "params": {
+                            "method": {
+                                "type": "string"
+                            },
+                            "params": {
+                                "type": "json"
+                            }
+                        }
+                    },
+                    "object-notify": {
+                        "params": {
+                            "object": {
+                                "type": "number"
+                            },
+                            "method": {
+                                "type": "string"
+                            },
+                            "params": {
+                                "type": "json"
+                            }
+                        }
+                    },
+                    "object-destroy": {
+                        "params": {
+                            "object": {
+                                "type": "number"
+                            },
+                            "interface-name": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "launcher": {
+                "methods": {
+                    "launch": {
+                        "params": {
+                            "path": {
+                                "type": "string"
+                            },
+                            "args": {
+                                "type": "array",
+                                "item-type": "string"
+                            },
+                            "manifest": {
+                                "type": "extension-info"
+                            },
+                            "launcher-params": {
+                                "type": "json-object"
+                            }
+                        },
+                        "returns": "number"
                     }
                 }
             }

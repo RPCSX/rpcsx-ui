@@ -711,17 +711,17 @@ type ${uLabel}Interface = {
 ${"methods" in iface ? iface.methods && Object.keys(iface.methods).map(method => {
             const methodTypeLabel = generateComponentLabelName(component, `${name}-${method}`, true);
             if ("params" in (iface.methods as any)[method]) {
-                return `    ${generateLabelName(method, false)}(caller: Component, request: ${methodTypeLabel}Request): ${methodTypeLabel}Response | Promise<${methodTypeLabel}Response>`;
+                return `    ${generateLabelName(method, false)}(caller: ComponentRef, request: ${methodTypeLabel}Request): ${methodTypeLabel}Response | Promise<${methodTypeLabel}Response>`;
             } else {
-                return `    ${generateLabelName(method, false)}(caller: Component): ${methodTypeLabel}Response | Promise<${methodTypeLabel}Response>`;
+                return `    ${generateLabelName(method, false)}(caller: ComponentRef): ${methodTypeLabel}Response | Promise<${methodTypeLabel}Response>`;
             }
         }).join("\n") : ""}
 ${"notifications" in iface ? iface.notifications && Object.keys(iface.notifications).map(notification => {
             const methodTypeLabel = generateComponentLabelName(component, `${name}-${notification}`, true);
             if ("params" in (iface.notifications as any)[notification]) {
-                return `    ${generateLabelName(notification, false)}(caller: Component, request: ${methodTypeLabel}Request): void | Promise<void>;`
+                return `    ${generateLabelName(notification, false)}(caller: ComponentRef, request: ${methodTypeLabel}Request): void | Promise<void>;`
             } else {
-                return `    ${generateLabelName(notification, false)}(caller: Component): void | Promise<void>;`;
+                return `    ${generateLabelName(notification, false)}(caller: ComponentRef): void | Promise<void>;`;
             }
         }).join("\n") : ""}
 };`
@@ -849,34 +849,34 @@ export class ${uLabel}ComponentObject implements ComponentObject {
 
     constructor(public impl: ${uLabel}Interface, public name: string) {}
 
-    call(caller: Component, method: string, params: Json | undefined): Promise<Json | void> | Json | void {
+    call(caller: ComponentRef, method: string, params: Json | undefined): Promise<Json | void> | Json | void {
         void caller, params;
 
         switch (method) {
 ${"methods" in iface ? iface.methods && Object.keys(iface.methods).map(method => {
-    if ("params" in (iface.methods as any)[method]) {
-        return `            case "${method}": return this.impl.${generateLabelName(method, false)}(caller, params as any);\n`
-    } else {
-        return `            case "${method}": return this.impl.${generateLabelName(method, false)}(caller);\n`
-    }
-}).join("\n") : ""}
+        if ("params" in (iface.methods as any)[method]) {
+            return `            case "${method}": return this.impl.${generateLabelName(method, false)}(caller, params as any);\n`
+        } else {
+            return `            case "${method}": return this.impl.${generateLabelName(method, false)}(caller);\n`
+        }
+    }).join("\n") : ""}
 
             default:
                 throw createError(ErrorCode.MethodNotFound);
         }
     }
 
-    notify(caller: Component, method: string, params: Json | undefined): void | Promise<void> {
+    notify(caller: ComponentRef, method: string, params: Json | undefined): void | Promise<void> {
         void caller, params;
 
         switch (method) {
 ${"notifications" in iface ? iface.notifications && Object.keys(iface.notifications).map(notification => {
-    if ("params" in (iface.notifications as any)[notification]) {
-        return `            case "${notification}": return this.impl.${generateLabelName(notification, false)}(caller, params as any);\n`
-    } else {
-        return `            case "${notification}": return this.impl.${generateLabelName(notification, false)}(caller);\n`
-    }
-}).join("\n") : ""}
+        if ("params" in (iface.notifications as any)[notification]) {
+            return `            case "${notification}": return this.impl.${generateLabelName(notification, false)}(caller, params as any);\n`
+        } else {
+            return `            case "${notification}": return this.impl.${generateLabelName(notification, false)}(caller);\n`
+        }
+    }).join("\n") : ""}
 
             default:
                 throw createError(ErrorCode.MethodNotFound);
@@ -897,12 +897,12 @@ ${"methods" in iface ? iface.methods && Object.keys(iface.methods).map(method =>
         const methodTypeLabel = generateComponentLabelName(component, `${name}-${method}`, true);
         if ("params" in (iface.methods as any)[method]) {
             return `    async ${generateLabelName(method, false)}(request: ${methodTypeLabel}Request): Promise<${methodTypeLabel}Response> {
-        return (await ${component == "core" ? "" : "core."}objectCall({ object: this.id, method: "${method}", params: request})).result as any;
+        return await ${component == "core" ? "" : "core."}objectCall({ object: this.id, method: "${method}", params: request}) as any;
     }
 `
         } else {
             return `    async ${generateLabelName(method, false)}(): Promise<${methodTypeLabel}Response> {
-        return (await ${component == "core" ? "" : "core."}objectCall({ object: this.id, method: "${method}", params: {}})).result as any;
+        return await ${component == "core" ? "" : "core."}objectCall({ object: this.id, method: "${method}", params: {}}) as any;
     }
 `
         }
@@ -1019,7 +1019,7 @@ export function onAny${uLabel}Created(handler: () => Promise<void> | void) {
 `;
     }
 
-    generateView(component: string, _path: string, name: string) {
+    generateView(_component: string, _path: string, name: string) {
         this.viewBody += `
 export function push${name}View(target: Window, params: ${name}Props) {
     return target.pushView("${name}", params);
@@ -1045,8 +1045,8 @@ type ComponentObject = {
     typeId: string;
     name: string;
     impl: object;
-    call(caller: Component, method: string, params: Json | undefined): Promise<Json | void> | Json | void;
-    notify(caller: Component, method: string, params: Json | undefined): void | Promise<void>;
+    call(caller: ComponentRef, method: string, params: Json | undefined): Promise<Json | void> | Json | void;
+    notify(caller: ComponentRef, method: string, params: Json | undefined): void | Promise<void>;
     dispose(): void | Promise<void>;
 };
 
@@ -1074,24 +1074,28 @@ class ServerPrivateApiGenerator implements ContributionGenerator {
     generateEvent(component: string, event: object, name: string) {
         const label = generateComponentLabelName(component, name, true);
         if (Object.keys(event).length == 0) {
-            this.body += `
-export function send${label}Event(receiver: Component) {
+            this.body += `export function on${label}(handler: () => Promise<void> | void) {
+    return thisComponent().onEvent(thisComponent(), "${name}", handler as any);
+}
+export function send${label}Event(receiver: ComponentRef) {
     return receiver.sendEvent("${name}");
 }
 export function emit${label}Event() {
     return thisComponent().emitEvent("${name}");
 }
-\n`;
-            return;
-        }
-
-        this.body += `
-export function send${label}Event(receiver: Component, params: ${label}Event) {
+`;
+        } else {
+            this.body += `export function on${label}(handler: (event: ${label}Event) => Promise<void> | void) {
+    return thisComponent().onEvent(thisComponent(), "${name}", handler as any);
+}
+export function send${label}Event(receiver: ComponentRef, params: ${label}Event) {
     return receiver.sendEvent("${name}", params);
 }
 export function emit${label}Event(params: ${label}Event) {
     return thisComponent().emitEvent("${name}", params);
-}\n`;
+}
+`;
+        }
     }
 
     generateMethod(component: string, method: object, name: string) {
@@ -1111,7 +1115,7 @@ export function emit${label}Event(params: ${label}Event) {
         const label = generateComponentLabelName(component, name, false);
         const uLabel = generateComponentLabelName(component, name, true);
         this.body += `
-export async function call${uLabel}(caller: Component, params: ${uLabel}Request): Promise<${uLabel}Response> {
+export async function call${uLabel}(caller: ComponentRef, params: ${uLabel}Request): Promise<${uLabel}Response> {
     return impl.${method.handler}(caller, params);
 }
 
@@ -1140,7 +1144,7 @@ export async function ${label}(params: ${uLabel}Request): Promise<${uLabel}Respo
         const label = generateComponentLabelName(component, name, false);
         const uLabel = generateComponentLabelName(component, name, true);
         this.body += `
-export async function notify${uLabel}(caller: Component, params: ${uLabel}Request) {
+export async function notify${uLabel}(caller: ComponentRef, params: ${uLabel}Request) {
     impl.${notification.handler}(caller, params);
 }
 export async function ${label}(params: ${uLabel}Request) {
@@ -1184,25 +1188,21 @@ export async function create${uLabel}Object<Impl extends ${uLabel}Interface, Par
     objects[id] = new ${uLabel}ComponentObject(impl, name);
     return impl;
 }
-`;
-        if (component != 'core') {
-            this.interfaceBody += `
 export function on${uLabel}Created(handler: (object: ${uLabel}) => Promise<void> | void) {
-    return core.onObjectCreated((params) => {
+    return ${component == "core" ? "" : "core."}onObjectCreated((params) => {
         if (params.interface == "${component}/${name}") {
             handler(new ${uLabel}(params.object));
         }
     });
 }
 export function onAny${uLabel}Created(handler: () => Promise<void> | void) {
-    return core.onObjectCreated((params) => {
+    return ${component == "core" ? "" : "core."}onObjectCreated((params) => {
         if (params.interface == "${component}/${name}") {
             handler();
         }
     });
 }
 `;
-        }
     }
 
 
@@ -1212,6 +1212,7 @@ ${this.callBody.length > 0 || this.notifyBody.length > 0 ? 'import * as impl fro
 import { createError } from "$core/Error";
 import { thisComponent } from "$/component-info";
 import * as core from "$core";
+import { isJsonObject } from "$core/Json";
 ${this.viewBody && "import { Window } from '$core/Window';"}
 export { thisComponent } from "$/component-info";
 
@@ -1221,8 +1222,8 @@ type ComponentObject = {
     typeId: string;
     name: string;
     impl: object;
-    call(caller: Component, method: string, params: Json | undefined): Promise<Json | void> | Json | void;
-    notify(caller: Component, method: string, params: Json | undefined): void | Promise<void>;
+    call(caller: ComponentRef, method: string, params: Json | undefined): Promise<Json | void> | Json | void;
+    notify(caller: ComponentRef, method: string, params: Json | undefined): void | Promise<void>;
     dispose(): void | Promise<void>;
 };
 
@@ -1244,13 +1245,13 @@ export function ownObjects() {
     return Object.values(objects);
 }
 
-export async function call(caller: Component, method: string, params: Json | undefined): Promise<Json | void> {
+export async function call(caller: ComponentRef, method: string, params: Json | undefined): Promise<Json | void> {
     void caller, params;
 
     switch (method) {
 ${this.callBody}
         case "$/object/call":
-            if (params && typeof params.method == "string" && typeof params.object == 'number') {
+            if (params && isJsonObject(params) && typeof params.method == "string" && typeof params.object == 'number') {
                 if (params.object in objects) {
                     return objects[params.object].call(caller, params.method,
                         "params" in params ? params.params as any : undefined
@@ -1267,13 +1268,13 @@ ${this.callBody}
     }
 }
 
-export async function notify(caller: Component, method: string, params: Json | undefined) {
+export async function notify(caller: ComponentRef, method: string, params: Json | undefined) {
     void caller, params;
 
     switch (method) {
 ${this.notifyBody}
         case "$/object/notify":
-            if (params && typeof params.notification == "string" && typeof params.object == 'number') {
+            if (params && isJsonObject(params) && typeof params.notification == "string" && typeof params.object == 'number') {
                 if (params.object in objects) {
                     return objects[params.object].notify(caller, params.notification,
                         "params" in params ? params.params as any : undefined
@@ -1801,11 +1802,11 @@ class ${componentLabel}ComponentImpl implements IComponentImpl {
         }
     }
 
-    async call(caller: Component, method: string, params?: Json) {
+    async call(caller: ComponentRef, method: string, params?: Json) {
         return await api.call(caller, method, params);
     }
 
-    async notify(caller: Component, notification: string, params?: Json) {
+    async notify(caller: ComponentRef, notification: string, params?: Json) {
         await api.notify(caller, notification, params);
     }
 };

@@ -8,7 +8,7 @@ export function onComponentActivation(component: ComponentInstance) {
     const impl = component.getImpl();
 
     const createRendererComponent = (webContents: Electron.WebContents) => {
-        const rendererComponent: Component = {
+        const rendererComponent: ComponentRef = {
             getId: () => ":renderer",
             onClose: (listener) => {
                 const wrapped = async () => {

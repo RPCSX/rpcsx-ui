@@ -15,7 +15,7 @@
 - `npm install`
 - `npm run build:web`
 - `npm run dev:ui`
-- `npm run dev:wev:server`
+- `npm run dev:web:server`
 
 
 ## Build Guide for Android

@@ -15,14 +15,14 @@ function parseUri(uri: string) {
 class NativeFile implements FileInterface {
     constructor(private id: number, private handle: nodeFs.FileHandle) { }
 
-    async close(_caller: Component) {
+    async close(_caller: ComponentRef) {
         core.objectDestroy({
             object: this.id
         });
         await this.handle.close();
     }
 
-    async read(_caller: Component, request: FsFileReadRequest): Promise<FsFileReadResponse> {
+    async read(_caller: ComponentRef, request: FsFileReadRequest): Promise<FsFileReadResponse> {
         const buffer = new Uint8Array(request.size);
         const result = await this.handle.read(buffer, 0, request.size, request.offset);
 
@@ -31,7 +31,7 @@ class NativeFile implements FileInterface {
         };
     }
 
-    async write(_caller: Component, request: FsFileWriteRequest): Promise<FsFileWriteResponse> {
+    async write(_caller: ComponentRef, request: FsFileWriteRequest): Promise<FsFileWriteResponse> {
         const result = await this.handle.write(Uint8Array.from(request.data), {
             position: request.offset
         });
@@ -82,7 +82,7 @@ function toFileType(fileType: WithFileType) {
 }
 
 class NativeFileSystem implements FileSystemInterface {
-    async open(_caller: Component, request: FsFileSystemOpenRequest): Promise<FsFileSystemOpenResponse> {
+    async open(_caller: ComponentRef, request: FsFileSystemOpenRequest): Promise<FsFileSystemOpenResponse> {
         const filePath = parseUri(request.uri).pathname;
 
         try {
@@ -94,7 +94,7 @@ class NativeFileSystem implements FileSystemInterface {
         }
     }
 
-    async readToString(_caller: Component, request: FsFileSystemReadToStringRequest): Promise<FsFileSystemReadToStringResponse> {
+    async readToString(_caller: ComponentRef, request: FsFileSystemReadToStringRequest): Promise<FsFileSystemReadToStringResponse> {
         const filePath = parseUri(request.uri).pathname;
 
         try {
@@ -104,7 +104,7 @@ class NativeFileSystem implements FileSystemInterface {
         }
     }
 
-    async writeString(_caller: Component, request: FsFileSystemWriteStringRequest) {
+    async writeString(_caller: ComponentRef, request: FsFileSystemWriteStringRequest) {
         const filePath = parseUri(request.uri).pathname;
 
         try {
@@ -114,7 +114,7 @@ class NativeFileSystem implements FileSystemInterface {
         }
     }
 
-    async readDir(_caller: Component, request: FsFileSystemReadDirRequest): Promise<FsFileSystemReadDirResponse> {
+    async readDir(_caller: ComponentRef, request: FsFileSystemReadDirRequest): Promise<FsFileSystemReadDirResponse> {
         const path = parseUri(request).pathname;
         try {
             const result = await nodeFs.readdir(path, { withFileTypes: true });
@@ -134,7 +134,7 @@ class NativeFileSystem implements FileSystemInterface {
         }
     }
 
-    async stat(_caller: Component, request: FsFileSystemStatRequest): Promise<FsFileSystemStatResponse> {
+    async stat(_caller: ComponentRef, request: FsFileSystemStatRequest): Promise<FsFileSystemStatResponse> {
         const path = parseUri(request).pathname;
 
         try {
@@ -158,42 +158,42 @@ export async function uninitialize() {
     await Promise.all(self.ownObjects().map(object => object.dispose()));
 }
 
-export async function open(_caller: Component, request: FsOpenRequest): Promise<FsOpenResponse> {
+export async function open(_caller: ComponentRef, request: FsOpenRequest): Promise<FsOpenResponse> {
     const protocol = parseUri(request.uri).protocol || "file:";
 
     const object = await self.findFileSystemObject(protocol);
     return await object.open(request);
 }
 
-export async function readToString(_caller: Component, request: FsReadToStringRequest): Promise<FsReadToStringResponse> {
+export async function readToString(_caller: ComponentRef, request: FsReadToStringRequest): Promise<FsReadToStringResponse> {
     const protocol = parseUri(request.uri).protocol || "file:";
 
     const object = await self.findFileSystemObject(protocol);
     return await object.readToString(request);
 }
 
-export async function writeString(_caller: Component, request: FsWriteStringRequest): Promise<FsWriteStringResponse> {
+export async function writeString(_caller: ComponentRef, request: FsWriteStringRequest): Promise<FsWriteStringResponse> {
     const protocol = parseUri(request.uri).protocol || "file:";
 
     const object = await self.findFileSystemObject(protocol);
     return await object.writeString(request);
 }
 
-export async function readDir(_caller: Component, request: FsReadDirRequest): Promise<FsReadDirResponse> {
+export async function readDir(_caller: ComponentRef, request: FsReadDirRequest): Promise<FsReadDirResponse> {
     const protocol = parseUri(request).protocol || "file:";
 
     const object = await self.findFileSystemObject(protocol);
     return await object.readDir(request);
 }
 
-export async function stat(_caller: Component, request: FsStatRequest): Promise<FsStatResponse> {
+export async function stat(_caller: ComponentRef, request: FsStatRequest): Promise<FsStatResponse> {
     const protocol = parseUri(request).protocol || "file:";
 
     const object = await self.findFileSystemObject(protocol);
     return await object.stat(request);
 }
 
-export function getBuiltinResourcesLocation(_caller: Component, _request: FsGetBuiltinResourcesLocationRequest): FsGetBuiltinResourcesLocationResponse {
+export function getBuiltinResourcesLocation(_caller: ComponentRef, _request: FsGetBuiltinResourcesLocationRequest): FsGetBuiltinResourcesLocationResponse {
     if (app.isPackaged && "resourcesPath" in process && typeof process.resourcesPath == "string") {
         return pathToFileURL(process.resourcesPath).toString();
     }
@@ -201,11 +201,11 @@ export function getBuiltinResourcesLocation(_caller: Component, _request: FsGetB
     return encodeURI(path.toURI(nodePath.resolve(import.meta.dirname, "..")));
 }
 
-export function getConfigLocation(_caller: Component, _request: FsGetConfigLocationRequest): FsGetConfigLocationResponse {
+export function getConfigLocation(_caller: ComponentRef, _request: FsGetConfigLocationRequest): FsGetConfigLocationResponse {
     return encodeURI(path.toURI(nodePath.dirname(process.execPath)));
 }
 
-export async function openDirectorySelector(caller: Component, request: FsOpenDirectorySelectorRequest): Promise<FsOpenDirectorySelectorResponse> {
+export async function openDirectorySelector(caller: ComponentRef, request: FsOpenDirectorySelectorRequest): Promise<FsOpenDirectorySelectorResponse> {
     const result = await dialog.showOpenDialog({
         properties: [
             'openDirectory',

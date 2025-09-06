@@ -4,14 +4,11 @@ import { ComponentInstance, findComponentById, getActivatedComponentList, getCom
 import * as instance from './ComponentInstance';
 import * as settings from './Settings';
 import { Schema, SchemaError, SchemaObject, validateObject } from 'lib/Schema';
-import * as extensionApi from './extension-api';
-import { registerBuiltinLaunchers } from './registerBuiltinLaunchers';
 import { initialize } from './initialize';
 import * as objects from './Objects';
 import { initializeRenderer } from './initialize-renderer';
 
 initialize();
-registerBuiltinLaunchers();
 
 export async function activate() {
     try {
@@ -73,7 +70,7 @@ export async function deactivate() {
     }
 }
 
-export async function activateComponent(_caller: Component, request: ComponentActivateRequest): Promise<ComponentActivateResponse> {
+export async function activateComponent(_caller: ComponentRef, request: ComponentActivateRequest): Promise<ComponentActivateResponse> {
     const component = findComponentById(request.id);
     if (!component) {
         throw createError(ErrorCode.InvalidParams, `component ${request.id} not found`);
@@ -82,29 +79,13 @@ export async function activateComponent(_caller: Component, request: ComponentAc
     await component.activate();
 }
 
-export async function deactivateComponent(_caller: Component, request: ComponentDeactivateRequest): Promise<ComponentDeactivateResponse> {
+export async function deactivateComponent(_caller: ComponentRef, request: ComponentDeactivateRequest): Promise<ComponentDeactivateResponse> {
     const component = findComponentById(request.id);
     if (!component) {
         throw createError(ErrorCode.InvalidParams, `component ${request.id} not found`);
     }
 
     await component.deactivate();
-}
-
-export async function loadExtension(_caller: Component, request: ExtensionLoadRequest): Promise<ExtensionLoadResponse> {
-    return extensionApi.loadExtension(request);
-}
-
-export async function unloadExtension(_caller: Component, request: ExtensionUnloadRequest): Promise<ExtensionUnloadResponse> {
-    return extensionApi.unloadExtension(request);
-}
-
-export async function installExtension(_caller: Component, request: ExtensionInstallRequest): Promise<ExtensionInstallResponse> {
-    return extensionApi.installExtension(request);
-}
-
-export async function removeExtension(_caller: Component, request: ExtensionRemoveRequest): Promise<ExtensionRemoveResponse> {
-    return extensionApi.removeExtension(request);
 }
 
 function getComponentInstanceSettings(instance: ComponentInstance) {
@@ -123,7 +104,7 @@ function getComponentInstanceSettings(instance: ComponentInstance) {
     };
 }
 
-function getComponentSettings(component: Component) {
+function getComponentSettings(component: ComponentRef) {
     if (component.getId() == ":renderer") {
         // for renderer collect settings for all activated components
 
@@ -178,7 +159,7 @@ function getObjectMember(object: any, path: string[]) {
 
 }
 
-export async function handleSettingsSet(caller: Component, request: SettingsSetRequest): Promise<SettingsSetResponse> {
+export async function handleSettingsSet(caller: ComponentRef, request: SettingsSetRequest): Promise<SettingsSetResponse> {
     const path = request.path.split("/");
     const name = path.pop();
 
@@ -212,53 +193,82 @@ export async function handleSettingsSet(caller: Component, request: SettingsSetR
     settings.save().catch(e => console.error("failed to save settings", e));
 }
 
-export async function handleSettingsGet(caller: Component, request: SettingsGetRequest): Promise<SettingsGetResponse> {
+export async function handleSettingsGet(caller: ComponentRef, request: SettingsGetRequest): Promise<SettingsGetResponse> {
     const { settings, schema } = getComponentSettings(caller);
     const path = request.path.split("/");
 
     return { value: getObjectMember(settings, path), schema: getObjectMember(schema, path) };
 }
 
-export async function shutdown(caller: Component, _request: ShutdownRequest): Promise<ShutdownResponse> {
+export async function shutdown(caller: ComponentRef, _request: ShutdownRequest): Promise<ShutdownResponse> {
     console.warn(`shutdown invoked by ${caller.getId()}`);
     await instance.uninitializeComponent(self.thisComponent().getManifest());
 }
 
-export async function handleObjectCreate(caller: Component, request: ObjectCreateRequest): Promise<ObjectCreateResponse> {
+export async function handleObjectCreate(caller: ComponentRef, request: ObjectCreateRequest): Promise<ObjectCreateResponse> {
     return {
-        object: objects.createObject(caller, request.name, request.interface)
+        object: await objects.createObject(caller, request.name, request.interface)
     };
 }
 
-export async function handleObjectDestroy(caller: Component, request: ObjectDestroyRequest): Promise<ObjectDestroyResponse> {
+export async function handleObjectDestroy(caller: ComponentRef, request: ObjectDestroyRequest): Promise<ObjectDestroyResponse> {
     return objects.destroyObject(caller, request.object)
 }
 
-export async function handleFindObject(_caller: Component, request: ObjectFindRequest): Promise<ObjectFindResponse> {
+export async function handleFindObject(_caller: ComponentRef, request: ObjectFindRequest): Promise<ObjectFindResponse> {
     return {
         object: objects.findObject(request.interfaceName, request.objectName)
     };
 }
 
-export async function handleObjectGetName(_caller: Component, request: ObjectGetNameRequest): Promise<ObjectGetNameResponse> {
+export async function handleObjectGetName(_caller: ComponentRef, request: ObjectGetNameRequest): Promise<ObjectGetNameResponse> {
     return {
         name: objects.getName(request.object)
     };
 }
 
-
-export async function handleObjectGetList(_caller: Component, request: ObjectGetListRequest): Promise<ObjectGetListResponse> {
+export async function handleObjectGetList(_caller: ComponentRef, request: ObjectGetListRequest): Promise<ObjectGetListResponse> {
     return {
         objects: objects.getObjectList(request.interface)
     };
 }
 
-export async function handleObjectCall(caller: Component, request: ObjectCallRequest): Promise<ObjectCallResponse> {
-    return {
-        result: await objects.call(caller, request.object, request.method, request.params) ?? {}
-    };
+export async function handleObjectCall(caller: ComponentRef, request: ObjectCallRequest): Promise<ObjectCallResponse> {
+    return await objects.call(caller, request.object, request.method, request.params) ?? {}
 }
 
-export async function handleObjectNotify(caller: Component, request: ObjectNotifyRequest) {
+export async function handleObjectNotify(caller: ComponentRef, request: ObjectNotifyRequest) {
     return objects.notify(caller, request.object, request.notification, request.params);
+}
+
+export async function handleCall(_caller: ComponentRef, request: ComponentCallRequest): Promise<ComponentCallResponse> {
+    const callerComponent = findComponentById(request.caller);
+    if (!callerComponent) {
+        throw createError(ErrorCode.InvalidRequest, `Cannot find caller component ${request.caller}`);
+    }
+
+    const [componentName, ...method] = request.method.split("/");
+    const component = findComponentById(componentName);
+
+    if (!component) {
+        throw createError(ErrorCode.InvalidRequest, `Cannot find component ${componentName}`);
+    }
+
+    return await component.call(callerComponent, method.join("/"), request.params) ?? {};
+}
+
+export async function handleNotify(_caller: ComponentRef, request: ComponentNotifyRequest) {
+    const callerComponent = findComponentById(request.caller);
+    if (!callerComponent) {
+        throw createError(ErrorCode.InvalidRequest, `Cannot find caller component ${request.caller}`);
+    }
+
+    const [componentName, ...notification] = request.notification.split("/");
+    const component = findComponentById(componentName);
+
+    if (!component) {
+        throw createError(ErrorCode.InvalidRequest, `Cannot find component ${componentName}`);
+    }
+
+    return component.notify(callerComponent, notification.join("/"), request.params);
 }

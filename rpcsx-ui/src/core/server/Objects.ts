@@ -1,5 +1,5 @@
 import { createError } from "lib/Error";
-import { ComponentInstance, findComponentById } from "./ComponentInstance";
+import { ComponentInstance, findComponentById, registerComponent, unregisterComponent } from "./ComponentInstance";
 import * as self from '$';
 
 let nextObjectId = 0;
@@ -22,19 +22,21 @@ export function unregisterInterface(component: ComponentInstance, interfaceName:
 
     iface.forEach(async objectId => {
         const instance = objects[objectId];
-        delete objects[objectId];
+        if (instance) {
+            delete objects[objectId];
 
-        const component = findComponentById(instance.owner);
+            const component = findComponentById(instance.owner);
 
-        try {
-            await component?.objectDestroy(component, instance.interfaceName, objectId);
-        } catch {}
+            try {
+                await component?.objectDestroy(component, instance.interfaceName, objectId);
+            } catch { }
+        }
     });
 
     delete interfaceObjects[id];
 }
 
-export function createObject(caller: Component, objectName: string, interfaceName: string) {
+export async function createObject(caller: ComponentRef, objectName: string, interfaceName: string) {
     if (!(interfaceName in interfaceObjects)) {
         throw createError(ErrorCode.InvalidParams, `Unknown interface ${interfaceName}`);
     }
@@ -49,10 +51,46 @@ export function createObject(caller: Component, objectName: string, interfaceNam
     interfaceObjects[interfaceName].add(objectId);
     caller.onClose(() => destroyObject(caller, objectId));
     self.emitObjectCreatedEvent({ interface: interfaceName, object: objectId });
+
+    if (interfaceName == "core/external-component") {
+        const externalComponent = self.toExternalComponent(objectId);
+        const pid = 0; // FIXME: await externalComponent.getPid();
+        registerComponent({ name: objectName, version: "0.0.1" }, {
+            initialize: (): void | Promise<void> => {
+                return externalComponent.initialize();
+            },
+            activate: (_context: ComponentContext, settings: Json, _signal?: AbortSignal): void | Promise<void> => {
+                return externalComponent.activate({ settings });
+            },
+            deactivate: (_context: ComponentContext) => {
+                return externalComponent.deactivate();
+            },
+            call: (_caller: ComponentRef, method: string, params: Json | undefined) => {
+                return externalComponent.call({ method, params: params ?? null });
+            },
+            notify: async (_caller: ComponentRef, notification: string, params: Json | undefined) => {
+                await externalComponent.notify({ method: notification, params: params ?? null });
+            },
+            objectCall: (_caller: ComponentRef, object: number, method: string, params: Json | undefined) => {
+                return externalComponent.objectCall({ object, method, params: params ?? null });
+            },
+            objectNotify: async (_caller: ComponentRef, object: number, notification: string, params: Json | undefined) => {
+                await externalComponent.objectNotify({ object, method: notification, params: params ?? null });
+            },
+            objectDestroy: async (_caller: ComponentRef, object: number, interfaceName: string) => {
+                await externalComponent.objectDestroy({ object, interfaceName });
+            },
+            getPid: () => pid,
+            dispose: async () => {
+                await externalComponent.dispose();
+            },
+        });
+    }
+
     return objectId;
 }
 
-export function destroyObject(caller: Component, objectId: number) {
+export async function destroyObject(caller: ComponentRef, objectId: number) {
     const instance = objects[objectId];
 
     if (!instance) {
@@ -61,6 +99,12 @@ export function destroyObject(caller: Component, objectId: number) {
 
     if (instance.owner != caller.getId()) {
         throw createError(ErrorCode.InvalidRequest, `${caller.getId()}: Cannot destroy object '${instance.objectName}' created by component '${instance.owner}'`);
+    }
+
+    if (instance.interfaceName == "core/external-component") {
+        try {
+            await unregisterComponent(instance.objectName);
+        } catch {}
     }
 
     delete objects[objectId];
@@ -95,8 +139,12 @@ export function getName(objectId: number) {
     return objectInstance.objectName;
 }
 
-export function call(caller: Component, objectId: number, method: string, params: Json) {
+export function call(caller: ComponentRef, objectId: number, method: string, params: Json) {
     const instance = objects[objectId];
+
+    if (!instance) {
+        throw createError(ErrorCode.InvalidRequest, `Failed to find instance ${objectId}`);
+    }
 
     const callerComponent = findComponentById(caller.getId());
     if (!callerComponent) {
@@ -111,8 +159,12 @@ export function call(caller: Component, objectId: number, method: string, params
     return component.objectCall(callerComponent, objectId, method, params);
 }
 
-export function notify(caller: Component, objectId: number, notification: string, params: Json) {
+export function notify(caller: ComponentRef, objectId: number, notification: string, params: Json) {
     const instance = objects[objectId];
+
+    if (!instance) {
+        throw createError(ErrorCode.InvalidRequest, `Failed to find instance ${objectId}`);
+    }
 
     const callerComponent = findComponentById(caller.getId());
     if (!callerComponent) {

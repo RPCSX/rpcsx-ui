@@ -8,7 +8,7 @@ import * as core from "$core";
 export class ExplorerComponent implements IDisposable {
     items: ExplorerItem[] = [];
     progressToItem: Record<number, ExplorerItem> = {};
-    subscriptions: Record<number, Component> = {};
+    subscriptions: Record<number, ComponentRef> = {};
     refreshAbortController = new AbortController();
     refreshImmediate: NodeJS.Immediate | undefined = undefined;
     describedLocations = new Set<string>();
@@ -218,7 +218,7 @@ export class ExplorerComponent implements IDisposable {
         });
     }
 
-    async get(caller: Component, params: ExplorerGetRequest): Promise<ExplorerGetResponse> {
+    async get(caller: ComponentRef, params: ExplorerGetRequest): Promise<ExplorerGetResponse> {
         // this.refresh();
 
         const progressChannel = params.channel ?? (await progress.progressCreate({

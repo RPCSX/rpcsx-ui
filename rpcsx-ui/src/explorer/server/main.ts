@@ -14,7 +14,7 @@ export function deactivate() {
     component = undefined;
 }
 
-export async function handleAdd(_caller: Component, params: ExplorerAddRequest) {
+export async function handleAdd(_caller: ComponentRef, params: ExplorerAddRequest) {
     if (!component) {
         throw createError(ErrorCode.InvalidRequest);
     }
@@ -22,7 +22,7 @@ export async function handleAdd(_caller: Component, params: ExplorerAddRequest) 
     return component.add(params);
 }
 
-export function handleRemove(_caller: Component, params: ExplorerRemoveRequest) {
+export function handleRemove(_caller: ComponentRef, params: ExplorerRemoveRequest) {
     if (!component) {
         throw createError(ErrorCode.InvalidRequest);
     }
@@ -30,7 +30,7 @@ export function handleRemove(_caller: Component, params: ExplorerRemoveRequest) 
     return component.remove(params);
 }
 
-export async function handleGet(caller: Component, params: ExplorerGetRequest): Promise<ExplorerGetResponse> {
+export async function handleGet(caller: ComponentRef, params: ExplorerGetRequest): Promise<ExplorerGetResponse> {
     if (!component) {
         throw createError(ErrorCode.InvalidRequest);
     }

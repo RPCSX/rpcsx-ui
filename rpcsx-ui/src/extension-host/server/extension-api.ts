@@ -1,14 +1,16 @@
-import * as path from '$/path';
+import * as path from '$core/path';
 import * as fs from '$fs';
-import { findComponent, findComponentById, unregisterComponent } from './ComponentInstance';
-import { createError } from 'lib/Error';
-import { getLauncher } from './Launcher';
-import { Extension } from './Extension';
+import * as core from '$core';
+import { createError } from '$core/Error';
 
-export async function loadExtension(request: ExtensionLoadRequest): Promise<ExtensionLoadResponse> {
-    if (findComponentById(request.id)) {
-        return;
-    }
+export async function loadExtension(request: ExtensionHostLoadRequest): Promise<ExtensionHostLoadResponse> {
+    try {
+        const componentObject = await core.findExternalComponentObject(request.id);
+
+        if (componentObject) {
+            return;
+        }
+    } catch { }
 
     const localExtensionsPath = path.join(await fs.fsGetBuiltinResourcesLocation(undefined), "extensions");
     const extensionManifestLocation = path.join(localExtensionsPath, request.id, "extension.json");
@@ -29,29 +31,29 @@ export async function loadExtension(request: ExtensionLoadRequest): Promise<Exte
         }
     })();
 
-    const launcher = getLauncher(manifest.launcher.type);
+    const launcher = await core.findLauncherObject(manifest.launcher.type);
     if (launcher == null) {
         throw createError(ErrorCode.InternalError, `launcher ${manifest.launcher.type} not found`);
     }
 
-    const process = await (async () => {
-        try {
-            return launcher.launch(path.join(localExtensionsPath, request.id, manifest.executable), manifest.args ?? [], {
-                launcherRequirements: manifest.launcher.requirements ?? {},
-            });
-        } catch {
-            throw createError(ErrorCode.InternalError, `${request.id}: failed to spawn extension process`);
-        }
-    })();
-
-    new Extension(manifest, process);
+    try {
+        await launcher.launch({
+            path: path.join(localExtensionsPath, request.id, manifest.executable),
+            args: manifest.args ?? [],
+            manifest,
+            launcherParams: manifest.launcher.requirements ?? {}
+        });
+    } catch (e) {
+        throw createError(ErrorCode.InternalError, `${request.id}: failed to spawn extension process: ${e}`);
+    }
 }
 
-export async function unloadExtension(request: ExtensionUnloadRequest): Promise<ExtensionUnloadResponse> {
-    await unregisterComponent(request.id);
+export async function unloadExtension(request: ExtensionHostUnloadRequest): Promise<ExtensionHostUnloadResponse> {
+    const componentObject = await core.findExternalComponentObject(request.id);
+    await componentObject.destroy();
 }
 
-export async function installExtension(request: ExtensionInstallRequest): Promise<ExtensionInstallResponse> {
+export async function installExtension(request: ExtensionHostInstallRequest): Promise<ExtensionHostInstallResponse> {
     // FIXME: unpack package
     const extensionManifestLocation = path.join(request.path, "extension.json");
 
@@ -71,15 +73,21 @@ export async function installExtension(request: ExtensionInstallRequest): Promis
         }
     })();
 
-    if (findComponent(manifest.name[0].text, manifest.version)) {
-        throw createError(ErrorCode.InvalidRequest, `extension ${request.path} already installed`);
-    }
+    void manifest;
 
     throw createError(ErrorCode.InternalError, "not implemented");
 }
 
-export async function removeExtension(request: ExtensionRemoveRequest): Promise<ExtensionRemoveResponse> {
-    if (findComponentById(request.id)) {
+export async function removeExtension(request: ExtensionHostRemoveRequest): Promise<ExtensionHostRemoveResponse> {
+    const component = await (async () => {
+        try {
+            return await core.findExternalComponentObject(request.id);
+        } catch {
+            return undefined;
+        }
+    })();
+
+    if (component) {
         throw createError(ErrorCode.InvalidRequest, `extension ${request.id} in use`);
     }
 

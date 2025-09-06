@@ -14,13 +14,8 @@ export class Target {
         return new Target(parts[0], parts[1], parts[2]);
     }
 
-    static native() {
-        return nativeTarget;
-    }
-
     format(): string {
         return this.fileFormat + "-" + this.arch + "-" + this.platform;
     }
 }
 
-const nativeTarget = new Target("none", "none", "none");

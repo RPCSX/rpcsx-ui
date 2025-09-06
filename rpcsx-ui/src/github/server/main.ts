@@ -1,9 +1,9 @@
 import * as github from './github';
 
-export async function handleReleasesLatest(_caller: Component, params: GithubReleasesLatestRequest): Promise<GithubReleasesLatestResponse> {
+export async function handleReleasesLatest(_caller: ComponentRef, params: GithubReleasesLatestRequest): Promise<GithubReleasesLatestResponse> {
     return github.fetchReleasesLatest(params);
 }
 
-export async function handleReleases(_caller: Component, params: GithubReleasesRequest): Promise<GithubReleasesResponse> {
+export async function handleReleases(_caller: ComponentRef, params: GithubReleasesRequest): Promise<GithubReleasesResponse> {
     return github.fetchReleases(params);
 }

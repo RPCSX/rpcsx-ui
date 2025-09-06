@@ -1,8 +1,24 @@
-import { Process } from './Launcher';
-
+import { dirname } from "path";
+import { Target } from "$core/Target";
+import { NativeTarget } from "$core/NativeTarget";
+import { fork, spawn } from "child_process";
+import { Duplex, Readable, Writable } from "stream";
+import { EventEmitter } from "events";
+import { fileURLToPath } from "url";
+import * as self from "$";
+import * as core from "$core";
 import packageJson from '../../../../package.json' with { type: "json" };
-import { findComponent, getComponentId, registerComponent, uninitializeComponent, IComponentImpl } from './ComponentInstance';
-import { createError } from 'lib/Error';
+
+type Process = {
+    stdin: Writable;
+    stdout: Readable;
+    stderr: Readable;
+    kill: (signal: number | NodeJS.Signals) => void;
+    on: (event: 'close' | 'exit', listener: (...args: any[]) => void) => void;
+    once: (event: 'close' | 'exit', listener: (...args: any[]) => void) => void;
+    off: (event: 'close' | 'exit', listener: (...args: any[]) => void) => void;
+    getPid(): number;
+}
 
 type ResponseValue = void | object | null | number | string | boolean | [];
 type ResponseError = {
@@ -13,14 +29,13 @@ type ResponseError = {
 type Response = ResponseValue | ResponseError | void;
 type ErrorHandler = (error: ResponseError) => void;
 
-
 const clientInfo: ClientInfo = Object.freeze({
     name: packageJson.name,
     version: packageJson.version,
     capabilities: {}
 });
 
-export class Extension implements IComponentImpl {
+class JsonRpcProtocol implements ExternalComponentInterface {
     private alive = true;
     private expectedResponses: {
         [key: number]: {
@@ -39,22 +54,24 @@ export class Extension implements IComponentImpl {
     private componentManifest: ComponentManifest;
 
     constructor(
-        public readonly manifest: ExtensionInfo,
-        public readonly extensionProcess: Process) {
+        private objectId: number,
+        public readonly extensionProcess: Process,
+        public manifest: ExtensionInfo) {
+
+        this.componentManifest = {
+            name: manifest.name[0].text,
+            version: manifest.version,
+        };
 
         extensionProcess.stdout.on('data', (message: string) => {
             this.receive(message);
         });
+
         extensionProcess.stderr.on('data', (message: string) => {
             this.debugLog(message);
         });
 
         this.debugLog("Starting");
-
-        this.componentManifest = {
-            ...this.manifest,
-            name: this.manifest.name[0].text
-        };
 
         extensionProcess.on('exit', () => {
             this.debugLog("Exit");
@@ -65,10 +82,8 @@ export class Extension implements IComponentImpl {
                 clearTimeout(this.responseWatchdog);
             }
 
-            uninitializeComponent(this.componentManifest);
+            // uninitializeComponent(this.componentManifest);
         });
-
-        registerComponent(this.componentManifest, this);
     }
 
     getPid() {
@@ -81,7 +96,7 @@ export class Extension implements IComponentImpl {
             if (line.length == 0) {
                 continue;
             }
-            process.stderr.write(`${date} [${this.manifest.name[0].text}-v${this.manifest.version}] ${line}\n`);
+            process.stderr.write(`${date} [${this.componentManifest.name}-v${this.componentManifest.version}] ${line}\n`);
         }
     }
 
@@ -92,31 +107,14 @@ export class Extension implements IComponentImpl {
 
         const response = await this.callMethod<InitializeResponse>("$/initialize", request);
 
-        let isInvalid = false;
-
-        if (response.extension.name[0].text != this.manifest.name[0].text) {
-            this.debugLog(`executable sends unexpected name ${response.extension.name}`);
-            isInvalid = true;
-        }
-
-        if (response.extension.version != this.manifest.version) {
-            this.debugLog(`executable sends unexpected version ${response.extension.version}`);
-            isInvalid = true;
-        }
-
-        // FIXME: register contributions
-
-        if (isInvalid) {
-            throw createError(ErrorCode.InvalidRequest, "Extension initialize request returns invalid name/version");
-        }
+        this.componentManifest = {
+            ...response.extension,
+            name: response.extension.name[0].text,
+        };
     }
 
-    async activate(_context: ComponentContext, settings: JsonObject, signal?: AbortSignal | undefined) {
-        const request: ActivateRequest = {
-            settings
-        };
-
-        return await this.callMethod<ActivateResponse>("$/activate", request, signal);
+    async activate(_caller: ComponentRef, request: ExternalComponentActivateRequest) {
+        return await this.callMethod<ActivateResponse>("$/activate", request);
     }
 
     async deactivate() {
@@ -184,6 +182,18 @@ export class Extension implements IComponentImpl {
         }
     }
 
+    objectCall(_caller: ComponentRef, request: ExternalComponentObjectCallRequest): ExternalComponentObjectCallResponse | Promise<ExternalComponentObjectCallResponse> {
+        return this.callMethod("$/object/call", request);
+    }
+
+    objectDestroy(_caller: ComponentRef, request: ExternalComponentObjectDestroyRequest): void | Promise<void> {
+        return this.sendNotify("$/object/destroy", request);
+    }
+
+    objectNotify(_caller: ComponentRef, request: ExternalComponentObjectNotifyRequest): void | Promise<void> {
+        return this.sendNotify("$/object/notify", request);
+    }
+
     async callMethod<R extends Response = Response>(method: string, params: object | [] | string | number | boolean | null = null, signal?: AbortSignal) {
         const id = this.nextMessageId++;
         const abortHandler = () => this.cancel({ id });
@@ -221,16 +231,16 @@ export class Extension implements IComponentImpl {
         this.send({ jsonrpc: "2.0", notification, params });
     }
 
-    async call(_caller: Component, method: string, params?: Json): Promise<Json | void> {
-        return this.callMethod(method, params);
+    call(_caller: ComponentRef, params: ExternalComponentCallRequest): Promise<ExternalComponentCallResponse> {
+        return this.callMethod(params.method, params.params);
     }
 
-    async notify(_caller: Component, notification: string, params: Json | undefined) {
-        this.sendNotify(notification, params);
+    notify(_caller: ComponentRef, params: ExternalComponentNotifyRequest) {
+        return this.sendNotify(params.method, params.params);
     }
 
-    async cancel(request: CancelRequest) {
-        await this.sendNotify("$/cancel", request);
+    cancel(request: CancelRequest) {
+        return this.sendNotify("$/cancel", request);
     }
 
     onError(handler: ErrorHandler) {
@@ -344,36 +354,20 @@ export class Extension implements IComponentImpl {
         }
 
         if ("method" in message) {
-            const componentMethod = message["method"] as string;
-            const params = "params" in message ? message["params"] as JsonObject : undefined;
-            const [componentName, ...method] = componentMethod.split("/");
-            const component = findComponent(componentName);
-            const self = findComponent(this.componentManifest.name);
-
-            if (!component || !self) {
-                this.send({
-                    jsonrpc: "2.0", id, error: {
-                        code: ErrorCode.MethodNotFound,
-                        message: componentMethod
-                    }
-                });
-
-                return;
-            }
+            const method = message["method"] as string;
+            const params = "params" in message ? message["params"] as JsonObject : null;
 
             if (id !== null) {
                 try {
-                    const result = await component.call(self, method.join("/"), params);
+                    const result = await core.componentCall({ caller: this.manifest.name[0].text, method, params });
                     this.send({ jsonrpc: "2.0", id, result });
                 } catch (error) {
                     this.send({ jsonrpc: "2.0", id, error });
                 }
             } else {
-                try {
-                    component.notify(self, method.join("/"), params);
-                } catch (error) {
+                core.componentNotify({ caller: this.manifest.name[0].text, notification: method, params }).catch(error => {
                     this.send({ jsonrpc: "2.0", error });
-                }
+                });
             }
 
             return;
@@ -400,7 +394,7 @@ export class Extension implements IComponentImpl {
             if (requestDeadline <= now) {
                 delete this.expectedResponses[request];
                 this.debugLog(`wait for response timed out (request ${request})`);
-                this.cancel({ id: parseInt(request) });
+                this.cancel({ id: parseInt(request) }).catch(e => console.warn(`cancellation of request ${request} failed`, e));
                 response.reject({ code: ErrorCode.TimedOut });
             } else if (nextDeadline < 0 || nextDeadline > requestDeadline) {
                 nextDeadline = requestDeadline;
@@ -419,8 +413,157 @@ export class Extension implements IComponentImpl {
         }
     }
 
-    getId() {
-        return getComponentId(this.componentManifest);
+    getObjectId() {
+        return this.objectId;
     }
+}
+
+
+class NativeLauncher implements LauncherInterface {
+    async launch(_caller: ComponentRef, request: LauncherLaunchRequest): Promise<LauncherLaunchResponse> {
+        const path = fileURLToPath(request.path);
+        const newProcess = spawn(path, request.args, {
+            argv0: path,
+            cwd: dirname(process.execPath),
+            stdio: 'pipe'
+        });
+
+        newProcess.stdout.setEncoding('utf8');
+        newProcess.stderr.setEncoding('utf8');
+        const pid = newProcess.pid ?? 0;
+
+        const wrappedNewProcess: Process = {
+            stdin: newProcess.stdin,
+            stdout: newProcess.stdout,
+            stderr: newProcess.stderr,
+
+            kill: (signal: number | NodeJS.Signals) => {
+                newProcess.kill(signal);
+            },
+            on: (event: string, handler: (...args: any[]) => void) => {
+                newProcess.on(event, handler);
+            },
+            once: (event: string, handler: (...args: any[]) => void) => {
+                newProcess.once(event, handler);
+            },
+            off: (event: string, handler: (...args: any[]) => void) => {
+                newProcess.off(event, handler);
+            },
+            getPid: () => pid
+        };
+
+        const protocol = await core.createExternalComponentObject(request.manifest.name[0].text, JsonRpcProtocol, wrappedNewProcess, request.manifest);
+
+        try {
+            await protocol.initialize();
+            return protocol.getObjectId();
+        } catch (e) {
+            self.destroyObject(protocol.getObjectId());
+            newProcess.kill("SIGKILL");
+            throw e;
+        }
+    }
+};
+
+class NodeLauncher implements LauncherInterface {
+    async launch(_caller: ComponentRef, request: LauncherLaunchRequest): Promise<LauncherLaunchResponse> {
+        const path = fileURLToPath(request.path);
+        const newProcess = fork(path, request.args, {
+            stdio: 'pipe',
+            cwd: dirname(path),
+        });
+
+        newProcess.stdout!.setEncoding('utf8');
+        newProcess.stderr!.setEncoding('utf8');
+        const pid = newProcess.pid ?? 0;
+
+        const wrappedNewProcess: Process = {
+            stdin: newProcess.stdin!,
+            stdout: newProcess.stdout!,
+            stderr: newProcess.stderr!,
+
+            kill: (signal: number | NodeJS.Signals) => {
+                newProcess.kill(signal);
+            },
+            on: (event: string, handler: (...args: any[]) => void) => {
+                newProcess.on(event, handler);
+            },
+            once: (event: string, handler: (...args: any[]) => void) => {
+                newProcess.once(event, handler);
+            },
+            off: (event: string, handler: (...args: any[]) => void) => {
+                newProcess.off(event, handler);
+            },
+            getPid: () => pid
+        };
+
+        const protocol = await core.createExternalComponentObject(request.manifest.name[0].text, JsonRpcProtocol, wrappedNewProcess, request.manifest);
+
+        try {
+            await protocol.initialize();
+            return protocol.getObjectId();
+        } catch (e) {
+            self.destroyObject(protocol.getObjectId());
+            newProcess.kill("SIGKILL");
+            throw e;
+        }
+    }
+};
+
+class InlineLauncher implements LauncherInterface {
+    async launch(_caller: ComponentRef, request: LauncherLaunchRequest): Promise<LauncherLaunchResponse> {
+        const path = fileURLToPath(request.path);
+        const imported = await import(path);
+
+        if (!("activate" in imported) || typeof imported.activate != 'function') {
+            throw new Error(`${path}: invalid inline module`);
+        }
+
+        const eventEmitter = new EventEmitter();
+        const stdin = new Duplex();
+        const stdout = new Duplex();
+        const stderr = new Duplex();
+        imported.activate(eventEmitter, request.args, request.launcherParams, stdin, stdout, stderr);
+
+        const wrappedProcess: Process = {
+            stdin: stdin,
+            stdout: stdout,
+            stderr: stderr,
+
+            kill: (_signal: number | NodeJS.Signals) => {
+                if (("deactivate" in imported) && typeof imported.deactivate == 'function') {
+                    imported.deactivate();
+                }
+            },
+            on: (event: string, handler: (...args: any[]) => void) => {
+                eventEmitter.on(event, handler);
+            },
+            once: (event: string, handler: (...args: any[]) => void) => {
+                eventEmitter.once(event, handler);
+            },
+            off: (event: string, handler: (...args: any[]) => void) => {
+                eventEmitter.off(event, handler);
+            },
+            getPid() {
+                return 0;
+            },
+        };
+
+        const protocol = await core.createExternalComponentObject(request.manifest.name[0].text, JsonRpcProtocol, wrappedProcess, request.manifest);
+
+        try {
+            await protocol.initialize();
+            return protocol.getObjectId();
+        } catch (e) {
+            self.destroyObject(protocol.getObjectId());
+            throw e;
+        }
+    }
+};
+
+export async function registerBuiltinLaunchers() {
+    await core.createLauncherObject(NativeTarget.format(), NativeLauncher);
+    await core.createLauncherObject(new Target("js", "any", "node").format(), NodeLauncher);
+    await core.createLauncherObject(new Target("js", "any", "inline").format(), InlineLauncher);
 }
 

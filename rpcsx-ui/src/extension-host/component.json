@@ -11,5 +11,46 @@
         {
             "name": "fs"
         }
-    ]
+    ],
+    "contributions": {
+        "methods": {
+            "load": {
+                "handler": "loadExtension",
+                "params": {
+                    "id": {
+                        "type": "string"
+                    }
+                }
+            },
+            "unload": {
+                "handler": "unloadExtension",
+                "params": {
+                    "id": {
+                        "type": "string"
+                    }
+                }
+            },
+            "install": {
+                "handler": "installExtension",
+                "params": {
+                    "path": {
+                        "type": "string"
+                    }
+                },
+                "returns": {
+                    "id": {
+                        "type": "string"
+                    }
+                }
+            },
+            "remove": {
+                "handler": "removeExtension",
+                "params": {
+                    "id": {
+                        "type": "string"
+                    }
+                }
+            }
+        }
+    }
 }

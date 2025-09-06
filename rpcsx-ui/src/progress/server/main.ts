@@ -4,13 +4,13 @@ import * as api from '$';
 import { Disposable, IDisposable } from '$core/Disposable';
 
 type ProgressInstance = Omit<ProgressValue, 'channel'> & {
-    creator: Component;
+    creator: ComponentRef;
     disposable?: IDisposable;
 };
 
 let nextProgressChannel = 0;
 let channels: Record<number, ProgressInstance> = {};
-let subscriptions: Record<number, Set<Component>> = {};
+let subscriptions: Record<number, Set<ComponentRef>> = {};
 
 export function deactivate() {
     nextProgressChannel = 0;
@@ -30,7 +30,7 @@ export function deactivate() {
     subscriptions = {};
 }
 
-export function progressCreate(source: Component, params: ProgressCreateRequest): ProgressCreateResponse {
+export function progressCreate(source: ComponentRef, params: ProgressCreateRequest): ProgressCreateResponse {
     const channel = nextProgressChannel++;
 
     channels[channel] = {
@@ -58,7 +58,7 @@ export function progressCreate(source: Component, params: ProgressCreateRequest)
     return { channel };
 }
 
-export async function progressUpdate(caller: Component, params: ProgressUpdateRequest) {
+export async function progressUpdate(caller: ComponentRef, params: ProgressUpdateRequest) {
     const info = channels[params.channel];
 
     if (!info) {
@@ -108,7 +108,7 @@ export async function progressUpdate(caller: Component, params: ProgressUpdateRe
     }
 }
 
-export function progressSubscribe(caller: Component, params: ProgressSubscribeRequest) {
+export function progressSubscribe(caller: ComponentRef, params: ProgressSubscribeRequest) {
     if (!(params.channel in channels)) {
         throw createError(ErrorCode.InvalidParams);
     }
@@ -120,7 +120,7 @@ export function progressSubscribe(caller: Component, params: ProgressSubscribeRe
     api.sendProgressUpdateEvent(caller, { value: { channel: params.channel, ...info } });
 }
 
-export function progressUnsubscribe(caller: Component, params: ProgressUnsubscribeRequest) {
+export function progressUnsubscribe(caller: ComponentRef, params: ProgressUnsubscribeRequest) {
     const channelSubscriptions = subscriptions[params.channel];
     if (!channelSubscriptions) {
         return;

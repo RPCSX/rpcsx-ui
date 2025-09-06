@@ -1,6 +1,7 @@
 import * as core from "$core";
 import * as fs from '$fs';
 import * as path from '$core/path';
+import * as extensionApi from './extension-api';
 
 export async function activateLocalExtensions(list: Set<string>) {
     try {
@@ -17,7 +18,7 @@ export async function activateLocalExtensions(list: Set<string>) {
             }
 
             try {
-                await core.extensionLoad({ id: entry.name });
+                await extensionApi.loadExtension({ id: entry.name });
             } catch (e) {
                 console.error(`failed to load local extension ${entry.name}`, e);
                 continue;
@@ -28,7 +29,7 @@ export async function activateLocalExtensions(list: Set<string>) {
             } catch (e) {
                 console.error(`failed to activate extension ${entry.name}`, e);
                 try {
-                    await core.extensionUnload({ id: entry.name });
+                    await extensionApi.unloadExtension({ id: entry.name });
                 } catch (e) {
                     console.error(`failed to unload extension ${entry.name}`, e);
                 }

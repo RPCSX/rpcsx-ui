@@ -7,33 +7,33 @@ export async function deactivate() {
     await fs.uninitialize();
 }
 
-export async function handleOpen(caller: Component, request: FsOpenRequest) {
+export async function handleOpen(caller: ComponentRef, request: FsOpenRequest) {
     return fs.open(caller, request);
 }
 
-export async function handleReadToString(caller: Component, request: FsReadToStringRequest) {
+export async function handleReadToString(caller: ComponentRef, request: FsReadToStringRequest) {
     return fs.readToString(caller, request);
 }
-export async function handleWriteString(caller: Component, request: FsWriteStringRequest) {
+export async function handleWriteString(caller: ComponentRef, request: FsWriteStringRequest) {
     return fs.writeString(caller, request);
 }
 
-export async function handleReadDir(caller: Component, request: FsReadDirRequest) {
+export async function handleReadDir(caller: ComponentRef, request: FsReadDirRequest) {
     return fs.readDir(caller, request);
 }
 
-export async function handleStat(caller: Component, request: FsStatRequest) {
+export async function handleStat(caller: ComponentRef, request: FsStatRequest) {
     return fs.stat(caller, request);
 }
 
-export function handleGetBuiltinResourcesLocation(caller: Component, request: FsGetBuiltinResourcesLocationRequest) {
+export function handleGetBuiltinResourcesLocation(caller: ComponentRef, request: FsGetBuiltinResourcesLocationRequest) {
     return fs.getBuiltinResourcesLocation(caller, request);
 }
 
-export function handleGetConfigLocation(caller: Component, request: FsGetConfigLocationRequest) {
+export function handleGetConfigLocation(caller: ComponentRef, request: FsGetConfigLocationRequest) {
     return fs.getConfigLocation(caller, request);
 }
 
-export function handleOpenDirectorySelector(caller: Component, request: FsOpenDirectorySelectorRequest) {
+export function handleOpenDirectorySelector(caller: ComponentRef, request: FsOpenDirectorySelectorRequest) {
     return fs.openDirectorySelector(caller, request);
 }
