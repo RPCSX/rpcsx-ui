@@ -22,5 +22,4 @@ expo-env.d.ts
 .cxx/
 .gradle/
 .idea/
-modules/**/android/
-
+local.properties
