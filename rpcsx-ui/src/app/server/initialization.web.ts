@@ -86,19 +86,34 @@ export async function initialize() {
         }
     });
 
-    app.on('window-all-closed', async () => {
+
+    let shutdownRequested = false;
+    const shutdown = async () => {
+        if (shutdownRequested) {
+            return;
+        }
+        shutdownRequested = true;
+
+        app.quit();
+
         try {
             await core.shutdown(undefined);
         } catch (e) {
             console.error("shutdown throws exception", e);
         }
+    };
 
+
+    app.on('window-all-closed', () => {
         if (process.platform !== 'darwin') {
-            app.quit();
+            shutdown();
         }
     });
-
     await app.whenReady();
+
+    process.on('SIGINT', () => shutdown());
+    process.on('SIGTERM', () => shutdown());
+    process.on('SIGQUIT', () => shutdown());
 
     const uiPath = path.join(import.meta.dirname, "ui");
 

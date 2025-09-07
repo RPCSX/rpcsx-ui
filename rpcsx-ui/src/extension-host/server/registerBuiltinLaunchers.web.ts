@@ -82,7 +82,8 @@ class JsonRpcProtocol implements ExternalComponentInterface {
                 clearTimeout(this.responseWatchdog);
             }
 
-            // uninitializeComponent(this.componentManifest);
+
+            self.destroyObject(objectId);
         });
     }
 
