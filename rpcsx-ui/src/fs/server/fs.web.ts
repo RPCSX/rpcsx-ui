@@ -7,10 +7,22 @@ import nodePath from 'path';
 import * as path from '$core/path';
 import { dialog } from 'electron';
 import { pathToFileURL } from 'url';
+import nativePath from 'path';
 
 function parseUri(uri: string) {
     return new URL(encodeURI(uri));
 }
+
+function parseFileUriPath(uri: string) {
+    const pathName = decodeURI(parseUri(uri).pathname);
+
+    if (nativePath.sep == "\\" && pathName.startsWith("/")) {
+        return pathName.slice(1);
+    }
+
+    return pathName;
+}
+
 
 class NativeFile implements FileInterface {
     constructor(private id: number, private handle: nodeFs.FileHandle) { }
@@ -83,7 +95,7 @@ function toFileType(fileType: WithFileType) {
 
 class NativeFileSystem implements FileSystemInterface {
     async open(_caller: ComponentRef, request: FsFileSystemOpenRequest): Promise<FsFileSystemOpenResponse> {
-        const filePath = parseUri(request.uri).pathname;
+        const filePath = parseFileUriPath(request.uri);
 
         try {
             const descriptor = await nodeFs.open(filePath, "rb");
@@ -95,7 +107,7 @@ class NativeFileSystem implements FileSystemInterface {
     }
 
     async readToString(_caller: ComponentRef, request: FsFileSystemReadToStringRequest): Promise<FsFileSystemReadToStringResponse> {
-        const filePath = parseUri(request.uri).pathname;
+        const filePath = parseFileUriPath(request.uri);
 
         try {
             return await nodeFs.readFile(filePath, { encoding: "utf8" });
@@ -105,7 +117,7 @@ class NativeFileSystem implements FileSystemInterface {
     }
 
     async writeString(_caller: ComponentRef, request: FsFileSystemWriteStringRequest) {
-        const filePath = parseUri(request.uri).pathname;
+        const filePath = parseFileUriPath(request.uri);
 
         try {
             return await nodeFs.writeFile(filePath, request.string, { encoding: "utf8" });
@@ -115,7 +127,7 @@ class NativeFileSystem implements FileSystemInterface {
     }
 
     async readDir(_caller: ComponentRef, request: FsFileSystemReadDirRequest): Promise<FsFileSystemReadDirResponse> {
-        const path = parseUri(request).pathname;
+        const path = parseFileUriPath(request);
         try {
             const result = await nodeFs.readdir(path, { withFileTypes: true });
 
@@ -135,7 +147,7 @@ class NativeFileSystem implements FileSystemInterface {
     }
 
     async stat(_caller: ComponentRef, request: FsFileSystemStatRequest): Promise<FsFileSystemStatResponse> {
-        const path = parseUri(request).pathname;
+        const path = parseFileUriPath(request);
 
         try {
             const result = await nodeFs.stat(path);
