@@ -10,7 +10,7 @@ import { pathToFileURL } from 'url';
 import nativePath from 'path';
 
 function parseUri(uri: string) {
-    return new URL(encodeURI(uri));
+    return new URL(uri);
 }
 
 function parseFileUriPath(uri: string) {
