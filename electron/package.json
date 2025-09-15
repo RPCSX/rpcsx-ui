@@ -13,16 +13,16 @@
     },
     "license": "GPL-3.0-only",
     "devDependencies": {
-        "@electron-forge/cli": "^7.8.3",
-        "@electron-forge/maker-dmg": "^7.8.3",
-        "@electron-forge/maker-squirrel": "^7.8.3",
-        "@electron-forge/maker-wix": "^7.8.3",
-        "@electron-forge/maker-zip": "^7.8.3",
-        "@electron-forge/plugin-auto-unpack-natives": "^7.8.3",
-        "@electron-forge/plugin-fuses": "^7.8.3",
-        "@electron/fuses": "^1.8.0",
+        "@electron-forge/cli": "^7.9.0",
+        "@electron-forge/maker-dmg": "^7.9.0",
+        "@electron-forge/maker-squirrel": "^7.9.0",
+        "@electron-forge/maker-wix": "^7.9.0",
+        "@electron-forge/maker-zip": "^7.9.0",
+        "@electron-forge/plugin-auto-unpack-natives": "^7.9.0",
+        "@electron-forge/plugin-fuses": "^7.9.0",
+        "@electron/fuses": "^2.0.0",
         "@reforged/maker-appimage": "^5.0.0",
-        "electron": "^37.3.0",
+        "electron": "^38.1.0",
         "electron-squirrel-startup": "^1.0.1"
     }
 }
