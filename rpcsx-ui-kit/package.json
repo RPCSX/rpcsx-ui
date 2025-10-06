@@ -14,7 +14,7 @@
   },
   "license": "GPL-3.0-only",
   "dependencies": {
-    "esbuild": "^0.25.9",
+    "esbuild": "^0.25.10",
     "glob": "^11.0.3",
     "json5": "^2.2.3",
     "prettier": "^3.6.2",
@@ -24,8 +24,8 @@
     "@types/yargs": "^17.0.33",
     "@typescript-eslint/eslint-plugin": "^8.39.1",
     "@typescript-eslint/parser": "^8.39.1",
-    "eslint": "^9.33.0",
+    "eslint": "^9.37.0",
     "eslint-config-prettier": "^10.1.8",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.3"
   }
 }
