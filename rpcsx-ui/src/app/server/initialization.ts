@@ -10,11 +10,13 @@ const mainWindow: Window = {
 };
 
 export function initialize() {
-    return explorer.pushExplorerView(mainWindow, {
+    /*return explorer.pushExplorerView(mainWindow, {
         filter: {
             type: 'game'
         }
-    });
+    });*/
+
+    return bridge.viewSet('InitialSetup', {});
 }
 
 

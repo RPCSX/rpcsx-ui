@@ -24,7 +24,9 @@
     "dev:ui": "npx expo start --dev-client",
     "dev:web:server": "electron electron/build/main.js --dev",
     "install:android:release": "adb install android/app/build/outputs/apk/release/app-release.apk",
-    "install:android": "adb install android/app/build/outputs/apk/debug/app-debug.apk"
+    "install:android": "adb install android/app/build/outputs/apk/debug/app-debug.apk",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
   },
   "license": "GPL-3.0-only",
   "workspaces": [
