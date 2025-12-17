@@ -7,6 +7,7 @@ import * as path from '$core/path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { Future } from '$core/Future.js';
 import * as explorer from '$explorer';
+import * as setup from '$setup';
 import { Window } from '$core/Window';
 
 function toWindow(browserWindow: BrowserWindow): Window {
@@ -73,11 +74,7 @@ export async function initialize() {
         uiInitializedFuture.dispose();
 
         console.log('initialization complete');
-        return explorer.pushExplorerView(toWindow(MainWindow), {
-            filter: {
-                type: 'game'
-            }
-        });
+        return setup.setInitialSetupView(toWindow(MainWindow), {});
     };
 
     app.on('activate', () => {

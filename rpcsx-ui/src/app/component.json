@@ -4,12 +4,15 @@
     "dependencies": [
         {
             "name": "settings"
-        },
+        } ,
         {
             "name": "explorer"
         },
         {
             "name": "fs"
+        },
+        {
+            "name": "setup"
         }
     ]
 }
