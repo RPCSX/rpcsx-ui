@@ -6,18 +6,13 @@ import {
   ScrollView,
   Dimensions,
 } from 'react-native';
-import type { Window } from '$core/Window';
 import * as explorer from '$explorer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as self from '$';
 
 const { width } = Dimensions.get('window');
 
-type Props = {
-  window: Window;
-};
-
-export function InitialSetup({ window }: Props) {
+export function InitialSetup() {
   const scrollRef = useRef<ScrollView>(null);
   const [step, setStep] = useState(0);
   const insets = useSafeAreaInsets();
@@ -52,7 +47,7 @@ export function InitialSetup({ window }: Props) {
     if (step < steps.length - 1) {
       goToStep(step + 1);
     } else {
-      explorer.setExplorerView(window, {
+      explorer.setExplorerView({
         filter: { type: 'game' },
       });
     }

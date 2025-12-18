@@ -67,6 +67,7 @@ export function main(
 
 function App() {
     const [renderItem, setRenderItem] = useState<number>(viewStack.length - 1);
+    const [updateId, setUpdateId] = useState<number>(0);
 
     useEffect(() => {
         console.log("app entered");
@@ -85,6 +86,7 @@ function App() {
                     setRenderItem(item);
                 }
             }
+            setUpdateId(updateId + 1);
         };
     });
 
@@ -103,7 +105,7 @@ function App() {
 
     return (
         <SafeAreaProvider>
-            <TopViewSelector stack={viewStack} index={viewStack.length - 1} />
+            <TopViewSelector stack={viewStack} index={viewStack.length - 1} key={updateId} />
         </SafeAreaProvider>
     )
 }

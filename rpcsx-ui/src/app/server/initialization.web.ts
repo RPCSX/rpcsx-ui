@@ -74,7 +74,13 @@ export async function initialize() {
         uiInitializedFuture.dispose();
 
         console.log('initialization complete');
-        return setup.setInitialSetupView(toWindow(MainWindow), {});
+        //if (setup.settings.getShowInitialSetupScreen()) {
+            return setup.setInitialSetupView(toWindow(MainWindow), {});
+        /*} else {
+            return explorer.setExplorerView(toWindow(MainWindow), {
+                filter: { type: 'game' },
+            });
+        }*/
     };
 
     app.on('activate', () => {

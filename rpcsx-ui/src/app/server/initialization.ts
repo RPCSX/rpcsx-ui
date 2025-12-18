@@ -10,6 +10,12 @@ const mainWindow: Window = {
     popView: () => bridge.viewPop(),
 };
 
-export function initialize() {
-    return setup.setInitialSetupView(mainWindow, {});
+export async function initialize() {
+    if (await setup.shouldShow().value) {
+        return setup.setInitialSetupView(mainWindow, {});
+    } else {
+        return explorer.setExplorerView(mainWindow, {
+            filter: { type: 'game' },
+        });
+    }
 }
