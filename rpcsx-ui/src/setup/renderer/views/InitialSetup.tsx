@@ -1,21 +1,33 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
   Button,
   ScrollView,
-  Dimensions,
 } from 'react-native';
+import Animated, {
+  FadeIn,
+  FadeOut,
+  SlideInRight,
+} from 'react-native-reanimated';
 import * as explorer from '$explorer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as self from '$';
-
-const { width } = Dimensions.get('window');
+import { useWindowDimensions } from 'react-native';
+import { json } from 'stream/consumers';
 
 export function InitialSetup() {
+  const { width } = useWindowDimensions();
   const scrollRef = useRef<ScrollView>(null);
   const [step, setStep] = useState(0);
   const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({
+      x: step * width,
+      animated: false,
+    });
+  }, [width]);
 
   const steps = [
     {
@@ -47,6 +59,7 @@ export function InitialSetup() {
     if (step < steps.length - 1) {
       goToStep(step + 1);
     } else {
+      self.setupSetShowInitialSetupScreen(false);
       explorer.setExplorerView({
         filter: { type: 'game' },
       });
@@ -70,8 +83,10 @@ export function InitialSetup() {
         showsHorizontalScrollIndicator={false}
       >
         {steps.map((s, index) => (
-          <View
+          <Animated.View
             key={index}
+            entering={SlideInRight.duration(500)}
+            exiting={FadeOut.duration(200)}
             style={{
               width,
               padding: 24,
@@ -81,9 +96,10 @@ export function InitialSetup() {
           >
             <Text
               style={{
-                fontSize: 28,
-                fontWeight: '600',
+                fontSize: 34,
+                fontWeight: '500',
                 textAlign: 'center',
+                letterSpacing: 0.3,
               }}
             >
               {s.title}
@@ -93,7 +109,7 @@ export function InitialSetup() {
               style={{
                 marginTop: 8,
                 fontSize: 14,
-                opacity: 0.7,
+                color: 'rgba(255,255,255,0.65)',
                 textAlign: 'center',
               }}
             >
@@ -106,11 +122,13 @@ export function InitialSetup() {
                 fontSize: 16,
                 textAlign: 'center',
                 maxWidth: 420,
+                color: 'rgba(255,255,255,0.65)',
+                lineHeight: 22,
               }}
             >
               {s.content}
             </Text>
-          </View>
+          </Animated.View>
         ))}
       </ScrollView>
 
@@ -126,11 +144,11 @@ export function InitialSetup() {
           <View
             key={i}
             style={{
-              width: 8,
-              height: 8,
-              borderRadius: 4,
+              width: 26,
+              height: 2,
               marginHorizontal: 4,
-              backgroundColor: i === step ? '#000' : '#ccc',
+              backgroundColor:
+              i === step ? '#4da3ff' : 'rgba(255,255,255,0.25)',
             }}
           />
         ))}
@@ -143,6 +161,7 @@ export function InitialSetup() {
           padding: 16,
           paddingBottom: insets.bottom + 16,
           gap: 12,
+          backgroundColor: 'rgba(0,0,0,0.25)',
         }}
       >
         {step > 0 && (
@@ -161,3 +180,4 @@ export function InitialSetup() {
     </View>
   );
 }
+

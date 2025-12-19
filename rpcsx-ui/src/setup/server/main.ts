@@ -1,9 +1,9 @@
 import * as self from '$';
 
-export async function setShowInitialSetupScreen(value: Json) {
-    return self.settings.setShowinitialsetupscreen(value);
+export async function setShowInitialSetupScreen(value: boolean) {
+    return self.settings.setShowInitialSetupScreen(value as any);
 }
 
 export async function handleShouldShow() {
-    return self.settings.getShowinitialsetupscreen();
+    return (await self.settings.getShowInitialSetupScreen()).value;
 }
