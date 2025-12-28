@@ -1,7 +1,7 @@
 import * as self from '$';
 
-export async function setShowInitialSetupScreen(value: boolean) {
-    return self.settings.setShowInitialSetupScreen(value as any);
+export async function setShowInitialSetupScreen(caller: ComponentRef, value: boolean) {
+    // TODO(DH): Implement this function
 }
 
 export async function handleShouldShow() {
