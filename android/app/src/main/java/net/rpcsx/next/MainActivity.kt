@@ -4,6 +4,14 @@ import expo.modules.splashscreen.SplashScreenManager
 import android.os.Build
 import android.os.Bundle
 
+import android.content.res.Configuration
+import android.view.View
+import android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
@@ -21,6 +29,11 @@ class MainActivity : ReactActivity() {
     SplashScreenManager.registerOnActivity(this)
     // @generated end expo-splashscreen
     super.onCreate(null)
+
+    val orientation = resources.configuration.orientation
+    if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
+        enableImmersive()
+    }
   }
 
   /**
@@ -49,17 +62,56 @@ class MainActivity : ReactActivity() {
     * where moving root activities to background instead of finishing activities.
     * @see <a href="https://developer.android.com/reference/android/app/Activity#onBackPressed()">onBackPressed</a>
     */
-  override fun invokeDefaultOnBackPressed() {
-      if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.R) {
-          if (!moveTaskToBack(false)) {
-              // For non-root activities, use the default implementation to finish them.
-              super.invokeDefaultOnBackPressed()
-          }
-          return
-      }
+    override fun invokeDefaultOnBackPressed() {
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.R) {
+            if (!moveTaskToBack(false)) {
+                // For non-root activities, use the default implementation to finish them.
+                super.invokeDefaultOnBackPressed()
+            }
+            return
+        }
 
-      // Use the default back button implementation on Android S
-      // because it's doing more than [Activity.moveTaskToBack] in fact.
-      super.invokeDefaultOnBackPressed()
-  }
+        // Use the default back button implementation on Android S
+        // because it's doing more than [Activity.moveTaskToBack] in fact.
+        super.invokeDefaultOnBackPressed()
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+
+        if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            enableImmersive()
+        } else {
+            disableImmersive()
+        }
+    }
+
+
+    private fun enableImmersive() {
+        with(window) {
+            WindowCompat.setDecorFitsSystemWindows(this, false)
+            val insetsController = WindowInsetsControllerCompat(this, decorView)
+            insetsController.apply {
+                hide(WindowInsetsCompat.Type.systemBars())
+                systemBarsBehavior =
+                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+            attributes.layoutInDisplayCutoutMode = LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        }
+    }
+
+    private fun disableImmersive() {
+        with(window) {
+            val insetsController = WindowInsetsControllerCompat(this, decorView)
+            insetsController.apply {
+                hide(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+       super.onWindowFocusChanged(hasFocus)
+       val orientation = resources.configuration.orientation
+       if (hasFocus && orientation == Configuration.ORIENTATION_LANDSCAPE) enableImmersive()
+    }
 }

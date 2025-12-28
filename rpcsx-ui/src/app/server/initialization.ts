@@ -1,5 +1,6 @@
 import * as bridge from '$core/bridge';
 import * as explorer from '$explorer';
+import * as setup from '$setup';
 import { Window } from '$core/Window';
 
 
@@ -9,12 +10,12 @@ const mainWindow: Window = {
     popView: () => bridge.viewPop(),
 };
 
-export function initialize() {
-    return explorer.pushExplorerView(mainWindow, {
-        filter: {
-            type: 'game'
-        }
-    });
+export async function initialize() {
+    if (await setup.setupShouldShow({})) {
+        return setup.setInitialSetupView(mainWindow, {});
+    } else {
+        return explorer.setExplorerView(mainWindow, {
+            filter: { type: 'game' },
+        });
+    }
 }
-
-

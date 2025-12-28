@@ -1,0 +1,37 @@
+{
+    "name": "setup",
+    "version": "0.1.0",
+    "contributions": {
+        "settings": {
+            "show-initial-setup-screen": {
+                "type": "boolean",
+                "defaultValue": true
+            }
+        },
+        "methods": {
+            "should-show": {
+                "handler": "handleShouldShow",
+                "params": {},
+                "returns": {
+                    "value": {
+                        "type": "boolean"
+                    }
+                }
+            },
+            "set-show-initial-setup-screen": {
+                "handler": "setShowInitialSetupScreen",
+                "params": {
+                    "value": {
+                        "type": "boolean"
+                    }
+                },
+                "returns": {}
+            }
+        }
+    },
+    "dependencies": [
+        {
+            "name": "explorer"
+        }
+    ]
+}
