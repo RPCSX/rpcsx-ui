@@ -2242,22 +2242,58 @@ export async function startup() {
 `;
         }
 
+        const viewListFile = await fileDb.createFile(path.join(genDir, "view-list.ts"), viewsListFile);
+
+        if (viewListFile) {
+            viewListFile.content = `${generatedHeader}
+${Object.keys(views).map(x => `import { ${x} } from '${pathWithoutExt(views[x])}'`).join(';\n')};
+
+export const builtinViews: Record<string, (...props: any[]) => React.JSX.Element> = {
+${Object.keys(views).map(x => `    "${x}": ${x}`).join(',\n')}
+};
+`;
+        }
+
+        const viewsWebFile = await fileDb.createFile(path.join(genDir, "views.web.ts"), viewsListFile);
+
+        if (viewsWebFile) {
+            viewsWebFile.content = `${generatedHeader}
+import { LoadSkiaWeb } from '@shopify/react-native-skia/lib/module/web';
+
+export default async function getViews() {
+    await LoadSkiaWeb({ locateFile: () => 'app://-/canvaskit.wasm' });
+    return (await import('./view-list')).builtinViews;
+}
+`;
+        }
+
+
+        const viewsFile = await fileDb.createFile(path.join(genDir, "views.ts"), viewsListFile);
+
+        if (viewsFile) {
+            viewsFile.content = `${generatedHeader}
+import { builtinViews } from './view-list';
+
+export default async function getViews() {
+    return builtinViews;
+}
+`;
+        }
+
+
         const indexFile = await fileDb.createFile(path.join(genDir, "index.tsx"), viewsListFile);
 
         if (indexFile) {
             indexFile.content = `${generatedHeader}
 import { main } from '$core/main';
 import { startup } from './startup';
-
-${Object.keys(views).map(x => `import { ${x} } from '${pathWithoutExt(views[x])}'`).join(';\n')};
+import getViews from './views';
 
 const serverInitializationPromise = startup();
 
-const builtinViews: Record<string, (...props: any[]) => React.JSX.Element> = {
-${Object.keys(views).map(x => `    "${x}": ${x}`).join(',\n')}
-};
-
-main(builtinViews, serverInitializationPromise);
+getViews().then(builtinViews => {
+    main(builtinViews, serverInitializationPromise);
+});
 `;
         }
 
