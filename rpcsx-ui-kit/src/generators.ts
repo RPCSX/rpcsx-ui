@@ -2242,24 +2242,46 @@ export async function startup() {
 `;
         }
 
+        const viewsFile = await fileDb.createFile(path.join(genDir, "views.ts"), viewsListFile);
+
+        if (viewsFile) {
+            viewsFile.content = `${generatedHeader}
+${Object.keys(views).map(x => `import { ${x} } from '${pathWithoutExt(views[x])}'`).join(';\n')};
+
+export const builtinViews: Record<string, (...props: any[]) => React.JSX.Element> = {
+${Object.keys(views).map(x => `    "${x}": ${x}`).join(',\n')}
+};
+`;
+        }
+
+
         const indexFile = await fileDb.createFile(path.join(genDir, "index.tsx"), viewsListFile);
 
         if (indexFile) {
             indexFile.content = `${generatedHeader}
 import { main } from '$core/main';
 import { startup } from './startup';
-
-${Object.keys(views).map(x => `import { ${x} } from '${pathWithoutExt(views[x])}'`).join(';\n')};
+import { Platform } from 'react-native';
 
 const serverInitializationPromise = startup();
 
-const builtinViews: Record<string, (...props: any[]) => React.JSX.Element> = {
-${Object.keys(views).map(x => `    "${x}": ${x}`).join(',\n')}
-};
-
-main(builtinViews, serverInitializationPromise);
+if (Platform.OS == 'web') {
+    import('@shopify/react-native-skia/lib/module/web').then(({ LoadSkiaWeb }) =>
+        LoadSkiaWeb({ locateFile: () => 'app://-/canvaskit.wasm' }).then(() => {
+            import("./views").then(({ builtinViews }) => {
+                main(builtinViews, serverInitializationPromise);
+            });
+        })
+    );
+} else {
+    import("./views").then(({ builtinViews }) => {
+        main(builtinViews, serverInitializationPromise);
+    });
+}
 `;
         }
+
+
 
         const project: Project = {
             component: expoComponent,

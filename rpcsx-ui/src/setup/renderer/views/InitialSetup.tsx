@@ -21,7 +21,7 @@ import { RPCSXBackground } from '$core/RPCSXBackground';
 import * as RNLocalize from 'react-native-localize';
 
 export function InitialSetup() {
-  const { width, height } = useWindowDimensions();
+  const { width } = useWindowDimensions();
   const scrollRef = useRef<ScrollView>(null);
   const [step, setStep] = useState(0);
   const insets = useSafeAreaInsets();
