@@ -13,6 +13,9 @@
         },
         {
             "name": "fs"
+        },
+        {
+            "name": "login"
         }
     ],
     "contributions": {
