@@ -2297,8 +2297,6 @@ getViews().then(builtinViews => {
 `;
         }
 
-
-
         const project: Project = {
             component: expoComponent,
             name: projectName,
