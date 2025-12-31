@@ -2242,15 +2242,41 @@ export async function startup() {
 `;
         }
 
-        const viewsFile = await fileDb.createFile(path.join(genDir, "views.ts"), viewsListFile);
+        const viewListFile = await fileDb.createFile(path.join(genDir, "view-list.ts"), viewsListFile);
 
-        if (viewsFile) {
-            viewsFile.content = `${generatedHeader}
+        if (viewListFile) {
+            viewListFile.content = `${generatedHeader}
 ${Object.keys(views).map(x => `import { ${x} } from '${pathWithoutExt(views[x])}'`).join(';\n')};
 
 export const builtinViews: Record<string, (...props: any[]) => React.JSX.Element> = {
 ${Object.keys(views).map(x => `    "${x}": ${x}`).join(',\n')}
 };
+`;
+        }
+
+        const viewsWebFile = await fileDb.createFile(path.join(genDir, "views.web.ts"), viewsListFile);
+
+        if (viewsWebFile) {
+            viewsWebFile.content = `${generatedHeader}
+import { LoadSkiaWeb } from '@shopify/react-native-skia/lib/module/web';
+
+export default async function getViews() {
+    await LoadSkiaWeb({ locateFile: () => 'app://-/canvaskit.wasm' });
+    return (await import('./view-list')).builtinViews;
+}
+`;
+        }
+
+
+        const viewsFile = await fileDb.createFile(path.join(genDir, "views.ts"), viewsListFile);
+
+        if (viewsFile) {
+            viewsFile.content = `${generatedHeader}
+import { builtinViews } from './view-list';
+
+export default async function getViews() {
+    return builtinViews;
+}
 `;
         }
 
@@ -2261,23 +2287,13 @@ ${Object.keys(views).map(x => `    "${x}": ${x}`).join(',\n')}
             indexFile.content = `${generatedHeader}
 import { main } from '$core/main';
 import { startup } from './startup';
-import { Platform } from 'react-native';
+import getViews from './views';
 
 const serverInitializationPromise = startup();
 
-if (Platform.OS == 'web') {
-    import('@shopify/react-native-skia/lib/module/web').then(({ LoadSkiaWeb }) =>
-        LoadSkiaWeb({ locateFile: () => 'app://-/canvaskit.wasm' }).then(() => {
-            import("./views").then(({ builtinViews }) => {
-                main(builtinViews, serverInitializationPromise);
-            });
-        })
-    );
-} else {
-    import("./views").then(({ builtinViews }) => {
-        main(builtinViews, serverInitializationPromise);
-    });
-}
+getViews().then(builtinViews => {
+    main(builtinViews, serverInitializationPromise);
+});
 `;
         }
 
