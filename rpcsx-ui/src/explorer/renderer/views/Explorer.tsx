@@ -10,6 +10,7 @@ import { DownShowViewSelector, LeftRightViewSelector } from '$core/ViewSelector'
 import { getLocalizedString } from '$core/Localized';
 import * as settings from '$settings';
 import * as self from '$explorer';
+import * as login from '$login';
 
 import Animated, {
     Easing,
@@ -601,7 +602,7 @@ export function Explorer(props?: Props) {
                         <View style={ExplorerStyles.containerButtonItems}>
                             <HapticPressable><ThemedIcon iconSet="Ionicons" name="search" size={40} /></HapticPressable>
                             <HapticPressable onPress={() => settings.pushSettingsView({})}><ThemedIcon iconSet="Ionicons" name="settings-outline" size={40} /></HapticPressable>
-                            <HapticPressable><ThemedIcon iconSet="FontAwesome6" name="user" size={40} /></HapticPressable>
+                            <HapticPressable onPress={() => login.pushLoginScreenView({})}><ThemedIcon iconSet="FontAwesome6" name="user" size={40} /></HapticPressable>
                         </View>
                     </View>
                 </View>
