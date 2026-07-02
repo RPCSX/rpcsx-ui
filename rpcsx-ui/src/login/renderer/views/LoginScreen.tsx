@@ -72,6 +72,13 @@ export function LoginScreen() {
     );
   };
 
+  const goToRegister = () => {
+    pagerRef.current?.scrollTo({
+        x: width * 2,
+        animated: true,
+    });
+};
+
   const goToManual = () => {
     pagerRef.current?.scrollTo({ x: width, animated: true });
   };
@@ -127,7 +134,7 @@ export function LoginScreen() {
               </Pressable>
             </Animated.View>
 
-            <Pressable style={styles.secondaryButton}>
+            <Pressable style={styles.secondaryButton} onPress={goToRegister}>
               <Text style={styles.secondaryText}>Create an Account</Text>
             </Pressable>
           </View>
@@ -167,6 +174,62 @@ export function LoginScreen() {
           </View>
         </View>
       </View>
+
+      <View style={styles.page}>
+        <View style={styles.card}>
+          <Text style={[styles.title, styles.mb12]}>
+              Create Account
+          </Text>
+
+          <Text style={[styles.description, styles.mb12]}>
+              Create a RPCSX account.
+          </Text>
+
+          <TextInput
+              placeholder="Username"
+              placeholderTextColor="#888"
+              style={[styles.input, styles.mb12]}
+          />
+
+          <TextInput
+              placeholder="Email"
+              placeholderTextColor="#888"
+              style={[styles.input, styles.mb12]}
+              keyboardType="email-address"
+              autoCapitalize="none"
+          />
+
+          <TextInput
+              placeholder="Password"
+              placeholderTextColor="#888"
+              style={[styles.input, styles.mb12]}
+              secureTextEntry
+          />
+
+           <TextInput
+              placeholder="Confirm Password"
+              placeholderTextColor="#888"
+              style={[styles.input, styles.mb12]}
+              secureTextEntry
+          />
+            <View style={styles.actions}>
+              <Pressable
+                  style={[styles.primaryButton, styles.mb12]}>
+                  <Text style={styles.primaryText}>
+                      Create Account
+                  </Text>
+              </Pressable>
+
+              <Pressable
+                  style={styles.secondaryButton}
+                  onPress={goToQR}>
+                  <Text style={styles.secondaryText}>
+                      Already have an account?
+                  </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
     </ScrollView>
   );
 }
