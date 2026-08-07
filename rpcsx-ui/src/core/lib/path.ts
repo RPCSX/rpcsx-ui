@@ -1,5 +1,5 @@
 export function join(...a: string[]) {
-    return a.join("/");
+    return a.map(p => p.replaceAll("\\", "/")).join("/");
 }
 
 export function toURI(path: string) {

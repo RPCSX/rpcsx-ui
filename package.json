@@ -14,7 +14,7 @@
     "build:api:cpp": "node rpcsx-ui-kit/build/cli.js generate --lang c++ --input rpcsx-ui --output extensions/cpp/rpcsx-ui --name rpcsx-ui",
     "build:web:server": "node ./build.mjs",
     "build:web:ui": "expo export --platform web --dev --output-dir electron/build/ui --no-minify --source-maps",
-    "build:web:ui:release": "expo export --platform web --dev --output-dir electron/build/ui",
+    "build:web:ui:release": "expo export --platform web --output-dir electron/build/ui",
     "build:web": "npm run build:kit && npm run build:web:server && npm run build:web:ui && cp node_modules/canvaskit-wasm/bin/full/canvaskit.wasm electron/build/ui/ && npm run build:extensions && npm run install:extensions",
     "build:web:release": "npm run build:kit && npm run build:web:server && npm run build:web:ui:release && cp node_modules/canvaskit-wasm/bin/full/canvaskit.wasm electron/build/ui/ && npm run build:extensions && npm run install:extensions",
     "build:android": "npm run build:kit && expo prebuild --platform android && ./android/gradlew assembleDebug -p ./android",
