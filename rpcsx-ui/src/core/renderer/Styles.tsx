@@ -6,6 +6,7 @@ export type StylesParams = {
   outline: string;
   primary: string;
   onPrimary: string;
+  surfaceContainer: string;
 };
 
 export const Styles = ({
@@ -14,6 +15,7 @@ export const Styles = ({
   outline,
   primary,
   onPrimary,
+  surfaceContainer
 }: StylesParams) =>
   StyleSheet.create({
     /** Layout */
@@ -36,6 +38,43 @@ export const Styles = ({
       marginBottom: 24,
     },
 
+    homeHeader: {
+        paddingHorizontal: 32,
+        paddingTop: 20,
+        paddingBottom: 16,
+    },
+
+    topRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+    },
+
+    logo: {
+        fontSize: 30,
+        fontWeight: "700",
+    },
+
+    homeHeaderActions: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 22,
+    },
+
+    tabs: {
+        flexDirection: "row",
+        marginTop: 24,
+        gap: 36,
+    },
+
+    avatar: {
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: surfaceContainer,
+    },
 
     headerRow: {
       flexDirection: 'row',

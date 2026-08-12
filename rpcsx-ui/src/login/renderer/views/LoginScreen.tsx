@@ -36,6 +36,7 @@ export function LoginScreen() {
   const outline = useThemeColor('outline');
   const primary = useThemeColor('primary');
   const onPrimary = useThemeColor('onPrimary');
+  const surfaceContainer = useThemeColor('surfaceContainer');
 
   const isCompact = height < 700 || width < 500;
   const qrSize = Math.min(width * 0.5, isCompact ? 160 : 220);
@@ -91,8 +92,9 @@ export function LoginScreen() {
         outline,
         primary,
         onPrimary,
+        surfaceContainer,
       }),
-    [width, onSurface, outline, primary, onPrimary]
+    [width, onSurface, outline, primary, onPrimary, surfaceContainer]
   );
 
   return (

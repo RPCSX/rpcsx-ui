@@ -1,8 +1,9 @@
-import { ComponentProps, memo, useEffect, useRef, useState } from 'react';
+import { ComponentProps, memo, useEffect, useMemo, useRef, useState } from 'react';
 import * as React from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, View, FlatList, Modal, useWindowDimensions, ImageBackground, TextInput } from 'react-native';
 import { useThemeColor } from '$core/useThemeColor'
 import ThemedIcon from '$core/ThemedIcon';
+import { Styles } from '$core/Styles';
 import { ThemedText } from '$core/ThemedText';
 import { getIcon, getName, getLocalizedImage } from "$/ExplorerItemUtils"
 import { HapticPressable } from '$core/HapticPressable';
@@ -540,23 +541,39 @@ export function Explorer(props?: Props) {
     const [activeTab, setActiveTab] = useState(0);
     const [games, setGames] = useState<ExplorerItem[]>([]);
     const [updateId, setUpdateId] = useState(0);
+    const { width } = useWindowDimensions();
+    const onSurface = useThemeColor('onSurface');
+    const onPrimary = useThemeColor('onPrimary');
     const surfaceContainer = useThemeColor("surfaceContainer");
     const primary = useThemeColor("primary");
     const outline = useThemeColor("outline");
     const text = useThemeColor("text");
 
+    const styles = useMemo(
+        () =>
+            Styles({
+                width,
+                onSurface,
+                outline,
+                primary,
+                onPrimary,
+                surfaceContainer,
+            }),
+        [width, onSurface, outline, primary, onPrimary, surfaceContainer]
+    );
+
     useEffect(() => {
-      const timeout = setTimeout(() => {
-        games.length = 0;
-        setGames([]);
-        setUpdateId(id => id + 1);
+        const timeout = setTimeout(() => {
+            games.length = 0;
+            setGames([]);
+            setUpdateId(id => id + 1);
 
-        self.explorerGet({
-          query: searchQuery.length > 0 ? searchQuery : undefined
-        });
-      }, 150);
+            self.explorerGet({
+                query: searchQuery.length > 0 ? searchQuery : undefined
+            });
+        }, 150);
 
-      return () => clearTimeout(timeout);
+        return () => clearTimeout(timeout);
     }, [searchQuery]);
 
     const safeArea = StyleSheet.create({
@@ -606,63 +623,89 @@ export function Explorer(props?: Props) {
     ];
 
     return (
-        <ImageBackground source={{ uri: background }} style={{ width: "100%", height: "100%" }} resizeMode="cover">
+        <ImageBackground
+            source={{ uri: background }}
+            style={{ width: "100%", height: "100%" }}
+            resizeMode="cover"
+        >
             <View style={[ExplorerStyles.rootContainer]}>
-                <View style={[ExplorerStyles.menuContainer, safeArea.header]}>
-                    <View style={ExplorerStyles.containerTabs}>
-                        <View style={ExplorerStyles.containerTabItems}>
-                            {
-                                screens.map((screen, index) =>
-                                    <ScreenTab key={screen.title} title={screen.title} active={activeTab == index} onPress={() => updateActiveTab(index)} />
-                                )
-                            }
+                <View style={[styles.homeHeader, safeArea.header]}>
+                    <View style={styles.topRow}>
+                        <ThemedText type="title" style={styles.logo}>
+                            RPCSX
+                        </ThemedText>
+
+                        <View style={styles.homeHeaderActions}>
+                            <HapticPressable onPress={() => setSearchOpen(v => !v)}>
+                                <ThemedIcon iconSet="Ionicons" name="search" size={28} />
+                            </HapticPressable>
+
+                            <HapticPressable onPress={() => settings.pushSettingsView({})}>
+                                <ThemedIcon iconSet="Ionicons" name="settings-outline" size={28} />
+                            </HapticPressable>
+
+                            <HapticPressable onPress={() => login.pushLoginScreenView({})}>
+                                <View style={styles.avatar}>
+                                    <ThemedIcon iconSet="FontAwesome6" name="user" size={18} />
+                                </View>
+                            </HapticPressable>
                         </View>
                     </View>
-                    <View style={[ExplorerStyles.containerButtons]}>
-                        <View style={ExplorerStyles.containerButtonItems}>
-                            <HapticPressable onPress={() => setSearchOpen(v => !v)}>
-                              <ThemedIcon iconSet="Ionicons" name="search" size={40} />
-                            </HapticPressable>
-                            <HapticPressable onPress={() => settings.pushSettingsView({})}><ThemedIcon iconSet="Ionicons" name="settings-outline" size={40} /></HapticPressable>
-                            <HapticPressable onPress={() => login.pushLoginScreenView({})}><ThemedIcon iconSet="FontAwesome6" name="user" size={40} /></HapticPressable>
-                        </View>
+
+                    <View style={styles.tabs}>
+                        {screens.map((screen, index) => (
+                            <ScreenTab
+                                key={screen.title}
+                                title={screen.title}
+                                active={activeTab === index}
+                                onPress={() => updateActiveTab(index)}
+                            />
+                        ))}
                     </View>
                 </View>
 
                 {searchOpen && (
-                  <View style={{ paddingHorizontal: 20, marginBottom: 10 }}>
-                    <View style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      borderRadius: 20,
-                      paddingHorizontal: 16,
-                      height: 48,
-                      backgroundColor: surfaceContainer,
-                    }}>
-                      <ThemedIcon iconSet="Ionicons" name="search" size={20} />
-                      <TextInput
-                        style={{
-                          flex: 1,
-                          marginLeft: 10,
-                          fontSize: 18,
-                          color: text,
-                       }}
-                       placeholder="Search"
-                       placeholderTextColor={outline}
-                       value={searchQuery}
-                       onChangeText={setSearchQuery}
-                       autoFocus
-                       selectionColor={primary}
-                       cursorColor={primary}
-                      />
+                    <View style={{ paddingHorizontal: 20, marginBottom: 10 }}>
+                        <View
+                            style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                borderRadius: 20,
+                                paddingHorizontal: 16,
+                                height: 48,
+                                backgroundColor: surfaceContainer,
+                            }}
+                        >
+                            <ThemedIcon iconSet="Ionicons" name="search" size={20} />
+                            <TextInput
+                                style={{
+                                    flex: 1,
+                                    marginLeft: 10,
+                                    fontSize: 18,
+                                    color: text,
+                                }}
+                                placeholder="Search"
+                                placeholderTextColor={outline}
+                                value={searchQuery}
+                                onChangeText={setSearchQuery}
+                                autoFocus
+                                selectionColor={primary}
+                                cursorColor={primary}
+                            />
+                        </View>
                     </View>
-                  </View>
                 )}
-                <LeftRightViewSelector key={updateId} list={screens} style={[ExplorerStyles.contentContainer, safeArea.content]} renderItem={item =>
-                    <ExplorerView items={item.view} setBackground={setBackground} />} selectedItem={activeTab} />
+
+                <LeftRightViewSelector
+                    key={updateId}
+                    list={screens}
+                    style={[ExplorerStyles.contentContainer, safeArea.content]}
+                    renderItem={item => (
+                        <ExplorerView items={item.view} setBackground={setBackground} />
+                    )}
+                    selectedItem={activeTab}
+                />
             </View>
         </ImageBackground>
     )
 };
-
-
