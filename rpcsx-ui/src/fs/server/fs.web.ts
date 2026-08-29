@@ -214,7 +214,7 @@ export function getBuiltinResourcesLocation(_caller: ComponentRef, _request: FsG
 }
 
 export function getConfigLocation(_caller: ComponentRef, _request: FsGetConfigLocationRequest): FsGetConfigLocationResponse {
-    return encodeURI(path.toURI(nodePath.dirname(process.execPath)));
+    return encodeURI(path.toURI(app.getPath('userData')));
 }
 
 export async function openDirectorySelector(caller: ComponentRef, request: FsOpenDirectorySelectorRequest): Promise<FsOpenDirectorySelectorResponse> {

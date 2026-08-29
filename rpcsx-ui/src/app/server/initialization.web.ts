@@ -4,7 +4,7 @@ import * as core from '$core';
 import { PathLike } from 'fs';
 import nodePath from 'path';
 import * as path from '$core/path';
-import { fileURLToPath, pathToFileURL } from 'url';
+import { pathToFileURL } from 'url';
 import { Future } from '$core/Future.js';
 import * as explorer from '$explorer';
 import * as setup from '$setup';
@@ -74,13 +74,13 @@ export async function initialize() {
         uiInitializedFuture.dispose();
 
         console.log('initialization complete');
-        //if (setup.settings.getShowInitialSetupScreen()) {
+        if ((await setup.setupShouldShow({})).value) {
             return setup.setInitialSetupView(toWindow(MainWindow), {});
-        /*} else {
+        } else {
             return explorer.setExplorerView(toWindow(MainWindow), {
                 filter: { type: 'game' },
             });
-        }*/
+        }
     };
 
     app.on('activate', () => {

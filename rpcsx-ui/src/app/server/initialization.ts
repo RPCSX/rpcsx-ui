@@ -11,7 +11,7 @@ const mainWindow: Window = {
 };
 
 export async function initialize() {
-    if (await setup.setupShouldShow({})) {
+    if ((await setup.setupShouldShow({})).value) {
         return setup.setInitialSetupView(mainWindow, {});
     } else {
         return explorer.setExplorerView(mainWindow, {

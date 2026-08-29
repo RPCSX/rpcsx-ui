@@ -1,9 +1,10 @@
 import * as self from '$';
 
-export async function setShowInitialSetupScreen(caller: ComponentRef, value: boolean) {
-    // TODO(DH): Implement this function
+export async function setShowInitialSetupScreen(caller: ComponentRef, request: { value: boolean }) {
+    await self.settings.setShowInitialSetupScreen(request.value);
 }
-
+ 
 export async function handleShouldShow() {
-    return (await self.settings.getShowInitialSetupScreen()).value;
+    const raw = await self.settings.getShowInitialSetupScreen();
+    return { value: raw.value };
 }
